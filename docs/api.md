@@ -1,0 +1,226 @@
+# API-referentie
+
+Alle endpoints geven JSON terug. Fouten hebben altijd de vorm
+`{ "error": "boodschap" }` met een passende HTTP-status
+(400 validatie · 401 niet aangemeld · 404 niet gevonden · 409 conflict ·
+429 te veel pogingen · 502 fout bij EenvoudigFactureren · 500 onverwacht).
+
+Alle endpoints behalve `/api/auth/login`, `/api/auth/totp/*` en `/api/health`
+vereisen een geldige sessiecookie (`tc_session`). Zonder sessie: 401.
+
+## Auth
+
+### POST /api/auth/login
+```json
+{ "username": "wim", "password": "•••" }
+```
+Respons, afhankelijk van de situatie:
+- `{ "ok": true }` — volledig aangemeld (vertrouwd toestel)
+- `{ "ok": false, "needsTotp": true }` — TOTP-code vereist (→ verify)
+- `{ "ok": false, "needsTotpSetup": true }` — eerste keer: 2FA instellen (→ setup)
+- 401 bij foute login, 429 na 10 foute pogingen binnen 15 min (per IP)
+
+### POST /api/auth/totp/setup
+Start de 2FA-setup (vereist een pending of volledige sessie).
+→ `{ "otpauthUrl": "otpauth://…", "qrDataUrl": "data:image/png;base64,…" }`
+
+### POST /api/auth/totp/confirm
+```json
+{ "code": "123456" }
+```
+Bevestigt de setup. → `{ "ok": true, "recoveryCodes": ["AB12-CD34", …] }`
+De herstelcodes worden **één keer** teruggegeven. Een nieuwe setup maakt alle
+oude herstelcodes en vertrouwde toestellen ongeldig.
+
+### POST /api/auth/totp/verify
+```json
+{ "code": "123456", "trustDevice": true, "deviceLabel": "iPhone" }
+```
+`code` mag ook een herstelcode zijn (eenmalig bruikbaar). Bij `trustDevice`
+wordt een `tc_trusted_device`-cookie (30 dagen) gezet. → `{ "ok": true }`
+
+### POST /api/auth/logout · GET /api/auth/me
+Afmelden (vertrouwd toestel blijft) · huidige gebruiker opvragen.
+
+### GET /api/auth/trusted-devices · DELETE /api/auth/trusted-devices
+Actieve vertrouwde toestellen bekijken · ze allemaal intrekken (daarna is
+overal opnieuw een TOTP-code nodig bij het aanmelden).
+
+## Klanten
+
+### GET /api/customers?search=&includeInactive=1
+Lijst, gesorteerd op naam. `search` zoekt in naam/gemeente/straat.
+Elke klant bevat `openTodoCount` (open + ingeplande todo's).
+
+### POST /api/customers
+```json
+{ "name": "Jan Peeters", "email": "jan@example.com", "street": "Kerkstraat 10",
+  "postalCode": "9000", "city": "Gent", "vatNumber": "", "notes": "" }
+```
+Alleen `name` is verplicht. → 201 met de klant.
+
+### GET /api/customers/:id
+Detail inclusief `todos[]` (met `windowLabel` voor terugkerend werk) en
+`recurringTemplates[]`.
+
+### PATCH /api/customers/:id
+Gedeeltelijke update; zelfde velden als POST, alles optioneel.
+
+### DELETE /api/customers/:id
+- Klant **met** historiek (todo's/facturen/terugkerend werk) → gearchiveerd:
+  `{ "archived": true }`
+- Klant **zonder** historiek → echt verwijderd: `{ "deleted": true }`
+
+### POST /api/customers/import-ef
+Importeert alle klanten uit EenvoudigFactureren (idempotent; zie
+[integratie-eenvoudigfactureren.md](integratie-eenvoudigfactureren.md)).
+→ `{ "totalInEf": 42, "created": 30, "linked": 10, "skipped": 2 }`
+
+### POST /api/customers/:id/push-ef
+Maakt of synchroniseert deze klant in EenvoudigFactureren.
+→ `{ "efClientId": 123, "created": true }` of `{ …, "updated": true }`
+
+## Todo's
+
+### GET /api/todos?customerId=&status=&plannable=1
+- `plannable=1`: alleen `OPEN`, gesorteerd op voorkeursvenster (voor de planning).
+- Elke todo bevat `customerName` en `windowLabel`.
+
+### POST /api/todos
+```json
+{ "customerId": 7, "title": "Haag scheren", "estimatedHours": 3.5, "description": "" }
+```
+
+### GET /api/todos/:id — detail incl. afspraken
+### PATCH /api/todos/:id — `title`, `description`, `estimatedHours`, `status`
+`status: "DONE"` zet `completedAt`; `"OPEN"` wist het weer.
+### DELETE /api/todos/:id
+409 zodra er afspraken aan hangen — dan annuleren i.p.v. verwijderen.
+
+## Planning (afspraken)
+
+### GET /api/appointments?from=ISO&to=ISO
+Afspraken (niet-geannuleerd) binnen het bereik — gebruikt door de weekkalender
+en "Komende dagen". Elke afspraak is verrijkt met `todoTitle`, `customerName`,
+`address` (voor Waze) en `customerEmail`.
+
+### GET /api/appointments/today
+De afspraken van vandaag (Brusselse kalenderdag), gesorteerd op startuur.
+
+### POST /api/appointments
+```json
+{ "todoId": 12, "startAt": "2026-11-18T08:00:00.000Z", "durationMinutes": 120, "note": "" }
+```
+Zet de todo automatisch op `PLANNED`. 409 als de todo al afgerond/geannuleerd is.
+
+### PATCH /api/appointments/:id
+Velden: `startAt`, `durationMinutes`, `note`, `status` (`PLANNED`/`CANCELLED`).
+**Herinneringsregel:** verschuift de afspraak naar een andere Brusselse dag,
+dan wordt `reminderSentAt` gereset → de klant krijgt een nieuwe herinnering.
+409 op afgeronde afspraken.
+
+### DELETE /api/appointments/:id
+Haalt de afspraak uit de planning. De todo springt terug naar `OPEN` als er
+geen andere geplande afspraken meer zijn.
+
+### POST /api/appointments/:id/send-reminder
+Verstuurt de herinnering handmatig (ook vóór het automatische uur, of als
+retry). 400 als de klant geen e-mailadres heeft, 409 als de afspraak niet
+`PLANNED` is, 502 als het versturen faalt.
+
+## Registratie & facturen
+
+### POST /api/appointments/:id/complete
+Werk afronden (mobiele flow). Lokaal wordt alles in één transactie bewaard;
+daarna volgt de (niet-blokkerende) push naar EenvoudigFactureren als concept.
+```json
+{
+  "ownHours": 3,
+  "workers": [{ "name": "Jef", "hours": 2, "hourlyRate": 20 }],
+  "extras": [{ "priceListItemId": 2, "description": "Afvoer groenafval",
+               "quantity": 2, "unit": "m³", "unitPrice": 35, "vatRate": 21 }],
+  "note": ""
+}
+```
+→ 201:
+```json
+{ "completed": true, "invoiceId": 1, "totalExclVat": 245,
+  "efPush": { "ok": false, "error": "…" } }
+```
+409 als de afspraak al geregistreerd of niet `PLANNED` is.
+Tarieven (eigen uurtarief, btw op arbeid) komen uit Instellingen en worden als
+snapshot bewaard.
+
+### GET /api/invoices?status=
+Overzicht (nieuwste eerst, max 200) met `pushStatus`
+(`PENDING`/`CONCEPT_CREATED`/`FAILED`), `totalExclVat`, `workTitle`, `workDate`.
+
+### POST /api/invoices/:id/retry-push
+Mislukte EF-push opnieuw proberen. 409 zodra er al een `efInvoiceId` is
+(nooit dubbele concepten), 502 als het opnieuw faalt.
+
+## Catalogus
+
+### GET/POST /api/workers · PATCH/DELETE /api/workers/:id
+Vaste medewerkers `{ name, hourlyRate, active }`. Verwijderen is veilig:
+geregistreerde uren zijn snapshots.
+
+### GET/POST /api/price-list · PATCH/DELETE /api/price-list/:id
+Prijslijst `{ name, unit (≤10 tekens), unitPrice, vatRate (0/6/12/21), active,
+sortOrder }`. `?includeInactive=1` toont ook gedeactiveerde items.
+
+## Instellingen & jobs
+
+### GET /api/settings
+Alle zakelijke instellingen + configuratiestatus:
+```json
+{ "ownHourlyRate": 45, "laborVatRate": 21, "reminderSendHour": 18,
+  "invoiceDaysDue": 30, "reminderEmailSubject": "…", "reminderEmailBody": "…",
+  "mailConfigured": false, "efConfigured": false }
+```
+
+### PUT /api/settings
+Werkt een of meer instellingen bij (zelfde velden, alles optioneel).
+`laborVatRate` accepteert alleen 6 of 21; `reminderSendHour` 16–21.
+
+### POST /api/jobs/reminders
+Draait de reminder-job onmiddellijk (beheer/test). Respons:
+`{ "candidates": 2, "sent": 1, "failed": 0, "skippedNoEmail": 1 }`
+
+## Terugkerend werk
+
+### GET /api/recurring-templates?customerId=
+Sjablonen met hun periodes (`windows[]`, elk met `label`, `startMonth/Day`,
+`endMonth/Day`; `endMonth < startMonth` = over de jaargrens).
+
+### POST /api/recurring-templates
+```json
+{ "customerId": 7, "title": "Haag scheren", "estimatedHours": 4,
+  "leadTimeDays": 30,
+  "windows": [
+    { "label": "Mei", "startMonth": 5, "startDay": 1, "endMonth": 5, "endDay": 31 },
+    { "label": "Sep–Okt", "startMonth": 9, "startDay": 1, "endMonth": 10, "endDay": 31 }
+  ] }
+```
+
+### PATCH /api/recurring-templates/:id
+Zelfde velden. Windows worden gereconcilieerd: met `id` = bijwerken, zonder
+`id` = nieuw, weggelaten = verwijderd. Zo ontstaan er nooit dubbele beurten
+voor al bestaande periodes.
+
+### DELETE /api/recurring-templates/:id
+Al gegenereerde todo's blijven staan; er komen geen nieuwe beurten meer bij.
+
+### POST /api/jobs/recurring
+Draait de generatie onmiddellijk (idempotent).
+→ `{ "windowsChecked": 4, "todosCreated": 1 }`
+
+## Overig
+
+### GET /api/health
+`{ "status": "ok", "database": "ok" }` of 503 als de database onbereikbaar is.
+
+---
+
+*Endpoints voor planning (afspraken), registratie/facturen, prijslijst,
+medewerkers en instellingen volgen in Fase 2–5 en worden hier aangevuld.*

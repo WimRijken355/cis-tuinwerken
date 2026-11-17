@@ -1,0 +1,24 @@
+# dependencies
+node_modules/
+
+# next.js build
+.next/
+out/
+
+# env-bestanden met secrets — alleen .env.example hoort in git
+.env
+.env.local
+.env.production
+
+# gegenereerde Prisma-client (opnieuw aan te maken met `prisma generate`)
+src/generated/
+
+# gegenereerde service worker (Serwist bouwt die bij elke build)
+public/sw.js
+public/sw.js.map
+public/serwist-*.js
+
+# logs & misc
+npm-debug.log*
+*.tsbuildinfo
+next-env.d.ts

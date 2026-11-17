@@ -1,0 +1,13 @@
+# Niet nodig in het build-context — en .env mag NOOIT in het image belanden.
+node_modules
+.next
+.env
+.env.*
+!.env.example
+src/generated
+docs
+README.md
+*.md
+.git
+public/sw.js
+public/sw.js.map

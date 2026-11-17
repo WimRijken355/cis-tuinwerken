@@ -1,0 +1,334 @@
+// ============================================================================
+// Datamodel Tuinwerken Cis
+//
+// Afspraken:
+// - Alle tijdstippen worden als UTC (timestamptz) opgeslagen. Omrekenen naar
+//   Europe/Brussels gebeurt uitsluitend in code (Luxon), nooit in de database.
+// - Geldbedragen en uren zijn Decimal — nooit floats (afrondingsfouten).
+// - Tarieven worden bij registratie ge-SNAPSHOT in LaborEntry/ExtraCharge,
+//   zodat oude registraties/facturen correct blijven als de prijslijst wijzigt.
+// ============================================================================
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ----------------------------------------------------------------------------
+// Authenticatie
+// ----------------------------------------------------------------------------
+
+model User {
+  id            Int       @id @default(autoincrement())
+  username      String    @unique
+  passwordHash  String // bcrypt
+  /// TOTP-geheim, AES-256-GCM-versleuteld met een sleutel afgeleid van SESSION_SECRET.
+  /// NULL = 2FA nog niet ingesteld → gebruiker wordt bij login naar de setup geleid.
+  totpSecret    String?
+  totpEnabledAt DateTime?
+  createdAt     DateTime  @default(now())
+
+  recoveryCodes  RecoveryCode[]
+  trustedDevices TrustedDevice[]
+}
+
+/// Eenmalig bruikbare herstelcodes (getoond bij 2FA-setup, alleen gehasht bewaard).
+model RecoveryCode {
+  id       Int       @id @default(autoincrement())
+  userId   Int
+  codeHash String // sha256
+  usedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// "Vertrouw dit toestel 30 dagen": cookie-token (gehasht) waarmee de
+/// TOTP-stap wordt overgeslagen op het eigen toestel.
+model TrustedDevice {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  tokenHash  String   @unique // sha256 van het cookie-token
+  label      String? // bv. "iPhone van Wim"
+  createdAt  DateTime @default(now())
+  lastUsedAt DateTime @default(now())
+  expiresAt  DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------------------
+// Klanten
+// ----------------------------------------------------------------------------
+
+model Customer {
+  id          Int     @id @default(autoincrement())
+  name        String
+  /// Zonder e-mailadres kan er geen herinnering gestuurd worden; de UI waarschuwt.
+  email       String?
+  phone       String?
+  street      String?
+  postalCode  String?
+  city        String?
+  countryCode String  @default("BE")
+  /// Btw-nummer van de klant (EF-veld: tax_code).
+  vatNumber   String?
+  /// Koppeling met EenvoudigFactureren; gezet bij import of eerste push.
+  efClientId  Int?    @unique
+  notes       String?
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  todos              Todo[]
+  recurringTemplates RecurringTemplate[]
+  invoices           Invoice[]
+}
+
+// ----------------------------------------------------------------------------
+// Todo's & terugkerend werk
+// ----------------------------------------------------------------------------
+
+enum TodoStatus {
+  OPEN // nog in te plannen
+  PLANNED // heeft een (toekomstige) afspraak
+  DONE
+  CANCELLED
+}
+
+model Todo {
+  id             Int        @id @default(autoincrement())
+  customerId     Int
+  title          String
+  description    String?
+  estimatedHours Decimal    @db.Decimal(5, 2)
+  status         TodoStatus @default(OPEN)
+  completedAt    DateTime?
+
+  // --- Koppeling met terugkerend werk -------------------------------------
+  /// Gezet wanneer deze todo gegenereerd is uit een RecurringWindow.
+  recurringWindowId Int?
+  /// Jaar van de beurt; samen met recurringWindowId de idempotentie-sleutel:
+  /// de generatiejob kan nooit twee todo's voor dezelfde beurt aanmaken.
+  occurrenceYear    Int?
+  /// Concrete voorkeursperiode van deze beurt (bv. 2026-05-01 t/m 2026-05-31).
+  windowStart       DateTime? @db.Date
+  windowEnd         DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  recurringWindow RecurringWindow? @relation(fields: [recurringWindowId], references: [id], onDelete: SetNull)
+  appointments    Appointment[]
+
+  @@unique([recurringWindowId, occurrenceYear])
+  @@index([customerId])
+  @@index([status])
+}
+
+/// Sjabloon voor terugkerend werk, bv. "Haag scheren" 2×/jaar.
+/// Elke beurt per jaar is een RecurringWindow (2×/jaar = 2 windows).
+model RecurringTemplate {
+  id             Int     @id @default(autoincrement())
+  customerId     Int
+  title          String
+  description    String?
+  estimatedHours Decimal @db.Decimal(5, 2)
+  /// Zoveel dagen vóór het begin van het venster verschijnt de todo als "in te plannen".
+  leadTimeDays   Int     @default(30)
+  active         Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  customer Customer          @relation(fields: [customerId], references: [id])
+  windows  RecurringWindow[]
+
+  @@index([customerId])
+}
+
+/// Eén voorkeursperiode binnen een jaar, bv. "Mei" (5/1 – 5/31)
+/// of "Sept–Okt" (9/1 – 10/31). endMonth < startMonth = over de jaargrens heen.
+model RecurringWindow {
+  id         Int    @id @default(autoincrement())
+  templateId Int
+  label      String // bv. "Mei", "Sept–Okt"
+  startMonth Int // 1..12
+  startDay   Int    @default(1)
+  endMonth   Int // 1..12
+  endDay     Int    @default(31)
+  sortOrder  Int    @default(0)
+
+  template RecurringTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  todos    Todo[]
+
+  @@index([templateId])
+}
+
+// ----------------------------------------------------------------------------
+// Planning
+// ----------------------------------------------------------------------------
+
+enum AppointmentStatus {
+  PLANNED
+  DONE
+  CANCELLED
+}
+
+model Appointment {
+  id              Int               @id @default(autoincrement())
+  todoId          Int
+  /// Start van de afspraak, UTC. Dagvergelijkingen altijd via Luxon in Europe/Brussels.
+  startAt         DateTime
+  durationMinutes Int
+  status          AppointmentStatus @default(PLANNED)
+  note            String?
+  /// Gezet zodra de herinneringsmail succesvol verstuurd is.
+  /// Wordt op NULL gereset wanneer de afspraak naar een andere (Brusselse) dag verschuift.
+  reminderSentAt  DateTime?
+  /// Laatste foutmelding bij het versturen; zichtbaar als badge in de UI.
+  reminderError   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  todo       Todo        @relation(fields: [todoId], references: [id])
+  completion Completion?
+
+  @@index([startAt])
+  @@index([todoId])
+}
+
+// ----------------------------------------------------------------------------
+// Registratie na afronden (uren + extra's)
+// ----------------------------------------------------------------------------
+
+/// Eén registratie per afgeronde afspraak: wie heeft hoeveel uren gewerkt
+/// en welke extra's (machines, afvoer, ...) worden aangerekend.
+model Completion {
+  id            Int      @id @default(autoincrement())
+  appointmentId Int      @unique
+  completedAt   DateTime @default(now())
+  note          String?
+
+  appointment  Appointment   @relation(fields: [appointmentId], references: [id])
+  laborEntries LaborEntry[]
+  extraCharges ExtraCharge[]
+  invoice      Invoice?
+}
+
+/// Gewerkte uren van één persoon. workerName NULL = de zaakvoerder zelf.
+/// hourlyRate en vatRate zijn snapshots van het tarief op dat moment.
+model LaborEntry {
+  id           Int     @id @default(autoincrement())
+  completionId Int
+  workerName   String?
+  hours        Decimal @db.Decimal(5, 2)
+  hourlyRate   Decimal @db.Decimal(8, 2)
+  vatRate      Decimal @db.Decimal(4, 2)
+
+  completion Completion @relation(fields: [completionId], references: [id], onDelete: Cascade)
+
+  @@index([completionId])
+}
+
+/// Vaste medewerkers als picklist voor de mobiele registratieflow.
+model Worker {
+  id         Int     @id @default(autoincrement())
+  name       String
+  hourlyRate Decimal @db.Decimal(8, 2)
+  active     Boolean @default(true)
+}
+
+/// Configureerbare prijslijst: machinegebruik, afvoer groenafval, ...
+model PriceListItem {
+  id        Int     @id @default(autoincrement())
+  name      String
+  /// Max 10 tekens — harde limiet van EenvoudigFactureren voor factuureenheden.
+  unit      String  @db.VarChar(10)
+  unitPrice Decimal @db.Decimal(10, 2)
+  vatRate   Decimal @default(21) @db.Decimal(4, 2)
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
+}
+
+/// Aangerekende extra op een registratie. Alle velden zijn snapshots;
+/// priceListItemId is louter een referentie naar de bron.
+model ExtraCharge {
+  id              Int     @id @default(autoincrement())
+  completionId    Int
+  priceListItemId Int?
+  description     String
+  quantity        Decimal @db.Decimal(8, 2)
+  unit            String  @db.VarChar(10)
+  unitPrice       Decimal @db.Decimal(10, 2)
+  vatRate         Decimal @db.Decimal(4, 2)
+
+  completion Completion @relation(fields: [completionId], references: [id], onDelete: Cascade)
+
+  @@index([completionId])
+}
+
+// ----------------------------------------------------------------------------
+// Facturen (push naar EenvoudigFactureren)
+// ----------------------------------------------------------------------------
+
+enum InvoicePushStatus {
+  PENDING // lokaal aangemaakt, push nog bezig/niet gestart
+  CONCEPT_CREATED // conceptfactuur staat in EenvoudigFactureren
+  FAILED // push mislukt; retry mogelijk vanuit de UI
+}
+
+model Invoice {
+  id           Int               @id @default(autoincrement())
+  completionId Int               @unique
+  customerId   Int
+  /// Id van de conceptfactuur in EenvoudigFactureren (gezet bij geslaagde push).
+  efInvoiceId  Int?
+  pushStatus   InvoicePushStatus @default(PENDING)
+  /// Exacte items-payload zoals naar EF gestuurd — audittrail + basis voor retry.
+  linesJson    Json
+  totalExclVat Decimal           @db.Decimal(10, 2)
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  pushedAt     DateTime?
+
+  completion Completion @relation(fields: [completionId], references: [id])
+  customer   Customer   @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
+  @@index([pushStatus])
+}
+
+// ----------------------------------------------------------------------------
+// Instellingen & logging
+// ----------------------------------------------------------------------------
+
+/// Zakelijke instellingen, bewerkbaar in de UI (eigen uurtarief, btw op arbeid,
+/// uur van de herinneringsmail, mailtemplate, ...). Secrets horen hier NIET —
+/// die staan in env-variabelen.
+model Setting {
+  key   String @id
+  value Json
+}
+
+model EmailLog {
+  id            Int      @id @default(autoincrement())
+  appointmentId Int?
+  toAddress     String
+  subject       String
+  status        String // SENT | FAILED
+  error         String?
+  sentAt        DateTime @default(now())
+
+  @@index([appointmentId])
+}

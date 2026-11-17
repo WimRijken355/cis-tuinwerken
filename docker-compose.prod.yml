@@ -1,0 +1,87 @@
+# ============================================================================
+# Productie op de Hetzner-VM.
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Vereist een .env-bestand naast dit bestand (zie .env.example, sectie
+# "Productie"). Caddy regelt automatisch HTTPS voor APP_DOMAIN.
+#
+# ⚠ BELANGRIJK: schaal de app NOOIT naar meer dan 1 replica. De cronjobs
+#   (herinneringsmails, terugkerend werk) draaien in het appproces zelf;
+#   met 2 replica's zouden klanten dubbele mails krijgen.
+# ============================================================================
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: "postgresql://tuinwerken:${POSTGRES_PASSWORD}@postgres:5432/tuinwerken"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tuinwerken
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: tuinwerken
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tuinwerken -d tuinwerken"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  # Nachtelijkse pg_dump-backups: 7 dagelijkse, 4 wekelijkse, 6 maandelijkse.
+  # De dumps staan in het backups-volume; kopieer ze geregeld óók off-site
+  # (bv. Hetzner Storage Box) — zie docs/deployment.md.
+  postgres-backup:
+    image: prodrigestivill/postgres-backup-local:17
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: tuinwerken
+      POSTGRES_USER: tuinwerken
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: "7"
+      BACKUP_KEEP_WEEKS: "4"
+      BACKUP_KEEP_MONTHS: "6"
+      TZ: Europe/Brussels
+    volumes:
+      - backups:/backups
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+  backups:

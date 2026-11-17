@@ -1,0 +1,6 @@
+# Reverse proxy met automatische HTTPS (Let's Encrypt).
+# APP_DOMAIN komt uit .env via docker-compose.prod.yml.
+{$APP_DOMAIN} {
+	reverse_proxy app:3000
+	encode gzip
+}

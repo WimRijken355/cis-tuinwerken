@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* Kleurthema: rustig groen voor een tuinwerkenbedrijf. */
+@theme {
+  --color-brand-50: #f0f7f0;
+  --color-brand-100: #dcecdc;
+  --color-brand-500: #3d7a3d;
+  --color-brand-600: #2f662f;
+  --color-brand-700: #265326;
+  --color-brand-900: #16311a;
+}
+
+body {
+  background-color: #f6f8f6;
+  color: #1d2a1f;
+}

@@ -1,0 +1,28 @@
+# Ontwikkelomgeving: alleen de database draait in Docker.
+# De app zelf start je met `npm run dev`.
+#
+# Starten:  docker compose up -d postgres
+# Stoppen:  docker compose down        (data blijft bewaard in het volume)
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: tuinwerken-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tuinwerken
+      POSTGRES_PASSWORD: tuinwerken_dev # alleen voor lokaal gebruik
+      POSTGRES_DB: tuinwerken
+    ports:
+      # Hostpoort 5433: 5432 is op deze machine al bezet door een andere Postgres.
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tuinwerken -d tuinwerken"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
