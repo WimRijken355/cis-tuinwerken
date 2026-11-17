@@ -42,7 +42,7 @@ interface CompleteResult {
 
 const parseNum = (v: string) => Number(v.replace(",", "."));
 
-export default function RegistrerenPage() {
+export default function RegisterPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -97,7 +97,7 @@ export default function RegistrerenPage() {
     return (
       <div className="p-4">
         <ErrorNote message="Deze afspraak is al afgerond of geannuleerd." />
-        <Link href="/vandaag" className="mt-3 inline-block text-sm text-brand-600 hover:underline">
+        <Link href="/today" className="mt-3 inline-block text-sm text-brand-600 hover:underline">
           ← Terug naar Vandaag
         </Link>
       </div>
@@ -129,7 +129,7 @@ export default function RegistrerenPage() {
               Je registratie is wél bewaard — probeer het later opnieuw via Facturen.
             </p>
           )}
-          <Button className="mt-4 w-full" onClick={() => router.replace("/vandaag")}>
+          <Button className="mt-4 w-full" onClick={() => router.replace("/today")}>
             Naar Vandaag
           </Button>
         </div>
@@ -142,7 +142,7 @@ export default function RegistrerenPage() {
 
   return (
     <div className="mx-auto max-w-lg p-4">
-      <Link href="/vandaag" className="text-sm text-brand-600 hover:underline">
+      <Link href="/today" className="text-sm text-brand-600 hover:underline">
         ← Vandaag
       </Link>
       <h1 className="mt-1 text-xl font-bold text-brand-900">{appointment.todoTitle}</h1>

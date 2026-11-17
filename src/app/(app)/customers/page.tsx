@@ -16,7 +16,7 @@ import {
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatAddress, type CustomerDto, type CustomerInput } from "@/lib/schemas/customers";
 
-export default function KlantenPage() {
+export default function CustomersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [showNew, setShowNew] = useState(false);
@@ -65,7 +65,7 @@ export default function KlantenPage() {
           {customers.map((c) => (
             <li key={c.id}>
               <Link
-                href={`/klanten/${c.id}`}
+                href={`/customers/${c.id}`}
                 className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50"
               >
                 <div className="min-w-0">

@@ -18,7 +18,7 @@ import { formatDateShort } from "@/lib/time";
  * Overzicht van de automatisch aangemaakte facturen + hun pushstatus naar
  * EenvoudigFactureren. Finaliseren/versturen gebeurt bewust in EF zelf.
  */
-export default function FacturenPage() {
+export default function InvoicesPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>("");
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { APP_VERSION } from "@/lib/version";
 
 /**
  * Navigatie van de app-shell:
@@ -11,12 +12,12 @@ import { usePathname, useRouter } from "next/navigation";
  */
 
 const ITEMS = [
-  { href: "/vandaag", label: "Vandaag", icon: "📋" },
-  { href: "/komende-dagen", label: "Dagen", labelLong: "Komende dagen", icon: "🗓️" },
+  { href: "/today", label: "Vandaag", icon: "📋" },
+  { href: "/upcoming-days", label: "Dagen", labelLong: "Komende dagen", icon: "🗓️" },
   { href: "/planning", label: "Planning", icon: "📅" },
-  { href: "/klanten", label: "Klanten", icon: "👥" },
-  { href: "/facturen", label: "Facturen", icon: "🧾" },
-  { href: "/instellingen", label: "Meer", labelLong: "Instellingen", icon: "⚙️" },
+  { href: "/customers", label: "Klanten", icon: "👥" },
+  { href: "/invoices", label: "Facturen", icon: "🧾" },
+  { href: "/settings", label: "Meer", labelLong: "Instellingen", icon: "⚙️" },
 ] as const;
 
 function useIsActive() {
@@ -63,6 +64,7 @@ export function SidebarNav() {
       >
         ↩ Afmelden
       </button>
+      <div className="px-4 pb-3 text-xs text-gray-400">v{APP_VERSION}</div>
     </aside>
   );
 }

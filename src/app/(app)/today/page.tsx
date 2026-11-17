@@ -11,7 +11,7 @@ import { formatTime } from "@/lib/time";
  * Dagplanning voor op de werf: grote, duimvriendelijke kaarten met
  * Waze-navigatie en (vanaf Fase 4) de knop om het werk af te ronden.
  */
-export default function VandaagPage() {
+export default function TodayPage() {
   const { data: appointments, isLoading, error } = useQuery({
     queryKey: ["appointments", "today"],
     queryFn: () => apiGet<AppointmentDto[]>("/api/appointments/today"),
@@ -68,7 +68,7 @@ export default function VandaagPage() {
               )}
               {a.status === "PLANNED" && (
                 <Link
-                  href={`/vandaag/${a.id}/registreren`}
+                  href={`/today/${a.id}/register`}
                   className="flex-1 rounded-md bg-brand-600 py-2.5 text-center text-sm font-semibold text-white hover:bg-brand-700"
                 >
                   ✓ Klaar — uren ingeven

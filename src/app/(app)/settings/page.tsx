@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import type { Settings } from "@/lib/schemas/settings";
+import { APP_VERSION } from "@/lib/version";
 
 interface SettingsResponse extends Settings {
   mailConfigured: boolean;
@@ -33,7 +34,7 @@ interface ReminderRunReport {
   skippedNoEmail: number;
 }
 
-export default function InstellingenPage() {
+export default function SettingsPage() {
   const { data: settings, isLoading } = useQuery({
     queryKey: ["settings"],
     queryFn: () => apiGet<SettingsResponse>("/api/settings"),
@@ -51,6 +52,9 @@ export default function InstellingenPage() {
           <ReminderSection settings={settings} />
           <EfImportSection efConfigured={settings.efConfigured} />
           <BeveiligingSection />
+          <p className="pt-2 text-center text-xs text-gray-400">
+            Tuinwerken Cis · versie {APP_VERSION}
+          </p>
         </div>
       )}
     </div>

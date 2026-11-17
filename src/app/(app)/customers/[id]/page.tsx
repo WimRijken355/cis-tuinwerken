@@ -27,7 +27,7 @@ interface CustomerDetail extends CustomerDto {
   recurringTemplates: RecurringTemplateDto[];
 }
 
-export default function KlantDetailPage() {
+export default function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -60,7 +60,7 @@ export default function KlantDetailPage() {
       if (result.archived) {
         setToast("Klant gearchiveerd (had historiek).");
       } else {
-        router.replace("/klanten");
+        router.replace("/customers");
       }
     },
   });
@@ -80,7 +80,7 @@ export default function KlantDetailPage() {
 
   return (
     <div className="p-4 md:p-8">
-      <Link href="/klanten" className="text-sm text-brand-600 hover:underline">
+      <Link href="/customers" className="text-sm text-brand-600 hover:underline">
         ← Alle klanten
       </Link>
       <PageHeader

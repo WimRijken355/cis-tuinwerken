@@ -21,7 +21,7 @@ const DAYS_AHEAD = 14;
  * Komende 14 dagen, gegroepeerd per dag. Tik op een afspraak om ze te
  * verplaatsen (datum/tijd) — handig 's avonds of bij slecht weer.
  */
-export default function KomendeDagenPage() {
+export default function UpcomingDaysPage() {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<AppointmentDto | null>(null);
 
