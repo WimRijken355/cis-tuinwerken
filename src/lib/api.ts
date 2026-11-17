@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { setAuditUser } from "./audit-context";
+import { db } from "./db";
 import { getSession } from "./session";
 
 /**
@@ -34,6 +35,19 @@ export async function requireUser(): Promise<number> {
   }
   setAuditUser(session.userId);
   return session.userId;
+}
+
+/**
+ * Guard for ADMIN-only endpoints (user management, audit trail): returns
+ * the userId if the signed-in user is ADMIN, otherwise throws a 403.
+ */
+export async function requireAdmin(): Promise<number> {
+  const userId = await requireUser();
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (user?.role !== "ADMIN") {
+    throw new ApiError("Geen toegang — enkel voor beheerders", 403);
+  }
+  return userId;
 }
 
 /** Standaard catch-afhandeling voor route handlers. */

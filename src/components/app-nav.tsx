@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useCurrentUser } from "@/lib/auth-client";
 import { APP_VERSION } from "@/lib/version";
 
 /**
  * Navigatie van de app-shell:
  * - breed scherm (md+): vaste sidebar links
  * - smal scherm: bottom-tabs (duimvriendelijk)
- * Alle schermen zijn op elk toesteltype bereikbaar.
+ * Alle schermen zijn op elk toesteltype bereikbaar, behalve adminOnly-items.
  */
 
 const ITEMS = [
@@ -17,9 +18,10 @@ const ITEMS = [
   { href: "/planning", label: "Planning", icon: "📅" },
   { href: "/customers", label: "Klanten", icon: "👥" },
   { href: "/invoices", label: "Facturen", icon: "🧾" },
-  // Admin/review feature, not a frequent field-use flow — kept out of the
-  // mobile bottom tabs (already 6 items) to avoid crowding; see BottomTabs.
-  { href: "/audit-log", label: "Audittrail", icon: "📜", desktopOnly: true },
+  // Admin-only features, not a frequent field-use flow — kept out of the
+  // mobile bottom tabs (already 6 items) to avoid crowding; see useVisibleItems.
+  { href: "/users", label: "Gebruikers", icon: "🧑‍🤝‍🧑", desktopOnly: true, adminOnly: true },
+  { href: "/audit-log", label: "Audittrail", icon: "📜", desktopOnly: true, adminOnly: true },
   { href: "/settings", label: "Meer", labelLong: "Instellingen", icon: "⚙️" },
 ] as const;
 
@@ -28,9 +30,21 @@ function useIsActive() {
   return (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/** Filters ITEMS by the current user's role (adminOnly) and, optionally, device (desktopOnly). */
+function useVisibleItems(includeDesktopOnly: boolean) {
+  const { data } = useCurrentUser();
+  const isAdmin = data?.user?.role === "ADMIN";
+  return ITEMS.filter((item) => {
+    if ("adminOnly" in item && item.adminOnly && !isAdmin) return false;
+    if (!includeDesktopOnly && "desktopOnly" in item && item.desktopOnly) return false;
+    return true;
+  });
+}
+
 export function SidebarNav() {
   const isActive = useIsActive();
   const router = useRouter();
+  const items = useVisibleItems(true);
 
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -45,7 +59,7 @@ export function SidebarNav() {
         <span className="font-bold text-brand-700">Tuinwerken Cis</span>
       </div>
       <nav className="flex-1 space-y-1 px-2">
-        {ITEMS.map((item) => (
+        {items.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -74,10 +88,11 @@ export function SidebarNav() {
 
 export function BottomTabs() {
   const isActive = useIsActive();
+  const items = useVisibleItems(false);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-      {ITEMS.filter((item) => !("desktopOnly" in item && item.desktopOnly)).map((item) => (
+      {items.map((item) => (
         <Link
           key={item.href}
           href={item.href}

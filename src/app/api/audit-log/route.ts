@@ -1,12 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { handleApiError, requireUser } from "@/lib/api";
+import { handleApiError, requireAdmin } from "@/lib/api";
 import { db } from "@/lib/db";
 import { auditLogQuerySchema, type AuditLogListResponse } from "@/lib/schemas/audit-log";
 
-/** GET /api/audit-log?table=&action=&page=&pageSize= — overzicht van alle gelogde wijzigingen. */
+/** GET /api/audit-log?table=&action=&page=&pageSize= — overzicht van alle gelogde wijzigingen (ADMIN-only). */
 export async function GET(request: NextRequest) {
   try {
-    await requireUser();
+    await requireAdmin();
     const { table, action, page, pageSize } = auditLogQuerySchema.parse(
       Object.fromEntries(request.nextUrl.searchParams),
     );

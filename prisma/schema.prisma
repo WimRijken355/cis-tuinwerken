@@ -22,10 +22,21 @@ datasource db {
 // Authenticatie
 // ----------------------------------------------------------------------------
 
+/// ADMIN can do everything, including user management and the audit trail.
+/// SUPERUSER can do everything except view the audit trail; user management
+/// is deliberately ADMIN-only (see requireAdmin() in src/lib/api.ts).
+enum Role {
+  ADMIN
+  SUPERUSER
+}
+
 model User {
   id            Int       @id @default(autoincrement())
   username      String    @unique
   passwordHash  String // bcrypt
+  /// @default(ADMIN) so the existing (first) user stays admin through this
+  /// migration; new users always get an explicit role from the create form.
+  role          Role      @default(ADMIN)
   /// TOTP-geheim, AES-256-GCM-versleuteld met een sleutel afgeleid van SESSION_SECRET.
   /// NULL = 2FA nog niet ingesteld → gebruiker wordt bij login naar de setup geleid.
   totpSecret    String?
