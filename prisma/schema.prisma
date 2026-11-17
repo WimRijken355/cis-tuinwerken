@@ -332,3 +332,35 @@ model EmailLog {
 
   @@index([appointmentId])
 }
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+/// Audittrail van alle wijzigingen op de zakelijke tabellen (zie
+/// src/lib/db.ts — automatisch gevuld via een Prisma Client Extension,
+/// dus geen enkele create/update/delete op een auditbare tabel kan dit
+/// overslaan). Authenticatie-tabellen (User, RecoveryCode, TrustedDevice)
+/// worden bewust NIET gelogd: `before`/`after` zouden anders wachtwoord-
+/// hashes en 2FA-geheimen in de audittrail zetten.
+model AuditLog {
+  id        Int         @id @default(autoincrement())
+  /// Prisma-modelnaam, bv. "Customer", "Invoice".
+  tableName String
+  /// Primary key van de gewijzigde rij, als string (werkt voor Int- en String-keys).
+  recordId  String
+  action    AuditAction
+  /// Aangemelde gebruiker die de wijziging deed; NULL = door een achtergrondjob
+  /// (cron: herinneringen, terugkerend werk) zonder ingelogde gebruiker.
+  userId    Int?
+  /// Volledige rij vóór de wijziging (NULL bij CREATE).
+  before    Json?
+  /// Volledige rij na de wijziging (NULL bij DELETE).
+  after     Json?
+  createdAt DateTime    @default(now())
+
+  @@index([tableName, recordId])
+  @@index([createdAt])
+}

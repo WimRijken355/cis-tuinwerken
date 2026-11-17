@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { setAuditUser } from "./audit-context";
 import { getSession } from "./session";
 
 /**
@@ -31,6 +32,7 @@ export async function requireUser(): Promise<number> {
   if (!session.userId) {
     throw new ApiError("Niet aangemeld", 401);
   }
+  setAuditUser(session.userId);
   return session.userId;
 }
 
