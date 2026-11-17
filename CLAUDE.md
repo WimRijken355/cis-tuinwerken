@@ -21,6 +21,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - **Bewust uitgesloten** van de audittrail: `User`, `RecoveryCode`, `TrustedDevice` (zouden wachtwoord-hashes/2FA-geheimen in de audittrail zetten) en `EmailLog`/`AuditLog` zelf (zijn al logtabellen resp. zouden oneindig recursief loggen). Zie `AUDITED_MODELS` in `src/lib/audit.ts` voor de volledige lijst.
 - **Bekende beperking**: de AuditLog-insert gebeurt niet gegarandeerd in dezelfde databasetransactie als de echte wijziging (uitgeprobeerd en verworpen: `this` binnen een Prisma `$allOperations`-hook en een `$transaction`-override — geen van beide gaf betrouwbare, tx-gebonden toegang tot andere modellen). Alleen een procescrash exact tussen de echte schrijfactie en de audit-insert zou een audit-rij kunnen missen — aanvaardbaar voor deze app. Zie de uitgebreide toelichting in `src/lib/db.ts`.
 - Nieuwe modellen die wijzigbaar zijn via de app horen standaard in `AUDITED_MODELS`, tenzij ze (zoals hierboven) gevoelige/interne data bevatten.
+- **UI**: `/audit-log` (menu-item "Audittrail" — enkel desktop-sidebar, bewust niet in de mobiele bottom-tabs, zie `desktopOnly` in `src/components/app-nav.tsx`) toont de audittrail met filters op tabel/actie, paginering en een detailweergave van de volledige rij vóór/na. API: `GET /api/audit-log` (`src/app/api/audit-log/route.ts`, contract in `src/lib/schemas/audit-log.ts`).
 
 ## Testen
 

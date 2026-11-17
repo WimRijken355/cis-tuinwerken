@@ -17,6 +17,9 @@ const ITEMS = [
   { href: "/planning", label: "Planning", icon: "📅" },
   { href: "/customers", label: "Klanten", icon: "👥" },
   { href: "/invoices", label: "Facturen", icon: "🧾" },
+  // Admin/review feature, not a frequent field-use flow — kept out of the
+  // mobile bottom tabs (already 6 items) to avoid crowding; see BottomTabs.
+  { href: "/audit-log", label: "Audittrail", icon: "📜", desktopOnly: true },
   { href: "/settings", label: "Meer", labelLong: "Instellingen", icon: "⚙️" },
 ] as const;
 
@@ -74,7 +77,7 @@ export function BottomTabs() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 flex border-t border-gray-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-      {ITEMS.map((item) => (
+      {ITEMS.filter((item) => !("desktopOnly" in item && item.desktopOnly)).map((item) => (
         <Link
           key={item.href}
           href={item.href}
