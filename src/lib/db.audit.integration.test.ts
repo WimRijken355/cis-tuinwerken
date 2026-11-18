@@ -65,10 +65,14 @@ describe.skipIf(!dbAvailable)("audit trail (integratie, echte database)", () => 
     expect(logs[2].before).toMatchObject({ name: "Audittest Klant BV" });
   });
 
-  it("niet-auditbare modellen (bv. User) krijgen geen AuditLog-rij", async () => {
-    const before = await db.auditLog.count({ where: { tableName: "User" } });
-    // Not creating a real User (could affect the seeded admin); we only
-    // check that "User" never shows up as a tableName.
-    expect(before).toBe(0);
+  it("niet-auditbare modellen (bv. User) lekken nooit geheimen in de AuditLog", async () => {
+    // Not creating a real User (could affect the seeded admin). User is not in
+    // AUDITED_MODELS; the users routes write their own redacted rows
+    // (username/role only), so rows may exist — but never with secrets.
+    const rows = await db.auditLog.findMany({ where: { tableName: "User" } });
+    for (const row of rows) {
+      const json = JSON.stringify([row.before, row.after]);
+      expect(json).not.toMatch(/passwordHash|totpSecret/);
+    }
   });
 });

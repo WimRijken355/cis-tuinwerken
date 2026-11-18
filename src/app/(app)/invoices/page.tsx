@@ -1,37 +1,43 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { InvoiceDetailDialog } from "@/components/invoice-detail";
 import { FilterBar, FilterField, Pagination, selectClass } from "@/components/pagination";
 import { Button, EmptyState, ErrorNote, PageHeader, Spinner, StatusBadge, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import {
+  effectiveSelection,
   EMPTY_INVOICE_FILTER,
   filterInvoices,
   INVOICE_STATUS_OPTIONS,
   isInvoiceFilterActive,
   type InvoiceListFilter,
   type InvoiceStatusFilter,
+  selectAllState,
+  toggleSelectAll,
+  toggleSelected,
 } from "@/lib/invoice-list";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { InvoiceDto } from "@/lib/schemas/completions";
-import { canSendToEf, selectInvoicesToSync } from "@/lib/services/invoice-sync";
+import { canSendToEf } from "@/lib/services/invoice-sync";
 import { formatDateShort } from "@/lib/time";
 
 /**
  * Overview of the invoices made by the app and their sync state with
  * EenvoudigFactureren, as a compact table (one line per invoice) with filters:
- * send one invoice, send all not-synced ones, or mark an invoice "niet
- * versturen". Finalising/sending to the customer happens in EF.
+ * send one invoice, select several (e.g. filter "Niet gesynchroniseerd" +
+ * select all) and send the selection, or mark an invoice "niet versturen".
+ * Finalising/sending to the customer happens in EF.
  */
 const euro = new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" });
 const inputClass = "w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm";
 
-interface SyncAllResult {
+interface SyncResult {
   total: number;
   sent: number;
   failed: number;
+  skipped: number;
   errors: { invoiceId: number; customerName: string; error: string }[];
 }
 
@@ -42,7 +48,9 @@ export default function InvoicesPage() {
   const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   /** Invoice open in the detail dialog. */
   const [detailId, setDetailId] = useState<number | null>(null);
-  const [syncAllResult, setSyncAllResult] = useState<SyncAllResult | null>(null);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  /** Invoices ticked for "Geselecteerde naar EF sturen". */
+  const [selected, setSelected] = useState<Set<number>>(new Set());
 
   const { data: invoices, isLoading, error } = useQuery({
     queryKey: ["invoices"],
@@ -54,12 +62,18 @@ export default function InvoicesPage() {
   });
   const syncEnabled = settings?.efInvoiceSyncEnabled ?? true;
 
-  const toSyncCount = selectInvoicesToSync(
-    (invoices ?? []).map((i) => ({ ...i, isDemoCustomer: i.customerIsDemo ?? false })),
-    syncEnabled,
-  ).length;
   const filtered = useMemo(() => filterInvoices(invoices ?? [], filter), [invoices, filter]);
   const visible = filtered.slice((page - 1) * pageSize, page * pageSize);
+  const sendCheck = (inv: InvoiceDto) =>
+    canSendToEf(
+      { efInvoiceId: inv.efInvoiceId ?? null, pushStatus: inv.pushStatus, syncExcluded: inv.syncExcluded },
+      syncEnabled,
+      inv.customerIsDemo,
+    );
+  // Selectable = sendable invoices in the filtered list (all pages, not only the visible one).
+  const selectableIds = filtered.filter((i) => sendCheck(i).allowed).map((i) => i.id);
+  const selection = effectiveSelection(selectableIds, selected);
+  const allState = selectAllState(selectableIds, selected);
 
   const updateFilter = (patch: Partial<InvoiceListFilter>) => {
     setFilter((f) => ({ ...f, ...patch }));
@@ -71,9 +85,12 @@ export default function InvoicesPage() {
     mutationFn: (id: number) => apiSend(`/api/invoices/${id}/retry-push`, "POST"),
     onSettled: refresh,
   });
-  const syncAllMutation = useMutation({
-    mutationFn: () => apiSend<SyncAllResult>("/api/invoices/sync-all", "POST"),
-    onSuccess: setSyncAllResult,
+  const syncSelectedMutation = useMutation({
+    mutationFn: (ids: number[]) => apiSend<SyncResult>("/api/invoices/sync-selected", "POST", { ids }),
+    onSuccess: (result) => {
+      setSyncResult(result);
+      setSelected(new Set());
+    },
     onSettled: refresh,
   });
   const excludeMutation = useMutation({
@@ -81,39 +98,21 @@ export default function InvoicesPage() {
       apiSend(`/api/invoices/${id}/sync-exclusion`, "PUT", { excluded }),
     onSettled: refresh,
   });
-  const actionError = sendMutation.error ?? syncAllMutation.error ?? excludeMutation.error;
+  const actionError = sendMutation.error ?? syncSelectedMutation.error ?? excludeMutation.error;
 
   return (
     <div className="p-4 md:p-8">
       <PageHeader
         title="Facturen"
         actions={
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => {
-                setSyncAllResult(null);
-                syncAllMutation.mutate();
-              }}
-              disabled={!syncEnabled || toSyncCount === 0 || syncAllMutation.isPending}
-              title={
-                !syncEnabled
-                  ? "Synchronisatie staat uit (Instellingen → Algemeen)"
-                  : toSyncCount === 0
-                    ? "Geen niet-gesyncte facturen om te versturen"
-                    : undefined
-              }
-            >
-              {syncAllMutation.isPending ? "Bezig met versturen…" : `⇪ Alle niet-gesyncte versturen (${toSyncCount})`}
-            </Button>
-            <a
-              href="https://eenvoudigfactureren.be"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Open EenvoudigFactureren ↗
-            </a>
-          </div>
+          <a
+            href="https://eenvoudigfactureren.be"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Open EenvoudigFactureren ↗
+          </a>
         }
       />
 
@@ -124,22 +123,24 @@ export default function InvoicesPage() {
         </p>
       )}
 
-      {syncAllResult && (
+      {syncResult && (
         <div
           className={`mb-4 rounded-md px-3 py-2 text-sm ${
-            syncAllResult.failed > 0 ? "bg-amber-50 text-amber-900" : "bg-green-50 text-green-800"
+            syncResult.failed > 0 ? "bg-amber-50 text-amber-900" : "bg-green-50 text-green-800"
           }`}
         >
           <p>
-            {syncAllResult.total === 0
-              ? "Er waren geen facturen om te versturen."
-              : `${syncAllResult.sent} van ${syncAllResult.total} facturen verstuurd naar EenvoudigFactureren${
-                  syncAllResult.failed > 0 ? `, ${syncAllResult.failed} mislukt:` : " ✓"
+            {syncResult.total === 0
+              ? "Geen enkele geselecteerde factuur kon verstuurd worden."
+              : `${syncResult.sent} van ${syncResult.total} facturen verstuurd naar EenvoudigFactureren${
+                  syncResult.failed > 0 ? `, ${syncResult.failed} mislukt` : " ✓"
                 }`}
+            {syncResult.skipped > 0 &&
+              ` (${syncResult.skipped} overgeslagen: al in EF, "niet versturen" of demoklant)`}
           </p>
-          {syncAllResult.errors.length > 0 && (
+          {syncResult.errors.length > 0 && (
             <ul className="mt-1 list-inside list-disc text-xs">
-              {syncAllResult.errors.map((e) => (
+              {syncResult.errors.map((e) => (
                 <li key={e.invoiceId}>
                   {e.customerName}: {e.error}
                 </li>
@@ -206,10 +207,43 @@ export default function InvoicesPage() {
 
       {invoices && invoices.length > 0 && (
         <>
+          <div className="mb-2 flex flex-wrap items-center gap-3 text-sm">
+            <Button
+              onClick={() => {
+                setSyncResult(null);
+                syncSelectedMutation.mutate(selection);
+              }}
+              disabled={selection.length === 0 || syncSelectedMutation.isPending}
+            >
+              {syncSelectedMutation.isPending
+                ? "Bezig met versturen…"
+                : `→ Geselecteerde naar EF sturen (${selection.length})`}
+            </Button>
+            {selection.length > 0 && (
+              <button type="button" onClick={() => setSelected(new Set())} className="text-brand-600 hover:underline">
+                Selectie wissen
+              </button>
+            )}
+            <span className="text-xs text-gray-500">
+              {!syncEnabled
+                ? "Synchronisatie staat uit — eerst aanzetten via Instellingen → Algemeen."
+                : selectableIds.length === 0
+                  ? "Geen verstuurbare facturen in deze lijst."
+                  : `Tip: filter op "Niet gesynchroniseerd" en vink bovenaan alles aan (${selectableIds.length} verstuurbaar).`}
+            </span>
+          </div>
+
           <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
             <table className="w-full text-sm">
               <thead className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
                 <tr>
+                  <th className="w-8 px-3 py-2">
+                    <SelectAllCheckbox
+                      state={allState}
+                      disabled={selectableIds.length === 0}
+                      onToggle={() => setSelected((s) => toggleSelectAll(selectableIds, s))}
+                    />
+                  </th>
                   <th className="px-3 py-2">Klant</th>
                   <th className="px-3 py-2">Werk</th>
                   <th className="px-3 py-2">Datum</th>
@@ -226,21 +260,34 @@ export default function InvoicesPage() {
               <tbody className="divide-y divide-gray-100">
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-gray-500">
+                    <td colSpan={10} className="px-3 py-6 text-center text-gray-500">
                       Geen facturen die aan de filters voldoen.
                     </td>
                   </tr>
                 )}
                 {visible.map((inv) => {
                   const inEf = inv.efInvoiceId !== null;
-                  const check = canSendToEf(
-                    { efInvoiceId: inv.efInvoiceId ?? null, pushStatus: inv.pushStatus, syncExcluded: inv.syncExcluded },
-                    syncEnabled,
-                    inv.customerIsDemo,
-                  );
+                  const check = sendCheck(inv);
+                  const isSelected = check.allowed && selected.has(inv.id);
                   const sending = sendMutation.isPending && sendMutation.variables === inv.id;
                   return (
-                    <tr key={inv.id} className={`hover:bg-gray-50 ${inv.syncExcluded ? "text-gray-500" : ""}`}>
+                    <tr
+                      key={inv.id}
+                      className={`${isSelected ? "bg-brand-50" : "hover:bg-gray-50"} ${
+                        inv.syncExcluded ? "text-gray-500" : ""
+                      }`}
+                    >
+                      <td className="px-3 py-1.5">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 align-middle"
+                          checked={isSelected}
+                          disabled={!check.allowed}
+                          title={check.allowed ? "Selecteren om te versturen" : check.reason}
+                          aria-label={`Factuur ${inv.customerName} selecteren`}
+                          onChange={() => setSelected((s) => toggleSelected(s, inv.id))}
+                        />
+                      </td>
                       <td className="max-w-[22rem] px-3 py-1.5">
                         <div className="flex items-center gap-2 whitespace-nowrap">
                           <span className="font-medium text-gray-900">{inv.customerName}</span>
@@ -319,11 +366,39 @@ export default function InvoicesPage() {
       )}
 
       <p className="mt-3 text-xs text-gray-400">
-        &quot;Niet versturen&quot; houdt een factuur in de app (ook bij &quot;alle versturen&quot;). Concepten kijk je
-        na en finaliseer je in EenvoudigFactureren zelf.
+        &quot;Niet versturen&quot; houdt een factuur in de app (ze is dan ook niet selecteerbaar). Concepten kijk je na
+        en finaliseer je in EenvoudigFactureren zelf.
       </p>
 
       {detailId !== null && <InvoiceDetailDialog invoiceId={detailId} onClose={() => setDetailId(null)} />}
     </div>
+  );
+}
+
+/** Header checkbox: checked when all selectable invoices are selected, indeterminate when some are. */
+function SelectAllCheckbox({
+  state,
+  disabled,
+  onToggle,
+}: {
+  state: "none" | "some" | "all";
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = state === "some";
+  }, [state]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      className="h-4 w-4 align-middle"
+      checked={state === "all"}
+      disabled={disabled}
+      onChange={onToggle}
+      title="Alle verstuurbare facturen in deze (gefilterde) lijst selecteren"
+      aria-label="Alles selecteren"
+    />
   );
 }

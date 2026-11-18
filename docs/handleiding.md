@@ -149,12 +149,14 @@ De status per factuur:
   (Instellingen → Algemeen → *Facturen synchroniseren naar EenvoudigFactureren*).
   Zet je de schakelaar weer aan, dan stuur je ze met **→ Naar EF** alsnog door.
 
-**⇪ Alle niet-gesyncte versturen** (bovenaan) stuurt in één keer alle facturen
-die nog niet in EenvoudigFactureren staan; je ziet daarna hoeveel er gelukt
-zijn en wat er misliep. Wil je een factuur om een of andere reden **niet**
-versturen, zet dan de schakelaar **Niet versturen** op die regel aan: ze
-blijft dan in de app, ook bij "alle versturen", tot je de schakelaar weer
-uitzet.
+**Meerdere facturen tegelijk versturen**: filter op status *Niet
+gesynchroniseerd*, vink het vakje bovenaan de lijst aan (dat selecteert alle
+verstuurbare facturen van de gefilterde lijst, ook op de volgende pagina's) en
+tik **→ Geselecteerde naar EF sturen**. Je kan ook losse facturen aan- of
+afvinken. Daarna zie je hoeveel er gelukt zijn en wat er misliep. Wil je een
+factuur om een of andere reden **niet** versturen, zet dan de schakelaar
+**Niet versturen** op die regel aan: ze blijft dan in de app en is niet meer
+selecteerbaar, tot je de schakelaar weer uitzet.
 
 Definitief maken en versturen doe je altijd in
 EenvoudigFactureren zelf — zo hou je de controle.

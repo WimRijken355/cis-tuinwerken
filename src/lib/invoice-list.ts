@@ -57,6 +57,35 @@ export function filterInvoices<T extends FilterableInvoice>(invoices: T[], filte
   return invoices.filter((i) => matchesInvoiceFilter(i, filter));
 }
 
+/* ---- Multi-select for "Geselecteerde versturen" ---- */
+
+/** The selection that actually counts: only ids that are (still) selectable in the current list. */
+export function effectiveSelection(selectableIds: number[], selected: ReadonlySet<number>): number[] {
+  return selectableIds.filter((id) => selected.has(id));
+}
+
+/** State of the "select all" checkbox over the selectable ids. */
+export function selectAllState(selectableIds: number[], selected: ReadonlySet<number>): "none" | "some" | "all" {
+  const count = effectiveSelection(selectableIds, selected).length;
+  if (count === 0) return "none";
+  return count === selectableIds.length ? "all" : "some";
+}
+
+/** "Select all" click: everything selectable gets selected, or — if that already was so — deselected. */
+export function toggleSelectAll(selectableIds: number[], selected: ReadonlySet<number>): Set<number> {
+  const next = new Set(selected);
+  if (selectAllState(selectableIds, selected) === "all") selectableIds.forEach((id) => next.delete(id));
+  else selectableIds.forEach((id) => next.add(id));
+  return next;
+}
+
+export function toggleSelected(selected: ReadonlySet<number>, id: number): Set<number> {
+  const next = new Set(selected);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
 export function isInvoiceFilterActive(filter: InvoiceListFilter): boolean {
   return Boolean(filter.text.trim() || filter.status || filter.from || filter.to);
 }

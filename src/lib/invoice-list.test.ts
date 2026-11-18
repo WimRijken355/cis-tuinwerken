@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_INVOICE_FILTER, filterInvoices, isInvoiceFilterActive, matchesInvoiceFilter } from "./invoice-list";
+import {
+  effectiveSelection,
+  EMPTY_INVOICE_FILTER,
+  filterInvoices,
+  isInvoiceFilterActive,
+  matchesInvoiceFilter,
+  selectAllState,
+  toggleSelectAll,
+  toggleSelected,
+} from "./invoice-list";
 
 const base = {
   customerName: "Janssens Piet",
@@ -44,5 +53,33 @@ describe("matchesInvoiceFilter", () => {
       { ...base, id: 3 },
     ];
     expect(filterInvoices(list, { ...EMPTY_INVOICE_FILTER, text: "janssens" }).map((i) => i.id)).toEqual([1, 3]);
+  });
+});
+
+describe("invoice multi-select", () => {
+  const selectable = [1, 2, 3];
+
+  it("select all selects every selectable invoice, a second click clears them", () => {
+    const all = toggleSelectAll(selectable, new Set());
+    expect([...all].sort()).toEqual([1, 2, 3]);
+    expect(selectAllState(selectable, all)).toBe("all");
+    expect(selectAllState(selectable, toggleSelectAll(selectable, all))).toBe("none");
+  });
+
+  it("a partial selection becomes a full one on select all", () => {
+    const some = toggleSelected(new Set(), 2);
+    expect(selectAllState(selectable, some)).toBe("some");
+    expect(selectAllState(selectable, toggleSelectAll(selectable, some))).toBe("all");
+  });
+
+  it("only counts ids that are selectable in the current (filtered) list", () => {
+    const selected = new Set([2, 9]); // 9 got filtered out or was sent meanwhile
+    expect(effectiveSelection(selectable, selected)).toEqual([2]);
+    expect(selectAllState([], selected)).toBe("none");
+  });
+
+  it("toggleSelected adds and removes one id", () => {
+    expect([...toggleSelected(new Set([1]), 1)]).toEqual([]);
+    expect([...toggleSelected(new Set([1]), 2)]).toEqual([1, 2]);
   });
 });

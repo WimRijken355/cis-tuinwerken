@@ -211,15 +211,16 @@ er al een `efInvoiceId` is (nooit dubbele concepten) of zolang
 `efInvoiceSyncEnabled` uit staat, de klant een demoklant is of de factuur op
 "niet versturen" staat (`syncExcluded`); 502 als de push faalt.
 
-### POST /api/invoices/sync-all
-Stuurt alle facturen zonder `efInvoiceId` met status `NOT_SYNCED`/`FAILED` één
-voor één naar EF (oudste eerst). Slaat "niet versturen" en demoklanten over
-(`selectInvoicesToSync`). 409 als `efInvoiceSyncEnabled` uit staat.
-→ `{ total, sent, failed, errors: [{ invoiceId, customerName, error }] }`.
+### POST /api/invoices/sync-selected
+Body `{ ids: number[] }` (1–500) — stuurt de geselecteerde facturen één voor
+één naar EF (oudste eerst). Wat niet verstuurd kan worden (al in EF, "niet
+versturen", demoklant, onbekend id) wordt overgeslagen (`selectInvoicesToSync`).
+409 als `efInvoiceSyncEnabled` uit staat.
+→ `{ total, sent, failed, skipped, errors: [{ invoiceId, customerName, error }] }`.
 
 ### PUT /api/invoices/:id/sync-exclusion
 Body `{ excluded: boolean }` — zet "niet versturen" aan/uit. Een uitgesloten
-factuur gaat nooit naar EF (ook niet via sync-all of retry-push). 409 als de
+factuur gaat nooit naar EF (ook niet via sync-selected of retry-push). 409 als de
 factuur al in EF staat. → `{ id, syncExcluded }`.
 
 ## Catalogus
