@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { Pagination } from "@/components/pagination";
 import { EmptyState, ErrorNote, Modal, PageHeader, Spinner } from "@/components/ui";
 import { apiGet } from "@/lib/api-client";
 import type { AuditLogDto, AuditLogListResponse } from "@/lib/schemas/audit-log";
@@ -51,8 +52,6 @@ export default function AuditLogPage() {
       return apiGet<AuditLogListResponse>(`/api/audit-log?${params.toString()}`);
     },
   });
-
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   function resetAndSet(setter: (v: string) => void) {
     return (value: string) => {
@@ -130,28 +129,14 @@ export default function AuditLogPage() {
         </ul>
       )}
 
-      {data && data.total > data.pageSize && (
-        <div className="mt-4 flex items-center justify-center gap-4 text-sm">
-          <button
-            type="button"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1 disabled:opacity-40"
-          >
-            ← Vorige
-          </button>
-          <span className="text-gray-500">
-            Pagina {page} van {totalPages}
-          </span>
-          <button
-            type="button"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-            className="rounded-md border border-gray-300 bg-white px-3 py-1 disabled:opacity-40"
-          >
-            Volgende →
-          </button>
-        </div>
+      {data && (
+        <Pagination
+          page={page}
+          pageSize={data.pageSize}
+          total={data.total}
+          itemLabel="wijzigingen"
+          onPageChange={setPage}
+        />
       )}
 
       <Modal

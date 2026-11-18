@@ -1,4 +1,6 @@
 import { z } from "zod";
+import type { Prisma } from "@/generated/prisma/client";
+import { paginationQuerySchema, type Paginated } from "../pagination";
 
 /** Contracten voor /api/customers. */
 
@@ -38,4 +40,44 @@ export function formatAddress(c: Pick<CustomerDto, "street" | "postalCode" | "ci
   const line1 = c.street?.trim();
   const line2 = [c.postalCode, c.city].filter(Boolean).join(" ").trim();
   return [line1, line2].filter(Boolean).join(", ");
+}
+
+// ---------------------------------------------------------------------------
+// Paginated list (GET /api/customers)
+// ---------------------------------------------------------------------------
+
+const optionalFilter = z
+  .string()
+  .trim()
+  .max(200)
+  .optional()
+  .transform((v) => v || undefined);
+
+/** Query for GET /api/customers: pagination + one "contains" filter per column. */
+export const customerListQuerySchema = paginationQuerySchema.extend({
+  name: optionalFilter,
+  /** Matches the street. */
+  address: optionalFilter,
+  postalCode: optionalFilter,
+  city: optionalFilter,
+  includeInactive: z
+    .enum(["0", "1"])
+    .optional()
+    .transform((v) => v === "1"),
+});
+export type CustomerListQuery = z.infer<typeof customerListQuerySchema>;
+
+export type CustomerListResponse = Paginated<CustomerDto>;
+
+const contains = (value: string) => ({ contains: value, mode: "insensitive" as const });
+
+/** Prisma `where` for the customer list; all filters are combined with AND. */
+export function buildCustomerWhere(q: CustomerListQuery): Prisma.CustomerWhereInput {
+  return {
+    ...(q.includeInactive ? {} : { active: true }),
+    ...(q.name ? { name: contains(q.name) } : {}),
+    ...(q.address ? { street: contains(q.address) } : {}),
+    ...(q.postalCode ? { postalCode: { startsWith: q.postalCode, mode: "insensitive" as const } } : {}),
+    ...(q.city ? { city: contains(q.city) } : {}),
+  };
 }

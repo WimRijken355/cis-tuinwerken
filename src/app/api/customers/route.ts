@@ -1,42 +1,45 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { customerInputSchema } from "@/lib/schemas/customers";
+import { toSkipTake } from "@/lib/pagination";
+import {
+  buildCustomerWhere,
+  customerInputSchema,
+  customerListQuerySchema,
+  type CustomerListResponse,
+} from "@/lib/schemas/customers";
 
 /**
- * GET /api/customers?search=&includeInactive=1
- * Lijst van klanten met het aantal open/geplande todo's.
+ * GET /api/customers?page=&pageSize=&name=&address=&postalCode=&city=&includeInactive=1
+ * Paginated customer list, including the number of open/planned todos.
  */
 export async function GET(request: NextRequest) {
   try {
     await requireUser();
-    const search = request.nextUrl.searchParams.get("search")?.trim();
-    const includeInactive = request.nextUrl.searchParams.get("includeInactive") === "1";
+    const query = customerListQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
+    const where = buildCustomerWhere(query);
 
-    const customers = await db.customer.findMany({
-      where: {
-        ...(includeInactive ? {} : { active: true }),
-        ...(search
-          ? {
-              OR: [
-                { name: { contains: search, mode: "insensitive" } },
-                { city: { contains: search, mode: "insensitive" } },
-                { street: { contains: search, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: { name: "asc" },
-      include: {
-        _count: {
-          select: { todos: { where: { status: { in: ["OPEN", "PLANNED"] } } } },
+    const [customers, total] = await Promise.all([
+      db.customer.findMany({
+        where,
+        orderBy: [{ name: "asc" }, { id: "asc" }],
+        ...toSkipTake(query),
+        include: {
+          _count: {
+            select: { todos: { where: { status: { in: ["OPEN", "PLANNED"] } } } },
+          },
         },
-      },
-    });
+      }),
+      db.customer.count({ where }),
+    ]);
 
-    return NextResponse.json(
-      customers.map(({ _count, ...c }) => ({ ...c, openTodoCount: _count.todos })),
-    );
+    const response: CustomerListResponse = {
+      items: customers.map(({ _count, ...c }) => ({ ...c, openTodoCount: _count.todos })),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+    return NextResponse.json(response);
   } catch (error) {
     return handleApiError(error);
   }

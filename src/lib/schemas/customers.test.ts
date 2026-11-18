@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { customerInputSchema, formatAddress } from "./customers";
+import {
+  buildCustomerWhere,
+  customerInputSchema,
+  customerListQuerySchema,
+  formatAddress,
+} from "./customers";
 
 describe("customerInputSchema", () => {
   it("vult default countryCode en active in", () => {
@@ -32,5 +37,28 @@ describe("formatAddress", () => {
   it("laat ontbrekende velden gewoon weg", () => {
     expect(formatAddress({ street: null, postalCode: "2000", city: null })).toBe("2000");
     expect(formatAddress({ street: null, postalCode: null, city: null })).toBe("");
+  });
+});
+
+describe("customerListQuerySchema + buildCustomerWhere", () => {
+  it("only active customers and no filters by default", () => {
+    const q = customerListQuerySchema.parse({});
+    expect(q).toMatchObject({ page: 1, pageSize: 25, includeInactive: false });
+    expect(buildCustomerWhere(q)).toEqual({ active: true });
+  });
+
+  it("combines name, address, postal code and city filters (empty ones ignored)", () => {
+    const q = customerListQuerySchema.parse({
+      name: " jan ",
+      address: "Kerkstraat",
+      postalCode: "90",
+      city: "",
+      includeInactive: "1",
+    });
+    expect(buildCustomerWhere(q)).toEqual({
+      name: { contains: "jan", mode: "insensitive" },
+      street: { contains: "Kerkstraat", mode: "insensitive" },
+      postalCode: { startsWith: "90", mode: "insensitive" },
+    });
   });
 });

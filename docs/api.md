@@ -48,9 +48,11 @@ overal opnieuw een TOTP-code nodig bij het aanmelden).
 
 ## Klanten
 
-### GET /api/customers?search=&includeInactive=1
-Lijst, gesorteerd op naam. `search` zoekt in naam/gemeente/straat.
-Elke klant bevat `openTodoCount` (open + ingeplande todo's).
+### GET /api/customers?page=&pageSize=&name=&address=&postalCode=&city=&includeInactive=1
+Gepagineerde lijst, gesorteerd op naam. Antwoord `{ items, total, page, pageSize }`
+(standaard `page=1`, `pageSize=25`, max 100). Filters (allemaal optioneel, AND,
+hoofdletterongevoelig): `name`, `address` (straat) en `city` bevatten de tekst,
+`postalCode` begint ermee. Elke klant bevat `openTodoCount` (open + ingeplande todo's).
 
 ### POST /api/customers
 ```json
@@ -167,7 +169,11 @@ geregistreerde uren zijn snapshots.
 
 ### GET/POST /api/price-list · PATCH/DELETE /api/price-list/:id
 Prijslijst `{ name, unit (≤10 tekens), unitPrice, vatRate (0/6/12/21), active,
-sortOrder, efStockItemId }`. `?includeInactive=1` toont ook gedeactiveerde items.
+sortOrder, efStockItemId }`. Zonder `page`: platte array van actieve items
+(picklist in de registratieflow); `?includeInactive=1` toont ook gedeactiveerde.
+Mét `page`: gepagineerd `{ items, total, page, pageSize }` met filters `name`
+(bevat), `vatRate` (0/6/12/21), `status` (`active`|`inactive`|`all`) en
+`source` (`ef`|`manual`|`all`).
 Beheerd via de pagina **Artikels** (`/products`).
 
 ### POST /api/price-list/import-ef
