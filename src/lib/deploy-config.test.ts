@@ -22,6 +22,18 @@ describe("deployment config", () => {
     expect(caddy).toMatch(/default_sni \{\$APP_LAN_IP\}/);
   });
 
+  it("update script is safe to run while git pull replaces it", () => {
+    const script = read("scripts/update-server.sh");
+    expect(script.startsWith("#!/bin/sh\n")).toBe(true); // LF, no CRLF
+    expect(script).toContain("set -eu");
+    // All work happens in main(), called only at the end of the file.
+    expect(script.trimEnd().endsWith('main "$@"\nexit')).toBe(true);
+    expect(script).toContain("git pull --ff-only");
+    expect(script).toContain('COMPOSE_FILE="docker-compose.prod.yml"');
+    // Refuses to run with local edits on the server.
+    expect(script).toContain("git status --porcelain --untracked-files=no");
+  });
+
   it("compose lets .env choose the Caddyfile and passes APP_LAN_IP to Caddy", () => {
     const compose = read("docker-compose.prod.yml");
     expect(compose).toContain("./${CADDYFILE:-Caddyfile}:/etc/caddy/Caddyfile:ro");

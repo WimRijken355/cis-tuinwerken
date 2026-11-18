@@ -104,6 +104,17 @@ leegmaken, publiek DNS-record + poorten 80/443 open, dan
 
 ## 2. Een update uitrollen
 
+Gebruik het updatescript (haalt de code op, bouwt, herstart en controleert of de
+app gezond opkomt; probeert bij netwerkhaperingen automatisch opnieuw):
+
+```bash
+/opt/cis-tuinwerken/scripts/update-server.sh            # enkel als er nieuwe commits zijn
+/opt/cis-tuinwerken/scripts/update-server.sh --force    # altijd opnieuw bouwen
+```
+
+Mislukt de build, dan blijft de vorige versie gewoon draaien. Het script weigert
+te starten als er lokale wijzigingen op de server staan. Handmatig kan ook:
+
 ```bash
 cd /opt/tuinwerken
 git pull                                            # of nieuwe bestanden kopiëren

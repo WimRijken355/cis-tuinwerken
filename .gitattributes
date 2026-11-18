@@ -1,0 +1,4 @@
+# Shell scripts and Caddyfiles run on Linux: always check them out with LF,
+# also on Windows (CRLF breaks the shebang and `set -eu`).
+*.sh text eol=lf
+Caddyfile* text eol=lf
