@@ -27,15 +27,24 @@ dan als een echte app, zonder adresbalk.
 
 ## De dagelijkse werkflow
 
-1. **'s Morgens — Vandaag:** je ziet je afspraken van vandaag. Tik op
-   **🧭 Waze** en de navigatie start naar het adres van de klant.
-2. **Na het werk — ✓ Klaar:** tik op "Klaar — uren ingeven" en doorloop de
-   vier stapjes:
-   - *Uren:* jouw gewerkte uren (vooraf ingevuld met de schatting; pas aan met + / −)
-   - *Medewerkers:* vink aan wie meewerkte en zet hun uren
-   - *Extra's:* tik aan wat je extra aanrekent (machine, afvoer, …) + hoeveelheid
-   - *Overzicht:* controleer en bevestig
-3. **Klaar!** Het werk staat afgevinkt en de conceptfactuur staat in
+1. **'s Morgens — Dagplanning** (op je gsm): je ziet de afspraken van vandaag;
+   met ‹ › blader je naar de vorige/volgende dag. Tik een afspraak open om te
+   zien wat er moet gebeuren (omschrijving + checklist, die je ter plaatse kan
+   afvinken). **🧭 Waze** start de navigatie; **Verplaatsen** schuift de
+   afspraak naar een andere dag/uur.
+2. **Na het werk — ✓ Klaarmelden**, in vier stapjes:
+   - *Uren:* per resource **geregistreerd** (echt gewerkt) en **gefactureerd**
+     (wat de klant betaalt), voorgesteld op basis van de planning, per begonnen
+     kwartier. Onder "Ingepland" de geplande resources; extra personen of
+     machines voeg je toe in de twee blokken eronder.
+   - *Artikels:* optioneel (afvoer, …) + hoeveelheid
+   - *Taken:* vink de geplande taken af, duid extra uitgevoerde taken aan, notitie
+   - *Factuur:* **Nu factureren** staat aan bij de laatste dag van een job (bij
+     een job over meerdere dagen registreer je eerst de tussendagen). Je ziet
+     exact welke regels gefactureerd worden — alle nog niet gefactureerde dagen
+     samen.
+3. **Klaar!** Daarna kan je meteen een nieuwe todo voor de klant maken, met
+   een voorkeursperiode (bv. april 2027). De conceptfactuur staat in
    EenvoudigFactureren. Daar kijk je ze na en maak je ze definitief.
    Lukte de push niet (bv. geen internet bij EenvoudigFactureren)? Geen
    probleem: je registratie is bewaard — ga later naar **Facturen** en tik
@@ -88,8 +97,8 @@ Had je al klanten in EenvoudigFactureren? Importeer ze in één keer via
    een resourcefilter (bv. Wim) telt enkel diens werk mee — zo zie je wanneer
    iemand nog beschikbaar is. Sleep je een todo op een dag, dan start hij om
    08:00; klik op een dagnummer om naar die week te gaan.
-8. Onderweg herplannen doe je via **Komende dagen** op je telefoon: tik een
-   afspraak aan en kies een nieuwe dag/uur — handig bij slecht weer.
+8. Onderweg herplannen doe je in de **Dagplanning** op je telefoon: tik
+   **Verplaatsen** en kies een nieuwe dag/uur — handig bij slecht weer.
 
 De klant krijgt **automatisch een e-mail op de avond vóór de afspraak**
 (standaard rond 18u — aanpasbaar in Instellingen, net als de tekst van de

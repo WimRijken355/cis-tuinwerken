@@ -40,7 +40,8 @@ export function minutesUntilMidnight(start: Date | string): number {
  * rounded down to whole slots (at least one slot).
  */
 export function dropDurationMinutes(remaining: number, start: Date | string): number {
-  const cap = Math.min(remaining > 0 ? remaining : SLOT_MINUTES, WORKDAY_MINUTES, minutesUntilMidnight(start));
+  // Nothing left by the estimate (a follow-up day): propose a working day.
+  const cap = Math.min(remaining > 0 ? remaining : WORKDAY_MINUTES, WORKDAY_MINUTES, minutesUntilMidnight(start));
   return Math.max(SLOT_MINUTES, Math.floor(cap / SLOT_MINUTES) * SLOT_MINUTES);
 }
 
@@ -287,4 +288,13 @@ export function dayLoad(minutes: number): DayLoad {
  */
 export function dayKey(date: Date): string {
   return DateTime.fromJSDate(date).setZone(ZONE).toISODate()!;
+}
+
+/**
+ * Does a (not finished) todo belong in the "in te plannen" list? When time is
+ * left by the estimate, or when a day was registered without invoicing and
+ * nothing is planned any more: the job is not done, a follow-up day is needed.
+ */
+export function needsPlanning(meta: { remainingMinutes: number; plannedBlocks: number; doneBlocks: number }): boolean {
+  return meta.remainingMinutes > 0 || (meta.plannedBlocks === 0 && meta.doneBlocks > 0);
 }

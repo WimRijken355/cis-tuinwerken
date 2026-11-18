@@ -12,6 +12,8 @@ import {
   toTodoTaskDtos,
 } from "@/lib/schemas/todos";
 import type { Prisma } from "@/generated/prisma/client";
+import { periodToWindow, windowLabel } from "@/lib/registration";
+import { needsPlanning } from "@/lib/planning";
 import { loadPlanningMeta } from "@/lib/services/appointments";
 
 /**
@@ -52,7 +54,7 @@ export async function GET(request: NextRequest) {
 
     const meta = await loadPlanningMeta(todos.map((t) => t.id));
     const withMeta = todos.map((t) => ({ todo: t, meta: meta.get(t.id) }));
-    const visible = plannable ? withMeta.filter(({ meta: m }) => (m?.remainingMinutes ?? 0) > 0) : withMeta;
+    const visible = plannable ? withMeta.filter(({ meta: m }) => (m ? needsPlanning(m) : true)) : withMeta;
 
     return NextResponse.json(
       visible.map(({ todo: t, meta: m }) => ({
@@ -65,7 +67,8 @@ export async function GET(request: NextRequest) {
         plannedMinutes: m?.plannedMinutes ?? 0,
         remainingMinutes: m?.remainingMinutes ?? 0,
         appointmentCount: m?.parts.size ?? 0,
-        windowLabel: t.recurringWindow?.label ?? null,
+        // Recurring work: its window label; otherwise the preferred period ("apr 2027").
+        windowLabel: t.recurringWindow?.label ?? windowLabel(t.windowStart, t.windowEnd),
         resources: toTodoResourceDtos(t.resources),
         tasks: toTodoTaskDtos(t.tasks),
         customer: undefined,
@@ -85,8 +88,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await requireUser();
-    const { resources, taskIds, contactName, contactStreet, contactPostalCode, contactCity, ...input } =
-      todoInputSchema.parse(await request.json());
+    const {
+      resources,
+      taskIds,
+      contactName,
+      contactStreet,
+      contactPostalCode,
+      contactCity,
+      preferredFrom,
+      preferredTo,
+      ...input
+    } = todoInputSchema.parse(await request.json());
     await assertResourcesExist(resources);
     const names = await checklistNames(taskIds);
 
@@ -94,6 +106,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...input,
         ...contactForTodo(input.customerId, { contactName, contactStreet, contactPostalCode, contactCity }),
+        ...(preferredFrom ? periodToWindow(preferredFrom, preferredTo) : {}),
       },
     });
     await replaceTodoResources(created.id, resources);

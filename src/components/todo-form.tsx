@@ -18,6 +18,9 @@ export interface TodoFormValues {
   estimatedHours: number;
   resources: TodoResourceInput[];
   taskIds: number[];
+  /** Preferred period "yyyy-MM" (only when showPeriod). */
+  preferredFrom?: string;
+  preferredTo?: string;
 }
 
 /**
@@ -36,6 +39,7 @@ export function TodoForm({
   titleLabel = "Wat moet er gebeuren?",
   titlePlaceholder = "bv. Gazon aanleggen achtertuin",
   titleSuggestions = [],
+  showPeriod = false,
 }: {
   initial?: {
     title: string;
@@ -54,6 +58,8 @@ export function TodoForm({
   titlePlaceholder?: string;
   /** Quick picks that fill in the title (e.g. "Vakantie"). */
   titleSuggestions?: string[];
+  /** Ask for a preferred period (month, optionally a range), e.g. "april 2027". */
+  showPeriod?: boolean;
 }) {
   const initialTasks = (initial?.tasks ?? [])
     .filter((t): t is TodoTaskDto & { checklistItemId: number } => t.checklistItemId !== null)
@@ -63,6 +69,8 @@ export function TodoForm({
   const [hours, setHours] = useState(initial ? formatHours(initial.estimatedHours) : "2");
   const [resources, setResources] = useState<ResourceSelection>(() => toResourceSelection(initial?.resources));
   const [taskIds, setTaskIds] = useState<number[]>(initialTasks.map((t) => t.checklistItemId));
+  const [preferredFrom, setPreferredFrom] = useState("");
+  const [preferredTo, setPreferredTo] = useState("");
 
   return (
     <form
@@ -74,6 +82,7 @@ export function TodoForm({
           estimatedHours: parseHours(hours),
           resources: resourceSelectionToInput(resources),
           taskIds: showChecklist ? taskIds : [],
+          ...(showPeriod && preferredFrom ? { preferredFrom, preferredTo: preferredTo || undefined } : {}),
         });
       }}
     >
@@ -112,6 +121,31 @@ export function TodoForm({
         </div>
       </div>
 
+      {showPeriod && (
+        <fieldset>
+          <legend className="text-sm font-medium text-gray-700">Voorkeursperiode (optioneel)</legend>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
+            <TextInput
+              type="month"
+              aria-label="Vanaf maand"
+              value={preferredFrom}
+              onChange={(e) => setPreferredFrom(e.target.value)}
+              className="!w-44"
+            />
+            <span className="text-gray-500">tot</span>
+            <TextInput
+              type="month"
+              aria-label="Tot maand"
+              value={preferredTo}
+              min={preferredFrom || undefined}
+              onChange={(e) => setPreferredTo(e.target.value)}
+              className="!w-44"
+              disabled={!preferredFrom}
+            />
+          </div>
+          <p className="mt-1 text-xs text-gray-400">Bv. april 2027. Laat &quot;tot&quot; leeg voor één maand.</p>
+        </fieldset>
+      )}
       {showChecklist && <ChecklistPicker value={taskIds} onChange={setTaskIds} initial={initialTasks} />}
       <ResourcePicker value={resources} onChange={setResources} totalHours={hours} initial={initial?.resources} />
 

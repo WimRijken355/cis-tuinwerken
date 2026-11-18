@@ -16,6 +16,7 @@ import {
   formatMinutesAsHours,
   LOOSE_TODO_COLOR,
   minutesUntilMidnight,
+  needsPlanning,
   partLabel,
   partNumbers,
   roundToQuarter,
@@ -270,5 +271,18 @@ describe("dayKey", () => {
     expect(new Date("2026-11-19T23:00:00Z").toISOString().slice(0, 10)).toBe("2026-11-19"); // the trap
     // Summer time (UTC+2).
     expect(dayKey(new Date("2026-07-14T22:00:00Z"))).toBe("2026-07-15");
+  });
+});
+
+describe("needsPlanning (in te plannen list)", () => {
+  it("lists todos with time left, and jobs registered without invoice and nothing planned", () => {
+    expect(needsPlanning({ remainingMinutes: 120, plannedBlocks: 1, doneBlocks: 0 })).toBe(true);
+    expect(needsPlanning({ remainingMinutes: 0, plannedBlocks: 1, doneBlocks: 1 })).toBe(false); // next day planned
+    expect(needsPlanning({ remainingMinutes: 0, plannedBlocks: 0, doneBlocks: 1 })).toBe(true); // follow-up needed
+    expect(needsPlanning({ remainingMinutes: 0, plannedBlocks: 0, doneBlocks: 0 })).toBe(false);
+  });
+
+  it("proposes a working day when dropping a follow-up with no time left", () => {
+    expect(dropDurationMinutes(0, at("08:00"))).toBe(WORKDAY_MINUTES);
   });
 });

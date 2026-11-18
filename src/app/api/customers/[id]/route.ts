@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
+import { windowLabel } from "@/lib/registration";
 import { customerInputSchema } from "@/lib/schemas/customers";
 import { partialWithoutDefaults } from "@/lib/schemas/partial";
 import { recurringExtrasInclude, toRecurringExtrasDto } from "@/lib/schemas/recurring";
@@ -43,7 +44,7 @@ export async function GET(
       todos: customer.todos.map((t) => ({
         ...t,
         estimatedHours: Number(t.estimatedHours),
-        windowLabel: t.recurringWindow?.label ?? null,
+        windowLabel: t.recurringWindow?.label ?? windowLabel(t.windowStart, t.windowEnd),
         resources: toTodoResourceDtos(t.resources),
         tasks: toTodoTaskDtos(t.tasks),
         recurringWindow: undefined,

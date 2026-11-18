@@ -250,25 +250,41 @@ model Completion {
   completedAt   DateTime @default(now())
   note          String?
 
-  appointment  Appointment   @relation(fields: [appointmentId], references: [id])
-  laborEntries LaborEntry[]
-  extraCharges ExtraCharge[]
-  invoice      Invoice?
+  /// Invoice that includes this registration (set when the job is invoiced;
+  /// a multi-day job collects several registrations on one invoice).
+  invoiceId Int?
+
+  appointment       Appointment   @relation(fields: [appointmentId], references: [id])
+  laborEntries      LaborEntry[]
+  extraCharges      ExtraCharge[]
+  /// The invoice created by (the last registration of) this job.
+  invoice           Invoice?      @relation("InvoiceTrigger")
+  includedInInvoice Invoice?      @relation("InvoiceCompletions", fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
 }
 
-/// Gewerkte uren van één persoon. workerName NULL = de zaakvoerder zelf.
-/// hourlyRate en vatRate zijn snapshots van het tarief op dat moment.
+/// Hours of one resource (person or machine) on one registration.
+/// registeredHours = actually worked (for reporting); invoicedHours = what is
+/// charged (may differ). Both in whole quarters ("per begonnen kwartier").
+/// Name, type, hourlyRate and vatRate are snapshots at registration time.
+/// workerName NULL + resourceId NULL = legacy "own hours" of the owner.
 model LaborEntry {
-  id           Int     @id @default(autoincrement())
-  completionId Int
-  workerName   String?
-  hours        Decimal @db.Decimal(5, 2)
-  hourlyRate   Decimal @db.Decimal(8, 2)
-  vatRate      Decimal @db.Decimal(4, 2)
+  id              Int           @id @default(autoincrement())
+  completionId    Int
+  resourceId      Int?
+  resourceType    ResourceType?
+  workerName      String?
+  registeredHours Decimal       @db.Decimal(5, 2)
+  invoicedHours   Decimal       @db.Decimal(5, 2)
+  hourlyRate      Decimal       @db.Decimal(8, 2)
+  vatRate         Decimal       @db.Decimal(4, 2)
 
   completion Completion @relation(fields: [completionId], references: [id], onDelete: Cascade)
+  resource   Resource?  @relation(fields: [resourceId], references: [id], onDelete: SetNull)
 
   @@index([completionId])
+  @@index([resourceId])
 }
 
 enum ResourceType {
@@ -290,6 +306,7 @@ model Resource {
 
   todoResources     TodoResource[]
   templateResources RecurringTemplateResource[]
+  laborEntries      LaborEntry[]
 }
 
 /// Resource requirement of a todo: which resource is needed and for how many
@@ -338,6 +355,8 @@ model TodoTask {
   checklistItemId Int?
   label           String
   done            Boolean @default(false)
+  /// Not on the planned checklist: added as "extra done" during registration.
+  unplanned       Boolean @default(false)
   sortOrder       Int     @default(0)
 
   todo          Todo           @relation(fields: [todoId], references: [id], onDelete: Cascade)
@@ -433,8 +452,10 @@ model Invoice {
   createdAt    DateTime          @default(now())
   pushedAt     DateTime?
 
-  completion Completion @relation(fields: [completionId], references: [id])
-  customer   Customer   @relation(fields: [customerId], references: [id])
+  completion  Completion   @relation("InvoiceTrigger", fields: [completionId], references: [id])
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  /// All registrations (days) charged on this invoice.
+  completions Completion[] @relation("InvoiceCompletions")
 
   @@index([customerId])
   @@index([pushStatus])

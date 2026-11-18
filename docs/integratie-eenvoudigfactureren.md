@@ -72,12 +72,14 @@ De import is idempotent en kan dus veilig opnieuw gedraaid worden.
 
 ## Facturen (automatische conceptfacturen)
 
-Na elke werkregistratie (zie `src/lib/services/invoices.ts` en
-`invoice-builder.ts`):
+Bij de registratie met **Nu factureren** (laatste dag van een job; zie
+`src/lib/services/invoices.ts` en `buildJobInvoice` in `src/lib/registration.ts`):
 
-1. De regels worden gebouwd: eigen uren → "Tuinwerken – \<titel\> (\<datum\>)",
-   per medewerker → "Medewerker \<naam\> – uren", per extra een regel met de
-   prijslijst-snapshot. Elke regel draagt zijn eigen `tax_rate`.
+1. De regels worden gebouwd uit álle nog niet gefactureerde dagen van de job:
+   per resource één regel met de opgetelde **gefactureerde** uren —
+   "Werkuren \<naam\> – \<titel\> (\<data\>)" voor personen,
+   "\<machine\> – \<titel\> (\<data\>)" voor machines — en per artikel een
+   regel met de prijslijst-snapshot. Elke regel draagt zijn eigen `tax_rate`.
 2. De factuur wordt **eerst lokaal** bewaard (tabel `Invoice`, met de exacte
    `items`-payload als `linesJson`-audittrail en het totaal excl. btw).
 3. Daarna de push: ontbreekt de EF-koppeling van de klant, dan wordt die eerst

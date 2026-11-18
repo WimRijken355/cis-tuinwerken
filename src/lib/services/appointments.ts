@@ -2,7 +2,7 @@ import { db } from "../db";
 import { partNumbers, plannedMinutes, remainingMinutes } from "../planning";
 import type { AppointmentDto } from "../schemas/appointments";
 import { formatAddress } from "../schemas/customers";
-import { todoPlace, toTodoResourceDtos } from "../schemas/todos";
+import { todoPlace, toTodoResourceDtos, toTodoTaskDtos } from "../schemas/todos";
 
 /** Prisma-include waarmee een afspraak alles heeft voor de DTO. */
 export const appointmentInclude = {
@@ -13,6 +13,8 @@ export const appointmentInclude = {
         include: { resource: { select: { name: true, type: true } } },
         orderBy: { id: "asc" as const },
       },
+      // Single orderBy: the outer `as const` would make an array readonly (Prisma wants mutable).
+      tasks: { orderBy: { sortOrder: "asc" as const } },
     },
   },
 } as const;
@@ -30,7 +32,9 @@ type AppointmentWithRelations = {
   reservation: boolean;
   todo: {
     title: string;
+    description: string | null;
     estimatedHours: unknown;
+    tasks: { id: number; checklistItemId: number | null; label: string; done: boolean; unplanned: boolean }[];
     contactName: string | null;
     contactStreet: string | null;
     contactPostalCode: string | null;
@@ -51,6 +55,9 @@ type AppointmentWithRelations = {
 export interface TodoPlanningMeta {
   plannedMinutes: number;
   remainingMinutes: number;
+  /** Blocks still to do (status PLANNED) / already registered (DONE). */
+  plannedBlocks: number;
+  doneBlocks: number;
   parts: Map<number, { index: number; total: number }>;
 }
 
@@ -76,7 +83,16 @@ export async function loadPlanningMeta(todoIds: number[]): Promise<Map<number, T
     todos.map((t) => {
       const planned = plannedMinutes(t.appointments);
       const remaining = remainingMinutes(Number(t.estimatedHours), planned);
-      return [t.id, { plannedMinutes: planned, remainingMinutes: remaining, parts: partNumbers(t.appointments, remaining) }];
+      return [
+        t.id,
+        {
+          plannedMinutes: planned,
+          remainingMinutes: remaining,
+          plannedBlocks: t.appointments.filter((a) => a.status === "PLANNED").length,
+          doneBlocks: t.appointments.filter((a) => a.status === "DONE").length,
+          parts: partNumbers(t.appointments, remaining),
+        },
+      ];
     }),
   );
 }
@@ -95,6 +111,8 @@ export function toAppointmentDto(a: AppointmentWithRelations, meta?: TodoPlannin
     reminderSentAt: a.reminderSentAt?.toISOString() ?? null,
     reminderError: a.reminderError,
     todoTitle: a.todo.title,
+    todoDescription: a.todo.description,
+    tasks: toTodoTaskDtos(a.todo.tasks),
     estimatedHours: Number(a.todo.estimatedHours),
     customerId: customer?.id ?? null,
     customerName: place.name,

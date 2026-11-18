@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TodoResourceDto } from "./todos";
+import type { TodoResourceDto, TodoTaskDto } from "./todos";
 
 /** Contracten voor /api/appointments. */
 
@@ -42,6 +42,9 @@ export interface AppointmentDto {
   reminderSentAt: string | null;
   reminderError: string | null;
   todoTitle: string;
+  todoDescription: string | null;
+  /** Checklist of the todo (what has to be done), in order. */
+  tasks: TodoTaskDto[];
   estimatedHours: number;
   /** null for a "losse todo" (holiday, doctor, ...). */
   customerId: number | null;

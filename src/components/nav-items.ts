@@ -17,8 +17,8 @@ export interface NavItem {
 
 /** Main menu items (top level). */
 export const MAIN_ITEMS: NavItem[] = [
-  { href: "/today", label: "Vandaag", icon: "📋" },
-  { href: "/upcoming-days", label: "Dagen", labelLong: "Komende dagen", icon: "🗓️" },
+  // Mostly used on a phone (see CLAUDE.md): one day at a time, ‹ › to browse.
+  { href: "/daily-planning", label: "Dag", labelLong: "Dagplanning", icon: "📋" },
   { href: "/planning", label: "Planning", icon: "📅" },
   { href: "/customers", label: "Klanten", icon: "👥" },
   { href: "/invoices", label: "Facturen", icon: "🧾" },

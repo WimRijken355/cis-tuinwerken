@@ -100,7 +100,7 @@ describe("todo checklist", () => {
   it("maps task rows to DTOs", () => {
     expect(
       toTodoTaskDtos([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true, sortOrder: 0 } as never]),
-    ).toEqual([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true }]);
+    ).toEqual([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true, unplanned: false }]);
   });
 });
 

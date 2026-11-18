@@ -116,11 +116,19 @@ Vinkt een checklist-taak af (of terug aan).
 
 ### GET /api/appointments?from=ISO&to=ISO
 Afspraken (niet-geannuleerd) binnen het bereik — gebruikt door de weekkalender
-en "Komende dagen". Elke afspraak is verrijkt met `todoTitle`, `customerName`,
-`address` (voor Waze) en `customerEmail`.
+en de Dagplanning. Elke afspraak is verrijkt met `todoTitle`, `todoDescription`,
+`tasks` (checklist), `resources`, `customerName`, `address` (voor Waze), `part`
+(x/y) en de vlaggen `confirmed`/`reservation`.
 
-### GET /api/appointments/today
-De afspraken van vandaag (Brusselse kalenderdag), gesorteerd op startuur.
+### GET /api/appointments/day?date=jjjj-mm-dd
+De afspraken van één Brusselse kalenderdag (standaard vandaag), gesorteerd op
+startuur — voor de Dagplanning.
+
+### GET /api/appointments/:id/registration
+Alles voor het klaarmeldscherm: ingeplande resources met urenvoorstel
+(`proposedHours`, `alreadyRegisteredHours`), checklist, `otherPlannedBlocks`,
+`remainingUnplannedMinutes`, `defaultInvoiceNow` en de nog niet gefactureerde
+eerdere dagen van de job (`uninvoicedDays`).
 
 ### POST /api/appointments
 ```json
@@ -146,25 +154,26 @@ retry). 400 als de klant geen e-mailadres heeft, 409 als de afspraak niet
 ## Registratie & facturen
 
 ### POST /api/appointments/:id/complete
-Werk afronden (mobiele flow). Lokaal wordt alles in één transactie bewaard;
-daarna volgt de (niet-blokkerende) push naar EenvoudigFactureren als concept.
+Een dag werk registreren (mobiele flow). Lokaal in één transactie; daarna,
+enkel bij facturatie, de (niet-blokkerende) push naar EenvoudigFactureren.
 ```json
 {
-  "ownHours": 3,
-  "workers": [{ "name": "Jef", "hours": 2, "hourlyRate": 20 }],
+  "resources": [{ "resourceId": 1, "registeredHours": 8, "invoicedHours": 7.5 }],
   "extras": [{ "priceListItemId": 2, "description": "Afvoer groenafval",
                "quantity": 2, "unit": "m³", "unitPrice": 35, "vatRate": 21 }],
-  "note": ""
+  "taskStates": [{ "id": 14, "done": true }],
+  "extraTasks": [{ "checklistItemId": 3, "label": "Snoeien" }, { "label": "Dakgoot leeggemaakt" }],
+  "note": "",
+  "invoiceNow": false
 }
 ```
-→ 201:
-```json
-{ "completed": true, "invoiceId": 1, "totalExclVat": 245,
-  "efPush": { "ok": false, "error": "…" } }
-```
-409 als de afspraak al geregistreerd of niet `PLANNED` is.
-Tarieven (eigen uurtarief, btw op arbeid) komen uit Instellingen en worden als
-snapshot bewaard.
+Uren per begonnen kwartier (1,1 → 1,25). Tarief = snapshot van de resource,
+btw = btw op arbeid uit Instellingen. `invoiceNow: true` → alle nog niet
+gefactureerde dagen van de todo op één factuur, resterende geplande blokken
+geannuleerd, todo `DONE`.
+→ 201: `{ completed, invoiced: false, nextBlocks }` of
+`{ completed, invoiced: true, invoiceId, totalExclVat, efPush }`.
+409 als de afspraak al geregistreerd, niet `PLANNED` of een losse todo is.
 
 ### GET /api/invoices?status=
 Overzicht (nieuwste eerst, max 200) met `pushStatus`

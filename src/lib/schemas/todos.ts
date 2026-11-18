@@ -47,6 +47,14 @@ const contactFields = {
   contactCity: optionalText(100),
 };
 
+/** "yyyy-MM" (from <input type="month">); "" = none. */
+const monthField = z
+  .string()
+  .trim()
+  .regex(/^(\d{4}-\d{2})?$/, "Maand als jjjj-mm")
+  .optional()
+  .transform((v) => v || undefined);
+
 export const todoInputSchema = z.object({
   /** null/omitted = "losse todo" (holiday, doctor, ...): no customer, never invoiced. */
   customerId: z.number().int().positive().nullable().default(null),
@@ -58,6 +66,9 @@ export const todoInputSchema = z.object({
   /** Checklist item ids (ordered) that make up this todo's checklist. */
   taskIds: checklistItemIdsSchema.default([]),
   ...contactFields,
+  /** Preferred period, e.g. "2027-04" (to "2027-05"): stored as windowStart/windowEnd. */
+  preferredFrom: monthField,
+  preferredTo: monthField,
 });
 export type TodoInput = z.infer<typeof todoInputSchema>;
 
@@ -124,6 +135,8 @@ export interface TodoTaskDto {
   checklistItemId: number | null;
   label: string;
   done: boolean;
+  /** Not planned: added as "extra done" during a registration. */
+  unplanned?: boolean;
 }
 
 /** Body for PATCH /api/todos/:id/tasks/:taskId. */
@@ -140,9 +153,15 @@ export const todoResourcesInclude = {
 
 /** Maps TodoTask rows to DTOs. */
 export function toTodoTaskDtos(
-  rows: { id: number; checklistItemId: number | null; label: string; done: boolean }[],
+  rows: { id: number; checklistItemId: number | null; label: string; done: boolean; unplanned?: boolean }[],
 ): TodoTaskDto[] {
-  return rows.map(({ id, checklistItemId, label, done }) => ({ id, checklistItemId, label, done }));
+  return rows.map(({ id, checklistItemId, label, done, unplanned }) => ({
+    id,
+    checklistItemId,
+    label,
+    done,
+    unplanned: unplanned ?? false,
+  }));
 }
 
 export interface TaskSyncPlan {

@@ -30,7 +30,7 @@ async function postJson(url: string, body?: unknown) {
 
 /** Na aanmelden: telefoon → Vandaag, desktop → Planning. */
 function goToApp(router: ReturnType<typeof useRouter>) {
-  router.replace(window.innerWidth < 768 ? "/today" : "/planning");
+  router.replace(window.innerWidth < 768 ? "/daily-planning" : "/planning");
   router.refresh();
 }
 

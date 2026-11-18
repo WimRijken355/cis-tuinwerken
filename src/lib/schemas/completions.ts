@@ -1,47 +1,121 @@
 import { z } from "zod";
+import { ceilToQuarterHour } from "../registration";
 
-/** Contract voor het afronden van een afspraak (urenregistratie + extra's). */
+/**
+ * Contract for registering a day's work on an appointment ("klaarmelden",
+ * mostly from a phone): hours per resource, extras, checklist, note, and
+ * whether the job is invoiced now (multi-day jobs: only with the last block).
+ */
 
-const hoursSchema = z.coerce
+/** Hours "per begonnen kwartier": 1,1 → 1,25; 0 allowed (e.g. registered but not invoiced). */
+const quarterHours = z.coerce
   .number()
-  .positive("Uren moeten groter dan 0 zijn")
+  .min(0, "Uren kunnen niet negatief zijn")
   .max(24, "Meer dan 24 uur op één dag kan niet")
-  // EF accepteert max 2 decimalen op quantity.
-  .transform((v) => Math.round(v * 100) / 100);
+  .transform(ceilToQuarterHour);
 
-export const completionInputSchema = z.object({
-  /** Eigen gewerkte uren (tarief komt uit Instellingen). */
-  ownHours: hoursSchema,
-  /** Meegebrachte werkmensen: naam + uren + tarief (vooringevuld uit de picklist). */
-  workers: z
-    .array(
-      z.object({
-        name: z.string().trim().min(1, "Naam is verplicht").max(100),
-        hours: hoursSchema,
-        hourlyRate: z.coerce.number().min(0).max(1000),
-      }),
-    )
-    .default([]),
-  /** Extra aanrekeningen (machines, afvoer, ...), snapshots van de prijslijst. */
-  extras: z
-    .array(
-      z.object({
-        priceListItemId: z.number().int().positive().optional(),
-        description: z.string().trim().min(1).max(200),
-        quantity: z.coerce
-          .number()
-          .positive()
-          .max(10000)
-          .transform((v) => Math.round(v * 100) / 100),
-        unit: z.string().trim().min(1).max(10),
-        unitPrice: z.coerce.number().min(0).max(100000),
-        vatRate: z.coerce.number().refine((v) => [0, 6, 12, 21].includes(v)),
-      }),
-    )
-    .default([]),
-  note: z.string().max(2000).optional(),
+export const completionResourceSchema = z.object({
+  resourceId: z.number().int().positive(),
+  /** Actually worked (for reporting / the hours dashboard). */
+  registeredHours: quarterHours,
+  /** Charged to the customer (sent to EenvoudigFactureren); may differ. */
+  invoicedHours: quarterHours,
 });
+
+export const completionInputSchema = z
+  .object({
+    resources: z
+      .array(completionResourceSchema)
+      .max(50)
+      .refine(
+        (list) => new Set(list.map((r) => r.resourceId)).size === list.length,
+        "Elke resource kan maar één keer voorkomen",
+      ),
+    /** Extra charges (artikels), snapshots of the price list. */
+    extras: z
+      .array(
+        z.object({
+          priceListItemId: z.number().int().positive().optional(),
+          description: z.string().trim().min(1).max(200),
+          quantity: z.coerce
+            .number()
+            .positive()
+            .max(10000)
+            .transform((v) => Math.round(v * 100) / 100),
+          unit: z.string().trim().min(1).max(10),
+          unitPrice: z.coerce.number().min(0).max(100000),
+          vatRate: z.coerce.number().refine((v) => [0, 6, 12, 21].includes(v)),
+        }),
+      )
+      .default([]),
+    /** Desired done-state of the todo's checklist tasks (TodoTask ids). */
+    taskStates: z.array(z.object({ id: z.number().int().positive(), done: z.boolean() })).default([]),
+    /** Tasks that were done but not on the planned checklist. */
+    extraTasks: z
+      .array(
+        z.object({
+          checklistItemId: z.number().int().positive().optional(),
+          label: z.string().trim().min(1).max(200),
+        }),
+      )
+      .max(50)
+      .default([]),
+    note: z.string().max(2000).optional(),
+    /**
+     * Invoice the job now (all registered, not yet invoiced days of this todo)
+     * and close it. Off for an intermediate day of a multi-day job.
+     */
+    invoiceNow: z.boolean(),
+  })
+  .refine(
+    (c) => c.resources.some((r) => r.registeredHours > 0 || r.invoicedHours > 0),
+    "Geef voor minstens één resource uren in",
+  );
 export type CompletionInput = z.infer<typeof completionInputSchema>;
+
+/** Planned resource of the todo, with the hours proposal for today. */
+export interface RegistrationResourceDto {
+  resourceId: number;
+  name: string;
+  type: "PERSON" | "MACHINE";
+  hourlyRate: number;
+  /** Hours planned for this resource on the whole todo. */
+  todoHours: number;
+  /** Registered on earlier days of this todo. */
+  alreadyRegisteredHours: number;
+  proposedHours: number;
+}
+
+/** Everything the registration screen needs (GET /api/appointments/:id/registration). */
+export interface RegistrationContextDto {
+  plannedResources: RegistrationResourceDto[];
+  tasks: { id: number; label: string; done: boolean; unplanned: boolean; checklistItemId: number | null }[];
+  blockMinutes: number;
+  otherPlannedBlocks: number;
+  remainingUnplannedMinutes: number;
+  defaultInvoiceNow: boolean;
+  /** Earlier registered days of this todo that are not invoiced yet. */
+  uninvoicedDays: {
+    date: string;
+    labor: {
+      resourceId: number | null;
+      name: string;
+      type: "PERSON" | "MACHINE";
+      invoicedHours: number;
+      hourlyRate: number;
+      vatRate: number;
+    }[];
+    extras: {
+      priceListItemId: number | null;
+      description: string;
+      quantity: number;
+      unit: string;
+      unitPrice: number;
+      vatRate: number;
+    }[];
+  }[];
+  laborVatRate: number;
+}
 
 export interface InvoiceDto {
   id: number;

@@ -216,7 +216,9 @@ export function SidebarTodoCard({
         {todo.customerCity && <span className="text-gray-400"> · {todo.customerCity}</span>}
       </p>
       <p className="mt-1 text-xs">
-        <span className="font-semibold text-gray-800">nog {formatMinutesAsHours(remaining)}</span>
+        <span className="font-semibold text-gray-800">
+          {remaining > 0 ? `nog ${formatMinutesAsHours(remaining)}` : "vervolgdag in te plannen"}
+        </span>
         {planned > 0 && (
           <span className="text-gray-400">
             {" "}

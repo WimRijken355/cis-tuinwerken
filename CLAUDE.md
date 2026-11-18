@@ -4,7 +4,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 
 ## Taal- en naamgevingsconventie
 
-- **Folders en bestandsnamen: Engels.** Alle routes, componenten, modules, etc. hebben Engelse namen. De route-folders onder `src/app/(app)/` zijn dit: `invoices`, `customers`, `today` (incl. `today/[id]/register`), `upcoming-days`, `planning`, `audit-log`, en in de route-group `(settings)/` (URL ongewijzigd, gedeelde layout met mobiele tabbladen): `settings` ("Algemeen"), `products` ("Artikels"), `resources` ("Resources": personen + machines, model `Resource`, vroeger `Worker`), `checklist`, `loose-todo-presets` ("Losse todo's": snelkeuzes voor losse todo's) en `users` ("Gebruikers", ADMIN-only). Sorteerbare stamlijsten (checklist, losse todo-types) gebruiken `SortableListManager` + `src/lib/sortable.ts`. Nieuwe folders/bestanden volgen dezelfde regel.
+- **Folders en bestandsnamen: Engels.** Alle routes, componenten, modules, etc. hebben Engelse namen. De route-folders onder `src/app/(app)/` zijn dit: `invoices`, `customers`, `daily-planning` ("Dagplanning", incl. `daily-planning/[id]/register` = klaarmelden), `planning`, `audit-log`, en in de route-group `(settings)/` (URL ongewijzigd, gedeelde layout met mobiele tabbladen): `settings` ("Algemeen"), `products` ("Artikels"), `resources` ("Resources": personen + machines, model `Resource`, vroeger `Worker`), `checklist`, `loose-todo-presets` ("Losse todo's": snelkeuzes voor losse todo's) en `users` ("Gebruikers", ADMIN-only). Sorteerbare stamlijsten (checklist, losse todo-types) gebruiken `SortableListManager` + `src/lib/sortable.ts`. Nieuwe folders/bestanden volgen dezelfde regel.
 - **Navigatie**: alle menu-items staan in `src/components/nav-items.ts` (`MAIN_ITEMS` + `SETTINGS_ITEMS`). Alles wat de app configureert hoort in `SETTINGS_ITEMS` (submenu "Instellingen" in de sidebar; op gsm via "Meer" + tabbladen bovenaan).
 - **UI-teksten: Nederlands.** Alle captions, labels, veldnamen, knoppen, foutmeldingen en andere tekst die de gebruiker ziet, zijn in het Nederlands. Code (variabelen, functies, types, comments) blijft Engels.
 - Technische documentatie inline in de code moet ook altijd in het Engels
@@ -40,6 +40,14 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 
 - Zod `.partial()` behoudt `.default(...)`: een PATCH die een veld weglaat, zet het dan stil terug op de default (bv. `active` → true). Gebruik voor PATCH-schemas `partialWithoutDefaults()` uit `src/lib/schemas/partial.ts` of een expliciet schema zonder defaults (zie `recurringTemplateUpdateSchema`).
 
+## Dagplanning + registratie (gsm-scherm!)
+
+- **De Dagplanning (`/daily-planning`) en het klaarmelden (`/daily-planning/[id]/register`) worden (bijna) altijd op de gsm geopend.** Ontwerp en test ze eerst op telefoonformaat (± 360–400 px breed): grote tikdoelen (min. ± 44 px), één kolom, geen hover-afhankelijke acties, sticky navigatie bovenaan. Desktop is bijzaak.
+- Dagplanning: één dag (standaard vandaag, `?date=jjjj-mm-dd`, ‹ › om te bladeren), kaartjes klappen open met omschrijving + afvinkbare checklist; acties Waze / Verplaatsen / Klaarmelden. API: `GET /api/appointments/day?date=`. "Komende dagen" bestaat niet meer.
+- Klaarmelden: alle uren via **resources** (geen aparte "eigen uren" meer). Per resource `registeredHours` (echt gewerkt, voor rapportering) en `invoicedHours` (naar EF), beide **per begonnen kwartier** (`ceilToQuarterHour`). Voorstel = blokduur, begrensd door wat er voor die resource nog openstaat (`proposeHours`).
+- Meerdaagse job: elke dag een `Completion`; `invoiceNow` (standaard aan bij het laatste blok, `defaultInvoiceNow`) zet álle nog niet gefactureerde dagen op één factuur (`Completion.invoiceId`, `buildJobInvoice` — per resource opgeteld), annuleert resterende blokken en sluit de todo. Zonder factuur en zonder volgend blok komt de todo terug in "In te plannen" (`needsPlanning`).
+- Checklist bij registratie: geplande taken afvinken + extra uitgevoerde taken (`TodoTask.unplanned`). Laatste stap: nieuwe todo met voorkeursperiode (`preferredFrom/To` → `windowStart/End`, label via `windowLabel()`).
+
 ## Planning
 
 - Pagina `/planning` (FullCalendar v7, weekraster 06:00–24:00). Pure regels in `src/lib/planning.ts` (getest in `planning.test.ts`).
@@ -65,7 +73,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - Run alle tests met `npm test` (eenmalig, voor CI/commit-checks) of `npm run test:watch` tijdens het ontwikkelen.
 - **Bij elke gevraagde wijziging moet minstens 1 test toegevoegd of aangepast worden** die de wijziging dekt, vóórdat de wijziging als afgerond wordt beschouwd.
 - **`npm test` moet slagen** vóór een wijziging als afgerond wordt beschouwd — dit is de controle dat de applicatie nog werkt.
-- Focus op pure/losstaande logica (geen database of netwerk nodig): `src/lib/time.ts`, `src/lib/schemas/*`, `src/lib/services/invoice-builder.ts`, `src/lib/auth/*`, `src/lib/audit.ts`. Voor code die wél de database/EF/mail nodig heeft: mock die afhankelijkheid, zet geen tests op tegen de echte dev-database.
+- Focus op pure/losstaande logica (geen database of netwerk nodig): `src/lib/time.ts`, `src/lib/schemas/*`, `src/lib/registration.ts` (urenregistratie + factuuropbouw), `src/lib/planning.ts`, `src/lib/auth/*`, `src/lib/audit.ts`. Voor code die wél de database/EF/mail nodig heeft: mock die afhankelijkheid, zet geen tests op tegen de echte dev-database.
   - **Uitzondering**: `src/lib/db.audit.integration.test.ts` test de audittrail-extension (zie hierboven) wél tegen een échte Postgres — dat gedrag (Prisma-transacties) is niet zinvol te mocken. Vereist `npm run db:up` + een `.env`; is de database onbereikbaar (bv. in CI), dan slaat de test zichzelf over (`describe.skipIf`) i.p.v. te falen.
 
 ## Overig
