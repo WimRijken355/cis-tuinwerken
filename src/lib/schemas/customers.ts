@@ -32,6 +32,8 @@ export interface CustomerDto {
   efClientId: number | null;
   notes: string | null;
   active: boolean;
+  /** Demo data customer (never synced to EF, never e-mailed). */
+  isDemo?: boolean;
   openTodoCount?: number;
 }
 

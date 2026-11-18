@@ -231,6 +231,11 @@ function Dash() {
 function CustomerBadges({ customer: c }: { customer: CustomerDto }) {
   return (
     <div className="flex shrink-0 items-center justify-end gap-2 text-xs">
+      {c.isDemo && (
+        <span className="rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800" title="Demodata">
+          Demo
+        </span>
+      )}
       {(c.openTodoCount ?? 0) > 0 && (
         <span className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 font-medium text-amber-800">
           {c.openTodoCount} open

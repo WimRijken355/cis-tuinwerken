@@ -43,6 +43,9 @@ export async function POST(
     const id = Number((await params).id);
     const customer = await db.customer.findUnique({ where: { id } });
     if (!customer) throw new ApiError("Klant niet gevonden", 404);
+    if (customer.isDemo) {
+      throw new ApiError("Demoklanten worden nooit naar EenvoudigFactureren gestuurd.", 409);
+    }
 
     if (customer.efClientId) {
       await updateClientPartial(customer.efClientId, toEfInput(customer));

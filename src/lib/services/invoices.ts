@@ -2,6 +2,7 @@ import { db } from "../db";
 import { createClient, createInvoice, EfApiError, efIsConfigured } from "../ef/client";
 import type { EfInvoiceItem } from "../ef/types";
 import { nowBrussels } from "../time";
+import { DEMO_CUSTOMER_MESSAGE } from "./invoice-sync";
 import { getSettings } from "./settings";
 
 /** Invoice made while EF sync is switched off: stays local, can be sent later. */
@@ -31,6 +32,14 @@ export async function pushInvoiceToEf(invoiceId: number): Promise<{
     include: { customer: true },
   });
   if (!invoice) throw new Error("Factuur niet gevonden");
+  // Last line of defence: demo customers must never reach the real EF account.
+  if (invoice.customer.isDemo) {
+    await db.invoice.update({
+      where: { id: invoiceId },
+      data: { pushStatus: "NOT_SYNCED", errorMessage: DEMO_CUSTOMER_MESSAGE },
+    });
+    return { ok: false, error: DEMO_CUSTOMER_MESSAGE };
+  }
   if (invoice.efInvoiceId) {
     return { ok: true, efInvoiceId: invoice.efInvoiceId }; // al gepusht
   }

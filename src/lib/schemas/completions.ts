@@ -49,6 +49,8 @@ export interface InvoiceDto {
   customerName: string;
   efInvoiceId: number | null;
   pushStatus: "PENDING" | "CONCEPT_CREATED" | "FAILED" | "NOT_SYNCED";
+  /** Invoice of a demo customer: never sent to EF. */
+  customerIsDemo?: boolean;
   totalExclVat: number;
   errorMessage: string | null;
   createdAt: string;

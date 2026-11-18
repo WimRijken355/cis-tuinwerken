@@ -5,12 +5,15 @@
 
 export type InvoicePushStatus = "PENDING" | "CONCEPT_CREATED" | "FAILED" | "NOT_SYNCED";
 
+export const DEMO_CUSTOMER_MESSAGE =
+  "Demoklant: facturen van demoklanten gaan nooit naar EenvoudigFactureren.";
+
 export const SYNC_DISABLED_MESSAGE =
   "Synchronisatie van facturen naar EenvoudigFactureren staat uit (Instellingen → Algemeen).";
 
-/** What to do with a freshly registered invoice. */
-export function initialSyncAction(syncEnabled: boolean): "push" | "skip" {
-  return syncEnabled ? "push" : "skip";
+/** What to do with a freshly registered invoice (demo customers are never pushed). */
+export function initialSyncAction(syncEnabled: boolean, isDemoCustomer = false): "push" | "skip" {
+  return syncEnabled && !isDemoCustomer ? "push" : "skip";
 }
 
 /**
@@ -21,7 +24,11 @@ export function initialSyncAction(syncEnabled: boolean): "push" | "skip" {
 export function canSendToEf(
   invoice: { efInvoiceId: number | null; pushStatus: InvoicePushStatus },
   syncEnabled: boolean,
+  isDemoCustomer = false,
 ): { allowed: true } | { allowed: false; reason: string; status: number } {
+  if (isDemoCustomer) {
+    return { allowed: false, reason: DEMO_CUSTOMER_MESSAGE, status: 409 };
+  }
   if (invoice.efInvoiceId) {
     return { allowed: false, reason: "Deze factuur staat al in EenvoudigFactureren", status: 409 };
   }

@@ -115,7 +115,7 @@ export default function InvoicesPage() {
               <div className="flex shrink-0 items-center gap-3">
                 <span className="font-medium">€ {inv.totalExclVat.toFixed(2)}</span>
                 <StatusBadge status={inv.pushStatus} />
-                {canSendToEf({ efInvoiceId: inv.efInvoiceId ?? null, pushStatus: inv.pushStatus }, syncEnabled)
+                {canSendToEf({ efInvoiceId: inv.efInvoiceId ?? null, pushStatus: inv.pushStatus }, syncEnabled, inv.customerIsDemo)
                   .allowed && (
                   <Button
                     variant="secondary"

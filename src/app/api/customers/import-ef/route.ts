@@ -30,7 +30,9 @@ export async function POST() {
     }
 
     const efClients = await listAllClients();
-    const existing = await db.customer.findMany();
+    // Demo customers never take part: a demo name that happens to match a real
+    // EF client must not get linked to it.
+    const existing = await db.customer.findMany({ where: { isDemo: false } });
 
     const byEfId = new Map(existing.filter((c) => c.efClientId).map((c) => [c.efClientId, c]));
     const byVat = new Map(

@@ -12,6 +12,7 @@ import {
   TextInput,
   Toggle,
 } from "@/components/ui";
+import { DemoDataSection } from "@/components/demo-data-section";
 import { apiGet, apiSend } from "@/lib/api-client";
 import type { Settings } from "@/lib/schemas/settings";
 import { APP_VERSION } from "@/lib/version";
@@ -52,6 +53,7 @@ export default function SettingsPage() {
           <EfInvoiceSyncSection settings={settings} />
           <EfImportSection efConfigured={settings.efConfigured} />
           <SecuritySection />
+          <DemoDataSection />
           <p className="pt-2 text-center text-xs text-gray-400">
             Tuinwerken Cis · versie {APP_VERSION}
           </p>

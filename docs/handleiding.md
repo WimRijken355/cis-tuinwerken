@@ -132,3 +132,13 @@ toe via Artikels (dat is 10 seconden werk) en registreer dan.
 **Werkt de app zonder internet?** De app opent wel, maar plannen en
 registreren vereisen verbinding. Je krijgt dan een duidelijke melding —
 er gaat niets verloren, probeer gewoon opnieuw zodra je bereik hebt.
+
+## Demodata (uitproberen)
+
+In **Instellingen → Algemeen → Demodata** (enkel voor beheerders) zet je met
+één schakelaar fictieve klanten aan of uit: 10 klanten in de Kempen met
+todo's van 2 uur tot 6 werkdagen, met de resources Cis (altijd), Wim en Ken en
+enkele machines. Handig om de planning uit te proberen. Demoklanten hebben een
+gele **Demo**-badge, gaan nooit naar EenvoudigFactureren en krijgen nooit
+mails. Uitzetten verwijdert ze met alles wat eraan hangt; je echte klanten,
+Cis/Wim/Ken en je eigen checklist blijven staan.

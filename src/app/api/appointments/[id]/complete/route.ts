@@ -104,7 +104,7 @@ export async function POST(
     // Stap 2: push naar EF (nooit blokkerend voor de registratie), unless
     // invoice sync is switched off in Settings: then the invoice stays local.
     const efPush =
-      initialSyncAction(settings.efInvoiceSyncEnabled) === "skip"
+      initialSyncAction(settings.efInvoiceSyncEnabled, appointment.todo.customer.isDemo) === "skip"
         ? await markInvoiceNotSynced(invoice.id).then(() => ({ ok: false, skipped: true }))
         : await pushInvoiceToEf(invoice.id).then((push) =>
             push.ok ? { ok: true, efInvoiceId: push.efInvoiceId } : { ok: false, error: push.error },

@@ -40,6 +40,12 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 
 - Zod `.partial()` behoudt `.default(...)`: een PATCH die een veld weglaat, zet het dan stil terug op de default (bv. `active` → true). Gebruik voor PATCH-schemas `partialWithoutDefaults()` uit `src/lib/schemas/partial.ts` of een expliciet schema zonder defaults (zie `recurringTemplateUpdateSchema`).
 
+## Demodata
+
+- Aan/uit via **Instellingen → Algemeen → Demodata** (ADMIN-only, `/api/demo-data`) of `npm run demo:on` / `demo:off` / `demo:status`. Dataset: `src/lib/demo/dataset.ts` (pure data, getest), laden/verwijderen: `src/lib/demo/demo-data.ts`.
+- Demoklanten hebben `Customer.isDemo = true`; demo-machines en -checklist-taken `isDemo = true`. Personen (Cis/Wim/Ken) zijn échte resources: hergebruikt, nooit verwijderd. Uitzetten verwijdert de demoklanten met álles eraan (todo's, afspraken, registraties, facturen, terugkerend werk).
+- **Veiligheid**: demoklanten gaan nooit naar EenvoudigFactureren (`initialSyncAction`/`canSendToEf` + guard in `pushInvoiceToEf` en `/api/customers/:id/push-ef`), krijgen nooit herinneringsmails, en doen niet mee aan de EF-klantenimport (naam-matching). Nieuwe code die naar EF stuurt of mailt, moet `isDemo` ook respecteren.
+
 ## Testen
 
 - Testrunner: **Vitest** (`vitest.config.mts`). Testbestanden staan naast de code als `*.test.ts` (bv. `src/lib/time.test.ts`).

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
         ? { pushStatus: status as Prisma.InvoiceWhereInput["pushStatus"] }
         : undefined,
       include: {
-        customer: { select: { name: true } },
+        customer: { select: { name: true, isDemo: true } },
         completion: {
           select: {
             completedAt: true,
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
         id: inv.id,
         customerId: inv.customerId,
         customerName: inv.customer.name,
+        customerIsDemo: inv.customer.isDemo,
         efInvoiceId: inv.efInvoiceId,
         pushStatus: inv.pushStatus,
         totalExclVat: Number(inv.totalExclVat),

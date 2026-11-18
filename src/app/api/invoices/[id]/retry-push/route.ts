@@ -18,11 +18,14 @@ export async function POST(
     await requireUser();
     const id = Number((await params).id);
 
-    const invoice = await db.invoice.findUnique({ where: { id } });
+    const invoice = await db.invoice.findUnique({
+      where: { id },
+      include: { customer: { select: { isDemo: true } } },
+    });
     if (!invoice) throw new ApiError("Factuur niet gevonden", 404);
 
     const settings = await getSettings();
-    const check = canSendToEf(invoice, settings.efInvoiceSyncEnabled);
+    const check = canSendToEf(invoice, settings.efInvoiceSyncEnabled, invoice.customer.isDemo);
     if (!check.allowed) throw new ApiError(check.reason, check.status);
 
     const result = await pushInvoiceToEf(id);

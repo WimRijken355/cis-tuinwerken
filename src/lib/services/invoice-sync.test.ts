@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { settingsUpdateSchema } from "../schemas/settings";
-import { canSendToEf, initialSyncAction, SYNC_DISABLED_MESSAGE } from "./invoice-sync";
+import {
+  canSendToEf,
+  DEMO_CUSTOMER_MESSAGE,
+  initialSyncAction,
+  SYNC_DISABLED_MESSAGE,
+} from "./invoice-sync";
 
 describe("initialSyncAction", () => {
   it("pushes a new invoice only when sync is on", () => {
@@ -36,5 +41,15 @@ describe("efInvoiceSyncEnabled setting", () => {
   it("can be switched on its own without touching other settings", () => {
     expect(settingsUpdateSchema.parse({ efInvoiceSyncEnabled: false })).toEqual({ efInvoiceSyncEnabled: false });
     expect(() => settingsUpdateSchema.parse({ efInvoiceSyncEnabled: "nee" })).toThrow();
+  });
+});
+
+describe("demo customers", () => {
+  it("are never pushed, also not with sync on", () => {
+    expect(initialSyncAction(true, true)).toBe("skip");
+    expect(canSendToEf({ efInvoiceId: null, pushStatus: "NOT_SYNCED" }, true, true)).toMatchObject({
+      allowed: false,
+      reason: DEMO_CUSTOMER_MESSAGE,
+    });
   });
 });
