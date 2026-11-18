@@ -18,7 +18,7 @@ import "@fullcalendar/react/themes/classic/palette.css";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PlanningEventContent, SidebarTodoCard } from "@/components/planning/planning-cards";
-import { AppointmentDialog, NewTodoDialog, PlanDialog } from "@/components/planning/planning-dialogs";
+import { AppointmentDialog, NewTodoDialog, PlanDialog, TodoEditDialog } from "@/components/planning/planning-dialogs";
 import { PlanningFilters } from "@/components/planning/planning-filters";
 import { EmptyState, ErrorNote, Spinner } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
@@ -59,6 +59,8 @@ export default function PlanningPage() {
   const [groupPerCity, setGroupPerCity] = useState(false);
   /** The todo selected in the sidebar or via one of its blocks (null = none). */
   const [focusTodoId, setFocusTodoId] = useState<number | null>(null);
+  /** Todo open in the full editor (null = closed). */
+  const [editTodoId, setEditTodoId] = useState<number | null>(null);
   const calendarApiRef = useRef<{ gotoDate: (date: Date | string) => void } | null>(null);
 
   const { data: todos, isLoading: todosLoading } = useQuery({
@@ -131,11 +133,11 @@ export default function PlanningPage() {
   // Escape clears the focus (while no dialog is open; dialogs handle their own Escape).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !planTodo && !selected && !newBlock) setFocusTodoId(null);
+      if (e.key === "Escape" && !planTodo && !selected && !newBlock && editTodoId === null) setFocusTodoId(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [planTodo, selected, newBlock]);
+  }, [planTodo, selected, newBlock, editTodoId]);
 
   /** Jumps the grid to the first (non-cancelled) block of a todo. */
   async function goToFirstBlock(todoId: number) {
@@ -281,6 +283,7 @@ export default function PlanningPage() {
                   onFocus={() => setFocusTodoId(null)}
                   onPlan={() => setPlanTodo(focusedTodo)}
                   onGoToBlock={() => void goToFirstBlock(focusedTodo.id)}
+                  onEdit={() => setEditTodoId(focusedTodo.id)}
                 />
               </div>
             </section>
@@ -302,6 +305,7 @@ export default function PlanningPage() {
                       onFocus={() => setFocusTodoId((current) => toggleFocus(current, t.id))}
                       onPlan={() => setPlanTodo(t)}
                       onGoToBlock={() => void goToFirstBlock(t.id)}
+                      onEdit={() => setEditTodoId(t.id)}
                     />
                   </div>
                 ))}
@@ -388,7 +392,27 @@ export default function PlanningPage() {
       )}
 
       {selected && (
-        <AppointmentDialog appointment={selected} onClose={() => setSelectedId(null)} onChanged={invalidate} />
+        <AppointmentDialog
+          appointment={selected}
+          onClose={() => setSelectedId(null)}
+          onChanged={invalidate}
+          onEditTodo={() => {
+            setSelectedId(null);
+            setEditTodoId(selected.todoId);
+          }}
+        />
+      )}
+
+      {editTodoId !== null && (
+        <TodoEditDialog
+          todoId={editTodoId}
+          onClose={() => setEditTodoId(null)}
+          onSaved={() => {
+            setEditTodoId(null);
+            invalidate();
+            void queryClient.invalidateQueries({ queryKey: ["todo", editTodoId] });
+          }}
+        />
       )}
 
       {newBlock && (

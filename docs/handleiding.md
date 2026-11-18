@@ -70,6 +70,10 @@ Had je al klanten in EenvoudigFactureren? Importeer ze in één keer via
    **📅 Inplannen…** en **→ Naar ingepland blok**; in een aangeduid blok de knop
    **Details…** (of dubbelklik) met de schakelaars **✓ Bevestigd** (effen kleur)
    en **⏳ Reservatie** (gearceerd, stippellijn — voorlopig).
+   Via **✏️ Bewerken** (op het kaartje) of **✏️ Todo bewerken** (in de details
+   van een blok) pas je de todo volledig aan, net als een nieuwe: klant of
+   losse todo (met naam/adres), omschrijving, totale tijd, checklist en
+   resources. De klant wijzigen kan niet meer zodra er werk geregistreerd is.
 5. **Nieuwe todo vanuit de planning**: selecteer een leeg vak in de kalender.
    Kies een klant (met checklist en resources), of maak een **losse todo**
    zoals vakantie of een doktersafspraak (grijs; wordt nooit gefactureerd).

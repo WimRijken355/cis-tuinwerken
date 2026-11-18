@@ -49,6 +49,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - **Losse todo** = `Todo.customerId = NULL` (vakantie, dokter, …): wel inplannen + resources, nooit registreren/factureren/mailen. Optioneel vrije naam/adres in `Todo.contact*` (geen klantrecord; altijd leeg bij een klant-todo, zie `contactForTodo()`); weergave via `todoPlace()`. Code die `todo.customer` gebruikt moet `null` afhandelen.
 - Zijbalkfilters (tekst op titel/klant/plaats, meerdere plaatsen, meerdere resources — binnen een filter OF, tussen filters EN) + groeperen per plaats: `matchesPlanningFilter()` / `groupByCity()` in `src/lib/planning.ts`. Dezelfde predicate maakt niet-passende blokken in het raster transparant.
 - **Focus**: één klik (zijbalk of blok) duidt een todo aan (`toggleFocus()`/`blockEmphasis()`), dialogen openen enkel via expliciete knoppen of dubbelklik. `selectMinDistance` zorgt dat een gewone klik op een leeg vak geen nieuwe todo start.
+- Todo volledig bewerken (ook van klant wisselen / omzetten naar losse todo): `TodoEditor` (`src/components/todo-editor.tsx`), gedeeld door `NewTodoDialog` en `TodoEditDialog`. Server-regel `resolveTodoOwner()`: contactvelden enkel vervangen als ze in de body zitten; eigenaar wijzigen geweigerd (409) zodra er een registratie is.
 - In v7 heten event-kleuren `color`/`className` (geen `backgroundColor`); de blokken worden volledig getekend door `PlanningEventContent` (`src/components/planning/`).
 
 ## Demodata

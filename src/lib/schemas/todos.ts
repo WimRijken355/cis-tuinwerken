@@ -66,6 +66,8 @@ export type TodoInput = z.infer<typeof todoInputSchema>;
  * array = none). Tasks that stay keep their "done" state.
  */
 export const todoUpdateSchema = z.object({
+  /** Change the owner: a customer id, or null to make it a losse todo. */
+  customerId: z.number().int().positive().nullable().optional(),
   title: z.string().trim().min(1, "Titel is verplicht").max(200).optional(),
   description: z.string().max(5000).optional(),
   estimatedHours: hoursField("Geschatte uren").optional(),
@@ -239,5 +241,35 @@ export function todoPlace(
     city: contact.contactCity,
     street: contact.contactStreet,
     postalCode: contact.contactPostalCode,
+  };
+}
+
+export const CONTACT_KEYS = ["contactName", "contactStreet", "contactPostalCode", "contactCity"] as const;
+
+/**
+ * Customer / contact to store on a PATCH of a todo:
+ * - `customerId` omitted keeps the current owner; a number = (other) customer;
+ *   null = losse todo.
+ * - A customer todo never keeps contact fields.
+ * - For a losse todo the four contact fields are replaced as a whole, but
+ *   only when the request touched them (`contactTouched`: a key was present in
+ *   the body, or the owner changed) — so a plain status update never wipes
+ *   them, while emptying a field in the editor does clear it.
+ * Returns `contact: undefined` when the contact fields must stay as they are.
+ */
+export function resolveTodoOwner(
+  current: { customerId: number | null },
+  input: { customerId?: number | null } & Partial<Record<keyof TodoContact, string | undefined>>,
+  contactTouched: boolean,
+): { customerId: number | null; ownerChanged: boolean; contact: TodoContact | undefined } {
+  const customerId = input.customerId === undefined ? current.customerId : input.customerId;
+  const ownerChanged = customerId !== current.customerId;
+  if (customerId !== null) {
+    return { customerId, ownerChanged, contact: ownerChanged ? contactForTodo(customerId, {}) : undefined };
+  }
+  return {
+    customerId,
+    ownerChanged,
+    contact: contactTouched || ownerChanged ? contactForTodo(null, input) : undefined,
   };
 }

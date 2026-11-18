@@ -3,7 +3,10 @@ import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-resources";
 import { checklistNames, syncTodoTasks } from "@/lib/services/checklist-tasks";
+import { formatAddress } from "@/lib/schemas/customers";
 import {
+  CONTACT_KEYS,
+  resolveTodoOwner,
   todoResourcesInclude,
   todoUpdateSchema,
   toTodoResourceDtos,
@@ -27,7 +30,7 @@ export async function GET(
     const todo = await db.todo.findUnique({
       where: { id },
       include: {
-        customer: { select: { name: true } },
+        customer: { select: { name: true, street: true, postalCode: true, city: true } },
         appointments: { orderBy: { startAt: "desc" } },
         ...todoResourcesInclude,
       },
@@ -37,6 +40,8 @@ export async function GET(
       ...todo,
       estimatedHours: Number(todo.estimatedHours),
       customerName: todo.customer?.name ?? todo.contactName ?? "",
+      /** Address of the linked customer (for the editor's customer picker). */
+      customerAddress: todo.customer ? formatAddress(todo.customer) : "",
       resources: toTodoResourceDtos(todo.resources),
       tasks: toTodoTaskDtos(todo.tasks),
       customer: undefined,
@@ -46,7 +51,12 @@ export async function GET(
   }
 }
 
-/** PATCH /api/todos/:id — title/description/hours/status; `resources` replaces the planned set. */
+/**
+ * PATCH /api/todos/:id — edit a todo like a new one: owner (customer or
+ * losse todo with name/address), title, hours, status; `resources` /
+ * `taskIds` replace their set. The owner cannot change any more once work on
+ * the todo has been registered (its invoice belongs to that customer).
+ */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -54,13 +64,28 @@ export async function PATCH(
   try {
     await requireUser();
     const id = await parseId(params);
-    const { resources, taskIds, contactName, contactStreet, contactPostalCode, contactCity, ...input } =
-      todoUpdateSchema.parse(await request.json());
-    // Contact name/address only apply to a losse todo (no customer).
+    const body = (await request.json()) as Record<string, unknown>;
+    const { resources, taskIds, customerId, contactName, contactStreet, contactPostalCode, contactCity, ...input } =
+      todoUpdateSchema.parse(body);
     const current = await db.todo.findUnique({ where: { id }, select: { customerId: true } });
     if (!current) throw new ApiError("Todo niet gevonden", 404);
-    const contact =
-      current.customerId === null ? { contactName, contactStreet, contactPostalCode, contactCity } : {};
+
+    // Owner + contact (see resolveTodoOwner for the rules).
+    const contactTouched = CONTACT_KEYS.some((key) => key in body);
+    const owner = resolveTodoOwner(
+      current,
+      { customerId, contactName, contactStreet, contactPostalCode, contactCity },
+      contactTouched,
+    );
+    if (owner.ownerChanged) {
+      const registered = await db.completion.count({ where: { appointment: { todoId: id } } });
+      if (registered > 0) {
+        throw new ApiError("Er is al werk geregistreerd op deze todo; de klant kan niet meer gewijzigd worden.", 409);
+      }
+      if (owner.customerId !== null && !(await db.customer.findUnique({ where: { id: owner.customerId } }))) {
+        throw new ApiError("Klant niet gevonden", 400);
+      }
+    }
     if (resources) await assertResourcesExist(resources);
     const names = taskIds ? await checklistNames(taskIds) : null;
 
@@ -68,7 +93,8 @@ export async function PATCH(
       where: { id },
       data: {
         ...input,
-        ...contact,
+        ...(owner.ownerChanged ? { customerId: owner.customerId } : {}),
+        ...(owner.contact ?? {}),
         ...(input.status === "DONE" ? { completedAt: new Date() } : {}),
         ...(input.status === "OPEN" ? { completedAt: null } : {}),
       },

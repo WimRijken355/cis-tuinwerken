@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   contactForTodo,
   planTodoTaskSync,
+  resolveTodoOwner,
   sumResourceHours,
   todoInputSchema,
   todoUpdateSchema,
@@ -139,5 +140,45 @@ describe("losse todo contact name/address", () => {
     const customer = { name: "Peeters", street: "Kerkstraat 2", postalCode: "2260", city: "Westerlo" };
     expect(todoPlace(customer, contact)).toEqual(customer);
     expect(todoPlace(null, { contactName: null, contactStreet: null, contactPostalCode: null, contactCity: null }).name).toBe("");
+  });
+});
+
+describe("resolveTodoOwner (editing a todo like a new one)", () => {
+  const jef = { contactName: "Jef", contactCity: "Geel" };
+
+  it("keeps owner and contact on a plain update", () => {
+    expect(resolveTodoOwner({ customerId: 5 }, {}, false)).toEqual({ customerId: 5, ownerChanged: false, contact: undefined });
+    expect(resolveTodoOwner({ customerId: null }, {}, false)).toEqual({ customerId: null, ownerChanged: false, contact: undefined });
+  });
+
+  it("switches to another customer and clears contact fields", () => {
+    expect(resolveTodoOwner({ customerId: null }, { customerId: 7 }, true)).toEqual({
+      customerId: 7,
+      ownerChanged: true,
+      contact: { contactName: null, contactStreet: null, contactPostalCode: null, contactCity: null },
+    });
+  });
+
+  it("turns a customer todo into a losse todo with name/address", () => {
+    expect(resolveTodoOwner({ customerId: 7 }, { customerId: null, ...jef }, true)).toEqual({
+      customerId: null,
+      ownerChanged: true,
+      contact: { contactName: "Jef", contactStreet: null, contactPostalCode: null, contactCity: "Geel" },
+    });
+  });
+
+  it("replaces the contact of a losse todo as a whole when touched (so fields can be emptied)", () => {
+    expect(resolveTodoOwner({ customerId: null }, { contactName: "Jef" }, true).contact).toEqual({
+      contactName: "Jef",
+      contactStreet: null,
+      contactPostalCode: null,
+      contactCity: null,
+    });
+  });
+
+  it("accepts customerId in the update contract (number or null)", () => {
+    expect(todoUpdateSchema.parse({ customerId: null }).customerId).toBeNull();
+    expect(todoUpdateSchema.parse({ customerId: 3 }).customerId).toBe(3);
+    expect(todoUpdateSchema.parse({}).customerId).toBeUndefined();
   });
 });

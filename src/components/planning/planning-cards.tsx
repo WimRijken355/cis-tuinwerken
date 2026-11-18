@@ -167,6 +167,7 @@ export function SidebarTodoCard({
   onFocus,
   onPlan,
   onGoToBlock,
+  onEdit,
 }: {
   todo: TodoDto;
   /** Highlighted because it is selected here or one of its blocks in the grid. */
@@ -177,6 +178,8 @@ export function SidebarTodoCard({
   onPlan: () => void;
   /** Jumps the grid to the first planned block of this todo. */
   onGoToBlock?: () => void;
+  /** Opens the full todo editor. */
+  onEdit?: () => void;
 }) {
   const color = todoColor(todo.id, todo.customerId === null);
   const remaining = todo.remainingMinutes ?? Math.round(todo.estimatedHours * 60);
@@ -241,6 +244,18 @@ export function SidebarTodoCard({
           >
             📅 Inplannen…
           </button>
+          {onEdit && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+            >
+              ✏️ Bewerken
+            </button>
+          )}
           {blocks > 0 && onGoToBlock && (
             <button
               type="button"

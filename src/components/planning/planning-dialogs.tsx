@@ -2,14 +2,12 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { CustomerPicker, type PickedCustomer } from "@/components/customer-picker";
 import { DurationInput } from "@/components/duration-input";
-import { TodoForm, type TodoFormValues } from "@/components/todo-form";
+import { EMPTY_CONTACT, TodoEditor, type TodoEditorPayload } from "@/components/todo-editor";
 import { Button, ErrorNote, Field, Modal, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours, partLabel, roundToQuarter, splitOverWorkdays, WORKDAY_MINUTES } from "@/lib/planning";
 import type { AppointmentDto, AppointmentInput } from "@/lib/schemas/appointments";
-import type { LooseTodoPresetDto } from "@/lib/schemas/loose-todo-presets";
 import type { TodoDto } from "@/lib/schemas/todos";
 import { ResourceChips } from "./planning-cards";
 
@@ -18,10 +16,13 @@ export function AppointmentDialog({
   appointment: a,
   onClose,
   onChanged,
+  onEditTodo,
 }: {
   appointment: AppointmentDto;
   onClose: () => void;
   onChanged: () => void;
+  /** Opens the full todo editor (owner, title, time, checklist, resources). */
+  onEditTodo?: () => void;
 }) {
   // Local copy so the switches react immediately; the server enforces exclusivity too.
   const [flags, setFlags] = useState({ confirmed: a.confirmed, reservation: a.reservation });
@@ -69,6 +70,15 @@ export function AppointmentDialog({
         </p>
         {a.address && <p className="text-gray-500">{a.address}</p>}
         <ResourceChips resources={a.resources} showHours />
+        {onEditTodo && (
+          <button
+            type="button"
+            onClick={onEditTodo}
+            className="mt-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+          >
+            ✏️ Todo bewerken (klant, checklist, resources…)
+          </button>
+        )}
       </div>
 
       {editable && (
@@ -227,8 +237,8 @@ export function PlanDialog({
 
 /**
  * New todo from a block selected in the grid (point 7): for a customer (with
- * checklist + resources, like on the customer card) or a "losse todo"
- * (holiday, doctor, ...). Creates the todo and plans the selected block.
+ * checklist + resources) or a "losse todo"; creates the todo and plans the
+ * selected block.
  */
 export function NewTodoDialog({
   start,
@@ -241,25 +251,11 @@ export function NewTodoDialog({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [kind, setKind] = useState<"customer" | "loose">("customer");
-  const [customer, setCustomer] = useState<PickedCustomer | null>(null);
-  // Free-text name/address for a losse todo (not added to the customer list).
-  const [contact, setContact] = useState({ contactName: "", contactStreet: "", contactPostalCode: "", contactCity: "" });
-  const setContactField = (key: keyof typeof contact, value: string) => setContact((c) => ({ ...c, [key]: value }));
-  const { data: presets } = useQuery({
-    queryKey: ["loose-todo-presets", "active"],
-    queryFn: () => apiGet<LooseTodoPresetDto[]>("/api/loose-todo-presets"),
-  });
   const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
 
   const createMutation = useMutation({
-    mutationFn: async (values: TodoFormValues) => {
-      if (kind === "customer" && !customer) throw new Error("Kies eerst een klant (of maak er een losse todo van).");
-      const todo = await apiSend<TodoDto>("/api/todos", "POST", {
-        ...values,
-        customerId: kind === "customer" ? customer!.id : null,
-        ...(kind === "loose" ? contact : {}),
-      });
+    mutationFn: async (payload: TodoEditorPayload) => {
+      const todo = await apiSend<TodoDto>("/api/todos", "POST", payload);
       await apiSend("/api/appointments", "POST", {
         todoId: todo.id,
         startAt: start.toISOString(),
@@ -276,78 +272,94 @@ export function NewTodoDialog({
       <p className="mb-3 text-sm text-gray-500">
         {when} ({formatMinutesAsHours(durationMinutes)})
       </p>
-      <div className="mb-3 flex gap-2">
-        {(
-          [
-            ["customer", "👤 Voor een klant"],
-            ["loose", "📌 Losse todo"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => setKind(value)}
-            className={`flex-1 rounded-md border px-3 py-2 text-sm ${
-              kind === value
-                ? "border-brand-600 bg-brand-50 font-medium text-brand-700"
-                : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {kind === "customer" ? (
-        <div className="mb-3">
-          <Field label="Klant">
-            <CustomerPicker value={customer} onChange={setCustomer} />
-          </Field>
-        </div>
-      ) : (
-        <div className="mb-3 space-y-2">
-          <p className="text-xs text-gray-500">
-            Een losse todo hoort niet bij een klant uit je klantenbestand (bv. vakantie, doktersafspraak, een
-            eenmalige klus). Naam en adres zijn optioneel. Losse todo&apos;s worden nooit geregistreerd of
-            gefactureerd.
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Naam (optioneel)">
-              <TextInput value={contact.contactName} onChange={(e) => setContactField("contactName", e.target.value)} />
-            </Field>
-            <Field label="Straat + nr (optioneel)">
-              <TextInput value={contact.contactStreet} onChange={(e) => setContactField("contactStreet", e.target.value)} />
-            </Field>
-            <Field label="Postcode">
-              <TextInput
-                inputMode="numeric"
-                value={contact.contactPostalCode}
-                onChange={(e) => setContactField("contactPostalCode", e.target.value)}
-              />
-            </Field>
-            <Field label="Plaats">
-              <TextInput value={contact.contactCity} onChange={(e) => setContactField("contactCity", e.target.value)} />
-            </Field>
-          </div>
-        </div>
-      )}
-
-      <TodoForm
-        key={kind}
-        initial={{ title: "", estimatedHours: durationMinutes / 60, resources: [], tasks: [] }}
+      <TodoEditor
+        initial={{
+          kind: "customer",
+          customer: null,
+          contact: EMPTY_CONTACT,
+          title: "",
+          estimatedHours: durationMinutes / 60,
+          resources: [],
+          tasks: [],
+        }}
         submitLabel="Aanmaken en inplannen"
         busy={createMutation.isPending}
         error={createMutation.error ? (createMutation.error as Error).message : null}
-        onSubmit={(values) => createMutation.mutate(values)}
+        onSubmit={(payload) => createMutation.mutate(payload)}
         onCancel={onClose}
-        showChecklist={kind === "customer"}
-        titleLabel={kind === "customer" ? "Wat moet er gebeuren?" : "Omschrijving"}
-        titlePlaceholder={kind === "customer" ? "bv. Haag scheren" : "bv. Vakantie"}
-        titleSuggestions={kind === "loose" ? (presets ?? []).map((p) => p.name) : []}
       />
-      {kind === "customer" && (
+      <p className="mt-2 text-xs text-gray-400">
+        Is de totale tijd groter dan het geselecteerde blok, dan blijft de rest in &quot;In te plannen&quot; staan.
+      </p>
+    </Modal>
+  );
+}
+
+interface TodoDetail extends TodoDto {
+  customerAddress: string;
+  appointments: { id: number; status: string }[];
+}
+
+/**
+ * Edit an existing todo completely, like a new one: owner (customer or losse
+ * todo with name/address), title, total time, checklist and resources.
+ * Opened from a sidebar card or from the details of a block in the grid.
+ */
+export function TodoEditDialog({
+  todoId,
+  onClose,
+  onSaved,
+}: {
+  todoId: number;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const { data: todo, isLoading, error: loadError } = useQuery({
+    queryKey: ["todo", todoId],
+    queryFn: () => apiGet<TodoDetail>(`/api/todos/${todoId}`),
+  });
+
+  const saveMutation = useMutation({
+    mutationFn: (payload: TodoEditorPayload) => apiSend(`/api/todos/${todoId}`, "PATCH", payload),
+    onSuccess: onSaved,
+  });
+
+  const registered = (todo?.appointments ?? []).some((a) => a.status === "DONE");
+
+  return (
+    <Modal title="Todo bewerken" open onClose={onClose}>
+      {isLoading && <p className="text-sm text-gray-500">Laden…</p>}
+      {loadError && <ErrorNote message={(loadError as Error).message} />}
+      {todo && (
+        <TodoEditor
+          initial={{
+            kind: todo.customerId === null ? "loose" : "customer",
+            customer:
+              todo.customerId === null
+                ? null
+                : { id: todo.customerId, name: todo.customerName ?? "", address: todo.customerAddress },
+            contact: {
+              contactName: todo.contactName ?? "",
+              contactStreet: todo.contactStreet ?? "",
+              contactPostalCode: todo.contactPostalCode ?? "",
+              contactCity: todo.contactCity ?? "",
+            },
+            title: todo.title,
+            estimatedHours: todo.estimatedHours,
+            resources: todo.resources ?? [],
+            tasks: todo.tasks ?? [],
+          }}
+          ownerLocked={registered}
+          submitLabel="Bewaren"
+          busy={saveMutation.isPending}
+          error={saveMutation.error ? (saveMutation.error as Error).message : null}
+          onSubmit={(payload) => saveMutation.mutate(payload)}
+          onCancel={onClose}
+        />
+      )}
+      {todo && (
         <p className="mt-2 text-xs text-gray-400">
-          Is de totale tijd groter dan het geselecteerde blok, dan blijft de rest in &quot;In te plannen&quot; staan.
+          Pas je de totale tijd aan, dan verandert ook wat er nog in te plannen blijft. Geplande blokken blijven staan.
         </p>
       )}
     </Modal>
