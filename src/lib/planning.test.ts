@@ -15,9 +15,9 @@ import {
   minutesUntilMidnight,
   partLabel,
   partNumbers,
-  quarterHourOptions,
-  roundTimeToQuarter,
   roundToQuarter,
+  joinDuration,
+  splitDuration,
   plannedMinutes,
   remainingMinutes,
   todoColor,
@@ -197,15 +197,7 @@ describe("focus on one todo (sidebar ↔ grid)", () => {
   });
 });
 
-describe("quarter-hour durations (no minutes in the UI)", () => {
-  it("offers quarters up to one working day, labelled in hours", () => {
-    const options = quarterHourOptions();
-    expect(options[0]).toEqual({ value: 15, label: "0,25 u" });
-    expect(options.find((o) => o.value === 90)?.label).toBe("1,5 u");
-    expect(options.at(-1)).toEqual({ value: 480, label: "8 u" });
-    expect(options).toHaveLength(32);
-  });
-
+describe("quarter-hour durations", () => {
   it("rounds a remaining time to whole quarters", () => {
     expect(roundToQuarter(100)).toBe(105);
     expect(roundToQuarter(5)).toBe(15);
@@ -213,13 +205,16 @@ describe("quarter-hour durations (no minutes in the UI)", () => {
   });
 });
 
-describe("roundTimeToQuarter (hour + quarter-minute fields)", () => {
-  it("rounds to the nearest quarter without rolling over to the next day", () => {
-    expect(roundTimeToQuarter("08:00")).toBe("08:00");
-    expect(roundTimeToQuarter("08:07")).toBe("08:00");
-    expect(roundTimeToQuarter("08:08")).toBe("08:15");
-    expect(roundTimeToQuarter("09:52")).toBe("09:45");
-    expect(roundTimeToQuarter("09:53")).toBe("10:00");
-    expect(roundTimeToQuarter("23:58")).toBe("23:45");
+describe("duration as hours + quarter minutes", () => {
+  it("splits a duration into hours and minutes", () => {
+    expect(splitDuration(150)).toEqual({ hours: 2, minutes: 30 });
+    expect(splitDuration(480)).toEqual({ hours: 8, minutes: 0 });
+    expect(splitDuration(100)).toEqual({ hours: 1, minutes: 45 }); // rounded to a quarter
+  });
+
+  it("joins hours + minutes, between one quarter and one working day", () => {
+    expect(joinDuration(2, 30)).toBe(150);
+    expect(joinDuration(0, 0)).toBe(15);
+    expect(joinDuration(8, 30)).toBe(480);
   });
 });

@@ -3,11 +3,11 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { CustomerPicker, type PickedCustomer } from "@/components/customer-picker";
-import { QuarterTimeInput } from "@/components/quarter-time-input";
+import { DurationInput } from "@/components/duration-input";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { Button, ErrorNote, Field, Modal, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
-import { formatMinutesAsHours, partLabel, quarterHourOptions, roundToQuarter, WORKDAY_MINUTES } from "@/lib/planning";
+import { formatMinutesAsHours, partLabel, roundToQuarter, WORKDAY_MINUTES } from "@/lib/planning";
 import type { AppointmentDto, AppointmentInput } from "@/lib/schemas/appointments";
 import type { LooseTodoPresetDto } from "@/lib/schemas/loose-todo-presets";
 import type { TodoDto } from "@/lib/schemas/todos";
@@ -153,14 +153,14 @@ export function PlanDialog({
   const [date, setDate] = useState(tomorrow);
   const [time, setTime] = useState("08:00");
   // Whole quarters only (the smallest planning unit), shown in hours.
-  const [duration, setDuration] = useState(String(roundToQuarter(Math.min(remaining, WORKDAY_MINUTES))));
+  const [duration, setDuration] = useState(roundToQuarter(Math.min(remaining, WORKDAY_MINUTES)));
 
   const planMutation = useMutation({
     mutationFn: () => {
       const input: AppointmentInput = {
         todoId: todo.id,
         startAt: new Date(`${date}T${time}`).toISOString(),
-        durationMinutes: Number(duration),
+        durationMinutes: duration,
       };
       return apiSend("/api/appointments", "POST", input);
     },
@@ -187,21 +187,11 @@ export function PlanDialog({
             <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </Field>
           <Field label="Startuur">
-            <QuarterTimeInput value={time} onChange={setTime} />
+            <TextInput type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} required />
           </Field>
         </div>
         <Field label="Duur" hint="Max. één werkdag per blok; de rest blijft in te plannen.">
-          <select
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm"
-          >
-            {quarterHourOptions().map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
+          <DurationInput value={duration} onChange={setDuration} />
         </Field>
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" type="button" onClick={onClose}>

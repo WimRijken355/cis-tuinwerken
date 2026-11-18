@@ -203,33 +203,25 @@ export function blockEmphasis(input: {
   return { highlighted, opacity: input.focusTodoId !== null ? 0.55 : 1 };
 }
 
-/**
- * Duration choices in whole quarters (the smallest unit in the planning),
- * labelled in hours: 15 min → "0,25 u", 90 min → "1,5 u", up to `maxMinutes`.
- */
-export function quarterHourOptions(maxMinutes = WORKDAY_MINUTES): { value: number; label: string }[] {
-  const options: { value: number; label: string }[] = [];
-  for (let m = SLOT_MINUTES; m <= maxMinutes; m += SLOT_MINUTES) {
-    options.push({ value: m, label: formatMinutesAsHours(m) });
-  }
-  return options;
-}
-
 /** Rounds minutes to the nearest whole quarter (at least one). */
 export function roundToQuarter(minutes: number): number {
   return Math.max(SLOT_MINUTES, Math.round(minutes / SLOT_MINUTES) * SLOT_MINUTES);
 }
 
-/** Minute choices for a start time: whole quarters only. */
+
+/** Minute choices of a duration: whole quarters only. */
 export const QUARTER_MINUTES = [0, 15, 30, 45] as const;
 
+/** 150 → { hours: 2, minutes: 30 } (rounded to whole quarters first). */
+export function splitDuration(totalMinutes: number): { hours: number; minutes: number } {
+  const rounded = roundToQuarter(totalMinutes);
+  return { hours: Math.floor(rounded / 60), minutes: rounded % 60 };
+}
+
 /**
- * "HH:mm" rounded to the nearest quarter (08:07 → 08:00, 08:08 → 08:15,
- * 23:53 → 23:45 so it never rolls over to the next day).
+ * Hours + quarter minutes → total minutes, kept between one quarter and
+ * `maxMinutes` (one working day by default): 0 u 00 → 15, 8 u 30 → 480.
  */
-export function roundTimeToQuarter(time: string): string {
-  const [h, m] = time.split(":").map(Number);
-  const total = Math.min(Math.round(((h || 0) * 60 + (m || 0)) / 15) * 15, 23 * 60 + 45);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+export function joinDuration(hours: number, minutes: number, maxMinutes = WORKDAY_MINUTES): number {
+  return Math.min(Math.max(hours * 60 + minutes, SLOT_MINUTES), maxMinutes);
 }
