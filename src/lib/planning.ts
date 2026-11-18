@@ -117,13 +117,13 @@ export function formatMinutesAsHours(minutes: number): string {
 export interface PlanningFilter {
   /** Free text: matches the todo title, the customer name and the city. */
   text: string;
-  /** Exact city ("" = all). */
-  city: string;
-  /** Resource id that must be on the todo (null = all). */
-  resourceId: number | null;
+  /** Selected cities; the item must be in ONE of them ([] = all). */
+  cities: string[];
+  /** Selected resources; the todo must have AT LEAST ONE of them ([] = all). */
+  resourceIds: number[];
 }
 
-export const EMPTY_PLANNING_FILTER: PlanningFilter = { text: "", city: "", resourceId: null };
+export const EMPTY_PLANNING_FILTER: PlanningFilter = { text: "", cities: [], resourceIds: [] };
 
 export interface PlanningFilterSubject {
   title: string;
@@ -143,18 +143,21 @@ const normalize = (s: string) =>
     .trim();
 
 export function isFilterActive(f: PlanningFilter): boolean {
-  return f.text.trim() !== "" || f.city !== "" || f.resourceId !== null;
+  return f.text.trim() !== "" || f.cities.length > 0 || f.resourceIds.length > 0;
 }
 
-/** Does a todo / block satisfy the filter? All parts must match (AND). */
+/**
+ * Does a todo / block satisfy the filter? Text, cities and resources must all
+ * match (AND); within cities and within resources one hit is enough (OR).
+ */
 export function matchesPlanningFilter(item: PlanningFilterSubject, f: PlanningFilter): boolean {
   const words = normalize(f.text).split(/\s+/).filter(Boolean);
   if (words.length > 0) {
     const haystack = normalize(`${item.title} ${item.customerName} ${item.city ?? ""}`);
     if (!words.every((w) => haystack.includes(w))) return false;
   }
-  if (f.city && (item.city ?? NO_CITY_LABEL) !== f.city) return false;
-  if (f.resourceId !== null && !item.resourceIds.includes(f.resourceId)) return false;
+  if (f.cities.length > 0 && !f.cities.includes(item.city?.trim() || NO_CITY_LABEL)) return false;
+  if (f.resourceIds.length > 0 && !f.resourceIds.some((id) => item.resourceIds.includes(id))) return false;
   return true;
 }
 

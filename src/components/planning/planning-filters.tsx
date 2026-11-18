@@ -1,16 +1,17 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { selectClass } from "@/components/pagination";
+import { MultiSelect } from "@/components/multi-select";
 import { TextInput } from "@/components/ui";
 import { apiGet } from "@/lib/api-client";
-import { isFilterActive, type PlanningFilter } from "@/lib/planning";
+import { EMPTY_PLANNING_FILTER, isFilterActive, type PlanningFilter } from "@/lib/planning";
 import type { ResourceDto } from "@/lib/schemas/resources";
 
 /**
  * Filters for the "in te plannen" sidebar: free text (todo title, customer,
- * city), city, resource (e.g. "when do I need to rent the minigraver?") and
- * grouping per city. The same filter fades non-matching blocks in the grid.
+ * city), one or more cities, one or more resources (e.g. "when do I need to
+ * rent the minigraver?") and grouping per city. The same filter fades
+ * non-matching blocks in the grid.
  */
 export function PlanningFilters({
   filter,
@@ -45,32 +46,23 @@ export function PlanningFilters({
         className="!py-1.5"
       />
       <div className="flex gap-1.5">
-        <select
-          aria-label="Plaats"
-          value={filter.city}
-          onChange={(e) => onChange({ ...filter, city: e.target.value })}
-          className={`${selectClass} !px-2 !py-1.5`}
-        >
-          <option value="">Alle plaatsen</option>
-          {cities.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="Resource"
-          value={filter.resourceId ?? ""}
-          onChange={(e) => onChange({ ...filter, resourceId: e.target.value ? Number(e.target.value) : null })}
-          className={`${selectClass} !px-2 !py-1.5`}
-        >
-          <option value="">Alle resources</option>
-          {resources?.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.type === "PERSON" ? "👷" : "🚜"} {r.name}
-            </option>
-          ))}
-        </select>
+        <MultiSelect
+          ariaLabel="Plaatsen"
+          placeholder="Alle plaatsen"
+          options={cities.map((c) => ({ value: c, label: c }))}
+          value={filter.cities}
+          onChange={(selected) => onChange({ ...filter, cities: selected })}
+        />
+        <MultiSelect
+          ariaLabel="Resources"
+          placeholder="Alle resources"
+          options={(resources ?? []).map((r) => ({
+            value: r.id,
+            label: `${r.type === "PERSON" ? "👷" : "🚜"} ${r.name}`,
+          }))}
+          value={filter.resourceIds}
+          onChange={(selected) => onChange({ ...filter, resourceIds: selected })}
+        />
       </div>
       <div className="flex items-center justify-between text-xs text-gray-500">
         <label className="flex cursor-pointer items-center gap-1.5">
@@ -88,7 +80,7 @@ export function PlanningFilters({
             <button
               type="button"
               className="text-brand-600 hover:underline"
-              onClick={() => onChange({ text: "", city: "", resourceId: null })}
+              onClick={() => onChange(EMPTY_PLANNING_FILTER)}
             >
               wissen
             </button>

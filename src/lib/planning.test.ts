@@ -136,21 +136,24 @@ describe("planning sidebar filter", () => {
     expect(matchesPlanningFilter({ ...item, title: "Béton gieten" }, f({ text: "beton" }))).toBe(true);
   });
 
-  it("filters on exact city, including 'Zonder plaats' for losse todo's", () => {
-    expect(matchesPlanningFilter(item, f({ city: "Mol" }))).toBe(true);
-    expect(matchesPlanningFilter(item, f({ city: "Geel" }))).toBe(false);
+  it("filters on one or more cities (OR), including 'Zonder plaats' for losse todo's", () => {
+    expect(matchesPlanningFilter(item, f({ cities: ["Mol"] }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ cities: ["Geel"] }))).toBe(false);
+    expect(matchesPlanningFilter(item, f({ cities: ["Geel", "Mol"] }))).toBe(true);
     const loose = { title: "Vakantie", customerName: "", city: null, resourceIds: [2] };
-    expect(matchesPlanningFilter(loose, f({ city: NO_CITY_LABEL }))).toBe(true);
+    expect(matchesPlanningFilter(loose, f({ cities: [NO_CITY_LABEL] }))).toBe(true);
   });
 
-  it("filters on a resource, e.g. the minigraver", () => {
-    expect(matchesPlanningFilter(item, f({ resourceId: 5 }))).toBe(true);
-    expect(matchesPlanningFilter(item, f({ resourceId: 9 }))).toBe(false);
+  it("filters on one or more resources (OR), e.g. minigraver or aanhangwagen", () => {
+    expect(matchesPlanningFilter(item, f({ resourceIds: [5] }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ resourceIds: [9] }))).toBe(false);
+    expect(matchesPlanningFilter(item, f({ resourceIds: [9, 5] }))).toBe(true);
   });
 
-  it("combines all filters (AND)", () => {
-    expect(matchesPlanningFilter(item, f({ text: "vijver", city: "Mol", resourceId: 5 }))).toBe(true);
-    expect(matchesPlanningFilter(item, f({ text: "vijver", city: "Mol", resourceId: 9 }))).toBe(false);
+  it("combines the different filters (AND)", () => {
+    expect(matchesPlanningFilter(item, f({ text: "vijver", cities: ["Mol"], resourceIds: [5] }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ text: "vijver", cities: ["Mol"], resourceIds: [9] }))).toBe(false);
+    expect(matchesPlanningFilter(item, f({ text: "vijver", cities: ["Geel"], resourceIds: [5] }))).toBe(false);
   });
 });
 

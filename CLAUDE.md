@@ -47,7 +47,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - "x/y" per blok: `partNumbers()` (chronologisch; y = geplande blokken + resterende werkdagen). Elke todo heeft een vaste kleur (`todoColor()`).
 - `Appointment.confirmed` / `reservation` sluiten elkaar uit (`applyPlanningFlags()`, ook server-side).
 - **Losse todo** = `Todo.customerId = NULL` (vakantie, dokter, …): wel inplannen + resources, nooit registreren/factureren/mailen. Optioneel vrije naam/adres in `Todo.contact*` (geen klantrecord; altijd leeg bij een klant-todo, zie `contactForTodo()`); weergave via `todoPlace()`. Code die `todo.customer` gebruikt moet `null` afhandelen.
-- Zijbalkfilters (tekst op titel/klant/plaats, plaats, resource) + groeperen per plaats: `matchesPlanningFilter()` / `groupByCity()` in `src/lib/planning.ts`. Dezelfde predicate maakt niet-passende blokken in het raster transparant.
+- Zijbalkfilters (tekst op titel/klant/plaats, meerdere plaatsen, meerdere resources — binnen een filter OF, tussen filters EN) + groeperen per plaats: `matchesPlanningFilter()` / `groupByCity()` in `src/lib/planning.ts`. Dezelfde predicate maakt niet-passende blokken in het raster transparant.
 - In v7 heten event-kleuren `color`/`className` (geen `backgroundColor`); de blokken worden volledig getekend door `PlanningEventContent` (`src/components/planning/`).
 
 ## Demodata
