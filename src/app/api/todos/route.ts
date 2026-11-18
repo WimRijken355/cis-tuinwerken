@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const todos = await db.todo.findMany({
       where,
       include: {
-        customer: { select: { name: true } },
+        customer: { select: { name: true, city: true, postalCode: true } },
         recurringWindow: { select: { label: true } },
         ...todoResourcesInclude,
       },
@@ -57,6 +57,8 @@ export async function GET(request: NextRequest) {
         ...t,
         estimatedHours: Number(t.estimatedHours),
         customerName: t.customer?.name ?? "",
+        customerCity: t.customer?.city ?? null,
+        customerPostalCode: t.customer?.postalCode ?? null,
         plannedMinutes: m?.plannedMinutes ?? 0,
         remainingMinutes: m?.remainingMinutes ?? 0,
         appointmentCount: m?.parts.size ?? 0,

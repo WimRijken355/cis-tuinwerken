@@ -87,9 +87,12 @@ export function ResourceChips({
 export function PlanningEventContent({
   appointment: a,
   timeText,
+  dimmed = false,
 }: {
   appointment: AppointmentDto;
   timeText: string;
+  /** Does not match the active sidebar filter: shown faded. */
+  dimmed?: boolean;
 }) {
   const color = todoColor(a.todoId, a.isLoose);
   const style = blockStyle(color, {
@@ -101,7 +104,10 @@ export function PlanningEventContent({
   const onDark = !a.reservation && a.status !== "DONE";
 
   return (
-    <div className="flex h-full w-full flex-col gap-0.5 overflow-hidden rounded px-1 py-0.5 text-[11px] leading-tight" style={style}>
+    <div
+      className="flex h-full w-full flex-col gap-0.5 overflow-hidden rounded px-1 py-0.5 text-[11px] leading-tight transition-opacity"
+      style={{ ...style, opacity: dimmed ? 0.25 : 1 }}
+    >
       <div className="flex items-center gap-1">
         <span className="font-semibold tabular-nums">{timeText}</span>
         {part && (
@@ -115,7 +121,12 @@ export function PlanningEventContent({
         {a.isDemo && <span className="text-[9px] uppercase opacity-80">demo</span>}
       </div>
       <div className="truncate font-semibold">{a.isLoose ? a.todoTitle : a.customerName}</div>
-      {!a.isLoose && <div className="truncate opacity-90">{a.todoTitle}</div>}
+      {!a.isLoose && (
+        <div className="truncate opacity-90">
+          {a.todoTitle}
+          {a.customerCity && <span className="opacity-80"> · {a.customerCity}</span>}
+        </div>
+      )}
       <div className="flex flex-wrap gap-0.5">
         <StatusFlags confirmed={a.confirmed} reservation={a.reservation} />
       </div>
@@ -146,6 +157,7 @@ export function SidebarTodoCard({ todo, onClick }: { todo: TodoDto; onClick: () 
       <p className="truncate text-sm font-medium">{todo.title}</p>
       <p className="truncate text-xs text-gray-500">
         {todo.customerId === null ? "Losse todo" : todo.customerName}
+        {todo.customerCity && <span className="text-gray-400"> · {todo.customerCity}</span>}
       </p>
       <p className="mt-1 text-xs">
         <span className="font-semibold text-gray-800">nog {formatMinutesAsHours(remaining)}</span>

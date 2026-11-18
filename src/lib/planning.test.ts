@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   applyPlanningFlags,
+  EMPTY_PLANNING_FILTER,
+  groupByCity,
+  isFilterActive,
+  matchesPlanningFilter,
+  NO_CITY_LABEL,
+  type PlanningFilter,
   dropDurationMinutes,
   formatMinutesAsHours,
   LOOSE_TODO_COLOR,
@@ -105,5 +111,65 @@ describe("colours and loose todos", () => {
   it("formats hours the Belgian way", () => {
     expect(formatMinutesAsHours(150)).toBe("2,5 u");
     expect(formatMinutesAsHours(480)).toBe("8 u");
+  });
+});
+
+describe("planning sidebar filter", () => {
+  const item = {
+    title: "Vijver graven en aanleggen",
+    customerName: "Mertens Luc",
+    city: "Mol",
+    resourceIds: [1, 5],
+  };
+  const f = (patch: Partial<PlanningFilter>): PlanningFilter => ({ ...EMPTY_PLANNING_FILTER, ...patch });
+
+  it("matches everything without filter", () => {
+    expect(isFilterActive(EMPTY_PLANNING_FILTER)).toBe(false);
+    expect(matchesPlanningFilter(item, EMPTY_PLANNING_FILTER)).toBe(true);
+  });
+
+  it("free text searches title, customer and city (case/accent-insensitive, all words)", () => {
+    expect(matchesPlanningFilter(item, f({ text: "vijver" }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ text: "MERTENS" }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ text: "mol vijver" }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ text: "mol haag" }))).toBe(false);
+    expect(matchesPlanningFilter({ ...item, title: "Béton gieten" }, f({ text: "beton" }))).toBe(true);
+  });
+
+  it("filters on exact city, including 'Zonder plaats' for losse todo's", () => {
+    expect(matchesPlanningFilter(item, f({ city: "Mol" }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ city: "Geel" }))).toBe(false);
+    const loose = { title: "Vakantie", customerName: "", city: null, resourceIds: [2] };
+    expect(matchesPlanningFilter(loose, f({ city: NO_CITY_LABEL }))).toBe(true);
+  });
+
+  it("filters on a resource, e.g. the minigraver", () => {
+    expect(matchesPlanningFilter(item, f({ resourceId: 5 }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ resourceId: 9 }))).toBe(false);
+  });
+
+  it("combines all filters (AND)", () => {
+    expect(matchesPlanningFilter(item, f({ text: "vijver", city: "Mol", resourceId: 5 }))).toBe(true);
+    expect(matchesPlanningFilter(item, f({ text: "vijver", city: "Mol", resourceId: 9 }))).toBe(false);
+  });
+});
+
+describe("groupByCity", () => {
+  it("groups alphabetically with 'Zonder plaats' last", () => {
+    const groups = groupByCity(
+      [
+        { id: 1, city: "Westerlo" },
+        { id: 2, city: null },
+        { id: 3, city: "Geel" },
+        { id: 4, city: "Westerlo" },
+        { id: 5, city: " " },
+      ],
+      (x) => x.city,
+    );
+    expect(groups.map((g) => [g.city, g.items.map((i) => i.id)])).toEqual([
+      ["Geel", [3]],
+      ["Westerlo", [1, 4]],
+      [NO_CITY_LABEL, [2, 5]],
+    ]);
   });
 });

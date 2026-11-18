@@ -49,6 +49,8 @@ export interface AppointmentDto {
   customerName: string;
   isLoose: boolean;
   isDemo: boolean;
+  /** Customer city (null for a losse todo or when unknown). */
+  customerCity: string | null;
   /** Volledig adres voor weergave en de Waze-link ("" als onbekend). */
   address: string;
   customerEmail: string | null;

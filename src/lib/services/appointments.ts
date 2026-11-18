@@ -94,6 +94,7 @@ export function toAppointmentDto(a: AppointmentWithRelations, meta?: TodoPlannin
     customerName: customer?.name ?? "",
     isLoose: customer === null,
     isDemo: customer?.isDemo ?? false,
+    customerCity: customer?.city ?? null,
     address: customer ? formatAddress(customer) : "",
     customerEmail: customer?.email ?? null,
     confirmed: a.confirmed,

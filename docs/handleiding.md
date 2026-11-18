@@ -68,7 +68,11 @@ Had je al klanten in EenvoudigFactureren? Importeer ze in één keer via
 5. **Nieuwe todo vanuit de planning**: selecteer een leeg vak in de kalender.
    Kies een klant (met checklist en resources), of maak een **losse todo**
    zoals vakantie of een doktersafspraak (grijs; wordt nooit gefactureerd).
-6. Onderweg herplannen doe je via **Komende dagen** op je telefoon: tik een
+6. **Filteren** boven de lijst: zoek op todo, klant of plaats, kies een plaats
+   of een resource (bv. *Minigraver*: wanneer moet die gehuurd worden?) en vink
+   **Groeperen per plaats** aan om werk in dezelfde regio samen te plannen.
+   Blokken in de kalender die niet aan de filter voldoen, worden vager getoond.
+7. Onderweg herplannen doe je via **Komende dagen** op je telefoon: tik een
    afspraak aan en kies een nieuwe dag/uur — handig bij slecht weer.
 
 De klant krijgt **automatisch een e-mail op de avond vóór de afspraak**

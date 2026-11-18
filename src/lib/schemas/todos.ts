@@ -85,6 +85,9 @@ export interface TodoDto {
   resources?: TodoResourceDto[];
   /** Checklist of tasks to carry out, in order. */
   tasks?: TodoTaskDto[];
+  /** Customer location (GET /api/todos), for filtering/grouping in the planning. */
+  customerCity?: string | null;
+  customerPostalCode?: string | null;
   /** Planning: minutes already planned in blocks / still to plan (GET /api/todos). */
   plannedMinutes?: number;
   remainingMinutes?: number;

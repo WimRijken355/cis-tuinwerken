@@ -109,3 +109,68 @@ export function applyPlanningFlags(
 export function formatMinutesAsHours(minutes: number): string {
   return `${String(Math.round((minutes / 60) * 100) / 100).replace(".", ",")} u`;
 }
+
+// ---------------------------------------------------------------------------
+// Sidebar filters / grouping (also used to fade non-matching grid blocks)
+// ---------------------------------------------------------------------------
+
+export interface PlanningFilter {
+  /** Free text: matches the todo title, the customer name and the city. */
+  text: string;
+  /** Exact city ("" = all). */
+  city: string;
+  /** Resource id that must be on the todo (null = all). */
+  resourceId: number | null;
+}
+
+export const EMPTY_PLANNING_FILTER: PlanningFilter = { text: "", city: "", resourceId: null };
+
+export interface PlanningFilterSubject {
+  title: string;
+  customerName: string;
+  city: string | null;
+  resourceIds: number[];
+}
+
+/** Label used for todos without a city (losse todo's, unknown address). */
+export const NO_CITY_LABEL = "Zonder plaats";
+
+const normalize = (s: string) =>
+  s
+    .toLocaleLowerCase("nl-BE")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+export function isFilterActive(f: PlanningFilter): boolean {
+  return f.text.trim() !== "" || f.city !== "" || f.resourceId !== null;
+}
+
+/** Does a todo / block satisfy the filter? All parts must match (AND). */
+export function matchesPlanningFilter(item: PlanningFilterSubject, f: PlanningFilter): boolean {
+  const words = normalize(f.text).split(/\s+/).filter(Boolean);
+  if (words.length > 0) {
+    const haystack = normalize(`${item.title} ${item.customerName} ${item.city ?? ""}`);
+    if (!words.every((w) => haystack.includes(w))) return false;
+  }
+  if (f.city && (item.city ?? NO_CITY_LABEL) !== f.city) return false;
+  if (f.resourceId !== null && !item.resourceIds.includes(f.resourceId)) return false;
+  return true;
+}
+
+/**
+ * Groups items per city (alphabetically, "Zonder plaats" last) so jobs in
+ * the same region can be planned together.
+ */
+export function groupByCity<T>(items: T[], cityOf: (item: T) => string | null): { city: string; items: T[] }[] {
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    const city = cityOf(item)?.trim() || NO_CITY_LABEL;
+    groups.set(city, [...(groups.get(city) ?? []), item]);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) =>
+      a === NO_CITY_LABEL ? 1 : b === NO_CITY_LABEL ? -1 : a.localeCompare(b, "nl-BE"),
+    )
+    .map(([city, list]) => ({ city, items: list }));
+}
