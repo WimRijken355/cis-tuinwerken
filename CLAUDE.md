@@ -13,6 +13,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - De app houdt een **versienummer** bij (`package.json` → `version`, semver). `src/lib/version.ts` exporteert dit als `APP_VERSION` (leest rechtstreeks uit `package.json`, dus altijd in sync).
 - Zichtbaar in de UI: onderaan de desktop-sidebar (`src/components/app-nav.tsx`) en onderaan de Instellingen-pagina (`src/app/(app)/settings/page.tsx`).
 - **Bij elke wijziging die Claude doorvoert, wordt het versienummer in `package.json` opgehoogd** (patch voor bugfixes/kleine aanpassingen, minor voor nieuwe functionaliteit, major voor breaking changes) vóórdat de wijziging als afgerond wordt beschouwd.
+- **Commit altijd onmiddellijk**: zodra een wijziging afgerond is (versie opgehoogd, test toegevoegd, `npm test` slaagt), maakt Claude meteen een commit op de huidige branch — zonder eerst toestemming te vragen. Dit is een expliciete keuze van de gebruiker. Pushen gebeurt **niet** automatisch, enkel op vraag.
 
 ## Audittrail
 
@@ -21,7 +22,8 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - **Bewust uitgesloten** van de audittrail: `User`, `RecoveryCode`, `TrustedDevice` (zouden wachtwoord-hashes/2FA-geheimen in de audittrail zetten) en `EmailLog`/`AuditLog` zelf (zijn al logtabellen resp. zouden oneindig recursief loggen). Zie `AUDITED_MODELS` in `src/lib/audit.ts` voor de volledige lijst.
 - **Bekende beperking**: de AuditLog-insert gebeurt niet gegarandeerd in dezelfde databasetransactie als de echte wijziging (uitgeprobeerd en verworpen: `this` binnen een Prisma `$allOperations`-hook en een `$transaction`-override — geen van beide gaf betrouwbare, tx-gebonden toegang tot andere modellen). Alleen een procescrash exact tussen de echte schrijfactie en de audit-insert zou een audit-rij kunnen missen — aanvaardbaar voor deze app. Zie de uitgebreide toelichting in `src/lib/db.ts`.
 - Nieuwe modellen die wijzigbaar zijn via de app horen standaard in `AUDITED_MODELS`, tenzij ze (zoals hierboven) gevoelige/interne data bevatten.
-- **UI**: `/audit-log` (menu-item "Audittrail" — enkel desktop-sidebar, bewust niet in de mobiele bottom-tabs, zie `desktopOnly` in `src/components/app-nav.tsx`) toont de audittrail met filters op tabel/actie, paginering en een detailweergave van de volledige rij vóór/na. API: `GET /api/audit-log` (`src/app/api/audit-log/route.ts`, contract in `src/lib/schemas/audit-log.ts`).
+- **UI**: `/audit-log` (menu-item "Audittrail" — enkel desktop-sidebar, bewust niet in de mobiele bottom-tabs, zie `desktopOnly` in `src/components/app-nav.tsx`) toont de audittrail als tabel met filters op tabel/actie/gebruiker (incl. "Systeem")/record-id/periode, de gedeelde paginering (`src/components/pagination.tsx`) en een detailweergave met de gewijzigde velden + de volledige rij vóór/na. Filterlogica: `buildAuditLogWhere()`/`changedFields()` in `src/lib/schemas/audit-log.ts`.
+- **Valkuil audit-gebruiker**: `requireUser()` moet `beginAuditScope()` synchroon vóór de eerste `await` aanroepen — `AsyncLocalStorage.enterWith()` ná een `await` bereikt de aanroepende route niet (vóór v0.9.0 werd daardoor alles als "Systeem" gelogd). Zie `src/lib/audit-context.ts`. API: `GET /api/audit-log` (`src/app/api/audit-log/route.ts`, contract in `src/lib/schemas/audit-log.ts`).
 - **Enkel zichtbaar/bereikbaar voor rol ADMIN** (zie Rollen hieronder) — zowel het menu-item als `GET /api/audit-log` zijn ADMIN-only via `requireAdmin()`.
 
 ## Rollen & gebruikersbeheer

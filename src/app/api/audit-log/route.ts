@@ -1,20 +1,22 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, requireAdmin } from "@/lib/api";
 import { db } from "@/lib/db";
-import { auditLogQuerySchema, type AuditLogListResponse } from "@/lib/schemas/audit-log";
+import {
+  auditLogQuerySchema,
+  buildAuditLogWhere,
+  type AuditLogListResponse,
+} from "@/lib/schemas/audit-log";
 
-/** GET /api/audit-log?table=&action=&page=&pageSize= — overzicht van alle gelogde wijzigingen (ADMIN-only). */
+/**
+ * GET /api/audit-log?table=&action=&user=&recordId=&from=&to=&page=&pageSize=
+ * Paginated overview of all logged changes (ADMIN-only); `user=system` = background jobs.
+ */
 export async function GET(request: NextRequest) {
   try {
     await requireAdmin();
-    const { table, action, page, pageSize } = auditLogQuerySchema.parse(
-      Object.fromEntries(request.nextUrl.searchParams),
-    );
-
-    const where = {
-      ...(table ? { tableName: table } : {}),
-      ...(action ? { action } : {}),
-    };
+    const query = auditLogQuerySchema.parse(Object.fromEntries(request.nextUrl.searchParams));
+    const { page, pageSize } = query;
+    const where = buildAuditLogWhere(query);
 
     const [rows, total] = await Promise.all([
       db.auditLog.findMany({

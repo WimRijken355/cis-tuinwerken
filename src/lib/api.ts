@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { setAuditUser } from "./audit-context";
+import { beginAuditScope, setAuditUser } from "./audit-context";
 import { db } from "./db";
 import { getSession } from "./session";
 
@@ -29,6 +29,9 @@ export class ApiError extends Error {
  * API-endpoint controleert zelf opnieuw — defense in depth.
  */
 export async function requireUser(): Promise<number> {
+  // Synchronously, before the first await: makes the audit scope visible to
+  // the calling route handler (see audit-context.ts for why).
+  beginAuditScope();
   const session = await getSession();
   if (!session.userId) {
     throw new ApiError("Niet aangemeld", 401);
