@@ -2,7 +2,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { customerInputSchema } from "@/lib/schemas/customers";
-import { todoResourcesInclude, toTodoResourceDtos } from "@/lib/schemas/todos";
+import { partialWithoutDefaults } from "@/lib/schemas/partial";
+import { recurringExtrasInclude, toRecurringExtrasDto } from "@/lib/schemas/recurring";
+import { todoResourcesInclude, toTodoResourceDtos, toTodoTaskDtos } from "@/lib/schemas/todos";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
   const id = Number((await params).id);
@@ -29,7 +31,7 @@ export async function GET(
           include: { recurringWindow: { select: { label: true } }, ...todoResourcesInclude },
         },
         recurringTemplates: {
-          include: { windows: { orderBy: { sortOrder: "asc" } } },
+          include: { windows: { orderBy: { sortOrder: "asc" } }, ...recurringExtrasInclude },
           orderBy: { title: "asc" },
         },
       },
@@ -43,11 +45,13 @@ export async function GET(
         estimatedHours: Number(t.estimatedHours),
         windowLabel: t.recurringWindow?.label ?? null,
         resources: toTodoResourceDtos(t.resources),
+        tasks: toTodoTaskDtos(t.tasks),
         recurringWindow: undefined,
       })),
       recurringTemplates: customer.recurringTemplates.map((rt) => ({
         ...rt,
         estimatedHours: Number(rt.estimatedHours),
+        ...toRecurringExtrasDto(rt),
       })),
     });
   } catch (error) {
@@ -63,7 +67,7 @@ export async function PATCH(
   try {
     await requireUser();
     const id = await parseId(params);
-    const input = customerInputSchema.partial().parse(await request.json());
+    const input = partialWithoutDefaults(customerInputSchema).parse(await request.json());
 
     const customer = await db.customer.update({
       where: { id },

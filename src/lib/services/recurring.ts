@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import { db } from "../db";
+import { generatedTodoExtras, recurringExtrasInclude } from "../schemas/recurring";
 import { nowBrussels, ZONE } from "../time";
 
 /**
@@ -11,8 +12,11 @@ import { nowBrussels, ZONE } from "../time";
  *
  * Idempotentie: de unieke index op (recurringWindowId, occurrenceYear) maakt
  * het onmogelijk om dezelfde beurt twee keer te genereren — hoe vaak de job
- * ook draait (dagelijks 02:00 + bij elke serverstart). `skipDuplicates` vangt
- * de conflicten stil af.
+ * ook draait (dagelijks 02:00 + bij elke serverstart). A unique-constraint
+ * error (P2002) on create means "already generated" and is skipped.
+ *
+ * Every generated todo gets a copy of the template's resources (with hours)
+ * and checklist tasks, so the todo can be adjusted on its own afterwards.
  */
 
 export interface RecurringRunResult {
@@ -42,8 +46,11 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
 
   const templates = await db.recurringTemplate.findMany({
     where: { active: true, customer: { active: true } },
-    include: { windows: true },
+    include: { windows: true, ...recurringExtrasInclude },
   });
+  const templateByWindowId = new Map(
+    templates.flatMap((t) => t.windows.map((w) => [w.id, t] as const)),
+  );
 
   const toCreate: {
     customerId: number;
@@ -85,17 +92,40 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
   }
 
   let todosCreated = 0;
-  if (toCreate.length > 0) {
-    // skipDuplicates: bestaande (windowId, jaar)-combinaties worden stil overgeslagen.
-    const result = await db.todo.createMany({
-      data: toCreate.map((t) => ({ ...t, estimatedHours: t.estimatedHours as never })),
-      skipDuplicates: true,
-    });
-    todosCreated = result.count;
+  for (const data of toCreate) {
+    let todoId: number;
+    try {
+      const todo = await db.todo.create({
+        data: { ...data, estimatedHours: data.estimatedHours as never },
+      });
+      todoId = todo.id;
+    } catch (error) {
+      // Existing (windowId, year) occurrence: already generated earlier.
+      if (isUniqueConstraintError(error)) continue;
+      throw error;
+    }
+    todosCreated++;
+
+    const template = templateByWindowId.get(data.recurringWindowId);
+    if (template) {
+      const extras = generatedTodoExtras(todoId, template);
+      if (extras.resources.length > 0) {
+        await db.todoResource.createMany({
+          data: extras.resources.map((r) => ({ ...r, hours: r.hours as never })),
+        });
+      }
+      if (extras.tasks.length > 0) {
+        await db.todoTask.createMany({ data: extras.tasks });
+      }
+    }
   }
 
   if (todosCreated > 0) {
     console.log(`🔁 Recurring-job: ${todosCreated} nieuwe todo('s) gegenereerd`);
   }
   return { windowsChecked, todosCreated };
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && (error as { code?: string }).code === "P2002";
 }

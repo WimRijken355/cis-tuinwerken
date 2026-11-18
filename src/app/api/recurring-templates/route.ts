@@ -1,17 +1,24 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { recurringTemplateInputSchema } from "@/lib/schemas/recurring";
+import {
+  recurringExtrasInclude,
+  recurringTemplateInputSchema,
+  toRecurringExtrasDto,
+} from "@/lib/schemas/recurring";
+import { checklistNames, replaceTemplateTasks } from "@/lib/services/checklist-tasks";
+import { assertResourcesExist, replaceTemplateResources } from "@/lib/services/todo-resources";
 
 const include = {
   customer: { select: { name: true } },
   windows: { orderBy: { sortOrder: "asc" as const } },
+  ...recurringExtrasInclude,
 };
 
 type TemplateWithRelations = {
   estimatedHours: unknown;
   customer: { name: string };
-} & Record<string, unknown>;
+} & Parameters<typeof toRecurringExtrasDto>[0];
 
 function toDto(t: TemplateWithRelations) {
   return {
@@ -19,6 +26,7 @@ function toDto(t: TemplateWithRelations) {
     estimatedHours: Number(t.estimatedHours),
     customerName: t.customer.name,
     customer: undefined,
+    ...toRecurringExtrasDto(t),
   };
 }
 
@@ -43,8 +51,10 @@ export async function POST(request: NextRequest) {
   try {
     await requireUser();
     const input = recurringTemplateInputSchema.parse(await request.json());
+    await assertResourcesExist(input.resources);
+    await checklistNames(input.taskIds);
 
-    const template = await db.recurringTemplate.create({
+    const created = await db.recurringTemplate.create({
       data: {
         customerId: input.customerId,
         title: input.title,
@@ -63,8 +73,11 @@ export async function POST(request: NextRequest) {
           })),
         },
       },
-      include,
     });
+    await replaceTemplateResources(created.id, input.resources);
+    await replaceTemplateTasks(created.id, input.taskIds);
+
+    const template = await db.recurringTemplate.findUniqueOrThrow({ where: { id: created.id }, include });
     return NextResponse.json(toDto(template), { status: 201 });
   } catch (error) {
     return handleApiError(error);

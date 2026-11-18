@@ -35,6 +35,10 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - **Guards tegen lock-out** (pure logica in `src/lib/users-guard.ts` → `wouldRemoveLastAdmin()`, los getest): de laatste ADMIN kan niet gedegradeerd of verwijderd worden, en een gebruiker kan zichzelf niet verwijderen.
 - `User` zelf staat bewust **niet** in `AUDITED_MODELS` (zou wachtwoord-hashes/2FA-geheimen loggen) — de routes in `src/app/api/users/` schrijven daarom zelf een geredigeerde `AuditLog`-entry (enkel `username`/`role`, nooit `passwordHash`/`totpSecret`) bij aanmaken/rol-wijziging/verwijderen.
 
+## Schema-valkuil: PATCH zonder defaults
+
+- Zod `.partial()` behoudt `.default(...)`: een PATCH die een veld weglaat, zet het dan stil terug op de default (bv. `active` → true). Gebruik voor PATCH-schemas `partialWithoutDefaults()` uit `src/lib/schemas/partial.ts` of een expliciet schema zonder defaults (zie `recurringTemplateUpdateSchema`).
+
 ## Testen
 
 - Testrunner: **Vitest** (`vitest.config.mts`). Testbestanden staan naast de code als `*.test.ts` (bv. `src/lib/time.test.ts`).

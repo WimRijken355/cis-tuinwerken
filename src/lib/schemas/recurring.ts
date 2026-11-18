@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { checklistItemIdsSchema } from "./checklist";
+import { resourcesSchema, type TodoResourceDto } from "./todos";
 
 /** Contracten voor terugkerend werk. */
 
@@ -25,12 +27,28 @@ export const recurringTemplateInputSchema = z.object({
   leadTimeDays: z.coerce.number().int().min(0).max(365).default(30),
   active: z.boolean().default(true),
   windows: z.array(windowSchema).min(1, "Minstens één periode per jaar"),
+  /** Resources (with hours) copied onto every generated todo. */
+  resources: resourcesSchema.default([]),
+  /** Checklist item ids (ordered) copied onto every generated todo. */
+  taskIds: checklistItemIdsSchema.default([]),
 });
 export type RecurringTemplateInput = z.infer<typeof recurringTemplateInputSchema>;
 
-export const recurringTemplateUpdateSchema = recurringTemplateInputSchema
-  .omit({ customerId: true })
-  .partial();
+/**
+ * PATCH: every field optional and WITHOUT defaults. (`.partial()` on the
+ * input schema would keep the defaults, so omitting e.g. `resources` would
+ * wipe them and omitting `active` would reactivate the template.)
+ */
+export const recurringTemplateUpdateSchema = z.object({
+  title: z.string().trim().min(1, "Titel is verplicht").max(200).optional(),
+  description: z.string().max(5000).optional(),
+  estimatedHours: z.coerce.number().positive().max(999).optional(),
+  leadTimeDays: z.coerce.number().int().min(0).max(365).optional(),
+  active: z.boolean().optional(),
+  windows: z.array(windowSchema).min(1, "Minstens één periode per jaar").optional(),
+  resources: resourcesSchema.optional(),
+  taskIds: checklistItemIdsSchema.optional(),
+});
 export type RecurringTemplateUpdate = z.infer<typeof recurringTemplateUpdateSchema>;
 
 export interface RecurringWindowDto {
@@ -53,6 +71,66 @@ export interface RecurringTemplateDto {
   leadTimeDays: number;
   active: boolean;
   windows: RecurringWindowDto[];
+  resources: TodoResourceDto[];
+  tasks: RecurringTaskDto[];
+}
+
+export interface RecurringTaskDto {
+  checklistItemId: number;
+  name: string;
+}
+
+/** Prisma `include` for a template's resources and checklist tasks. */
+export const recurringExtrasInclude = {
+  resources: {
+    include: { resource: { select: { name: true, type: true } } },
+    orderBy: { id: "asc" as const },
+  },
+  tasks: {
+    include: { checklistItem: { select: { name: true } } },
+    orderBy: [{ sortOrder: "asc" as const }, { id: "asc" as const }],
+  },
+};
+
+/** Maps a template with `recurringExtrasInclude` to its resource + task DTOs. */
+export function toRecurringExtrasDto(t: {
+  resources: { resourceId: number; hours: unknown; resource: { name: string; type: "PERSON" | "MACHINE" } }[];
+  tasks: { checklistItemId: number; checklistItem: { name: string } }[];
+}): { resources: TodoResourceDto[]; tasks: RecurringTaskDto[] } {
+  return {
+    resources: t.resources.map((r) => ({
+      resourceId: r.resourceId,
+      name: r.resource.name,
+      type: r.resource.type,
+      hours: Number(r.hours),
+    })),
+    tasks: t.tasks.map((task) => ({ checklistItemId: task.checklistItemId, name: task.checklistItem.name })),
+  };
+}
+
+/**
+ * Data to copy from a recurring template onto a freshly generated todo:
+ * its resources (with hours) and its checklist (name snapshot, in order).
+ */
+export function generatedTodoExtras(
+  todoId: number,
+  template: {
+    resources: { resourceId: number; hours: unknown }[];
+    tasks: { checklistItemId: number; checklistItem: { name: string } }[];
+  },
+): {
+  resources: { todoId: number; resourceId: number; hours: unknown }[];
+  tasks: { todoId: number; checklistItemId: number; label: string; sortOrder: number }[];
+} {
+  return {
+    resources: template.resources.map((r) => ({ todoId, resourceId: r.resourceId, hours: r.hours })),
+    tasks: template.tasks.map((t, sortOrder) => ({
+      todoId,
+      checklistItemId: t.checklistItemId,
+      label: t.checklistItem.name,
+      sortOrder,
+    })),
+  };
 }
 
 export const MONTH_NAMES_NL = [

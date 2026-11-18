@@ -6,7 +6,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { CustomerForm } from "@/components/customer-form";
 import { RecurringSection } from "@/components/recurring-section";
-import { TodoForm, TodoResourceSummary, type TodoFormValues } from "@/components/todo-form";
+import { TodoForm, type TodoFormValues } from "@/components/todo-form";
+import { ResourceSummary, TodoChecklist } from "@/components/work-pickers";
 import {
   Button,
   EmptyState,
@@ -19,7 +20,7 @@ import {
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatAddress, type CustomerDto, type CustomerInput } from "@/lib/schemas/customers";
 import type { RecurringTemplateDto } from "@/lib/schemas/recurring";
-import type { TodoDto } from "@/lib/schemas/todos";
+import type { TodoDto, TodoTaskDto } from "@/lib/schemas/todos";
 
 interface CustomerDetail extends CustomerDto {
   todos: TodoDto[];
@@ -214,6 +215,13 @@ function TodoSection({
     onSuccess: onChanged,
   });
 
+  const toggleTask = useMutation({
+    mutationFn: ({ todoId, task }: { todoId: number; task: TodoTaskDto }) =>
+      apiSend(`/api/todos/${todoId}/tasks/${task.id}`, "PATCH", { done: !task.done }),
+    onSuccess: onChanged,
+    onError: (e) => setFormError((e as Error).message),
+  });
+
   const deleteTodo = useMutation({
     mutationFn: (todoId: number) => apiSend(`/api/todos/${todoId}`, "DELETE"),
     onSuccess: onChanged,
@@ -255,8 +263,13 @@ function TodoSection({
                     )}
                   </p>
                   <div className="mt-1">
-                    <TodoResourceSummary resources={t.resources} />
+                    <ResourceSummary resources={t.resources} />
                   </div>
+                  <TodoChecklist
+                    tasks={t.tasks}
+                    disabled={toggleTask.isPending}
+                    onToggle={(task) => toggleTask.mutate({ todoId: t.id, task })}
+                  />
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <StatusBadge status={t.status} />
@@ -319,6 +332,7 @@ function TodoSection({
               title: editing.title,
               estimatedHours: editing.estimatedHours,
               resources: editing.resources ?? [],
+              tasks: editing.tasks ?? [],
             }}
             submitLabel="Bewaren"
             busy={editMutation.isPending}

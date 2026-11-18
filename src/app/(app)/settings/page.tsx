@@ -12,6 +12,7 @@ import {
   TextArea,
   TextInput,
 } from "@/components/ui";
+import { ChecklistSettingsSection } from "@/components/checklist-settings";
 import { apiGet, apiSend } from "@/lib/api-client";
 import type { Settings } from "@/lib/schemas/settings";
 import { APP_VERSION } from "@/lib/version";
@@ -50,6 +51,7 @@ export default function SettingsPage() {
           <RatesSection settings={settings} />
           <ProductsLinkSection />
           <ResourcesLinkSection />
+          <ChecklistSettingsSection />
           <ReminderSection settings={settings} />
           <EfImportSection efConfigured={settings.efConfigured} />
           <SecuritySection />

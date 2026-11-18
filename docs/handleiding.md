@@ -73,10 +73,20 @@ Op de klantfiche → **Terugkerend werk → + Toevoegen**:
 - wat er moet gebeuren + geschatte uren
 - de **periodes**: bv. "Mei" en "Sep–Okt" = 2 beurten per jaar
 - hoeveel dagen vooraf het in je planning moet verschijnen (standaard 30)
+- de **checklist**: welke standaardtaken erbij horen
+- de **resources**: welke personen/machines nodig zijn, met hun uren
 
 De app maakt dan elk jaar vanzelf de todo's aan, op tijd, met een badge zoals
-*"Voorkeur: Mei"* in de planningslijst. Je hoeft er nooit meer zelf aan te
-denken.
+*"Voorkeur: Mei"* in de planningslijst — inclusief checklist en resources. Je
+hoeft er nooit meer zelf aan te denken.
+
+## Checklist
+
+De standaardtaken (bv. "Haag scheren", "Snoeiafval afvoeren") beheer je in
+**Instellingen → Checklist**: toevoegen, hernoemen, volgorde (▲▼),
+deactiveren. Bij een todo of terugkerend werk vink je aan welke taken van
+toepassing zijn. Op de klantfiche vink je ze af zodra ze gedaan zijn
+(*Checklist 2/5*).
 
 ## Facturen
 

@@ -27,7 +27,7 @@ export async function PATCH(
 
 /**
  * DELETE /api/resources/:id — registered hours are snapshots (name + rate in
- * LaborEntry), so history stays intact. Refused while todos still plan this
+ * LaborEntry), so history stays intact. Refused while todos or recurring work still use this
  * resource; deactivating is the way to go then.
  */
 export async function DELETE(
@@ -37,10 +37,13 @@ export async function DELETE(
   try {
     await requireUser();
     const id = await parseId(params);
-    const usage = await db.todoResource.count({ where: { resourceId: id } });
-    if (usage > 0) {
+    const [todoUse, templateUse] = await Promise.all([
+      db.todoResource.count({ where: { resourceId: id } }),
+      db.recurringTemplateResource.count({ where: { resourceId: id } }),
+    ]);
+    if (todoUse + templateUse > 0) {
       throw new ApiError(
-        `Deze resource is nog ingepland bij ${usage} todo('s). Deactiveer hem in plaats van hem te verwijderen.`,
+        "Deze resource wordt nog gebruikt bij todo's of terugkerend werk. Deactiveer hem in plaats van hem te verwijderen.",
         409,
       );
     }

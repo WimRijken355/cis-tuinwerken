@@ -1,7 +1,13 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { recurringTemplateUpdateSchema } from "@/lib/schemas/recurring";
+import {
+  recurringExtrasInclude,
+  recurringTemplateUpdateSchema,
+  toRecurringExtrasDto,
+} from "@/lib/schemas/recurring";
+import { checklistNames, replaceTemplateTasks } from "@/lib/services/checklist-tasks";
+import { assertResourcesExist, replaceTemplateResources } from "@/lib/services/todo-resources";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
   const id = Number((await params).id);
@@ -31,6 +37,8 @@ export async function PATCH(
       include: { windows: true },
     });
     if (!existing) throw new ApiError("Sjabloon niet gevonden", 404);
+    if (input.resources) await assertResourcesExist(input.resources);
+    if (input.taskIds) await checklistNames(input.taskIds);
 
     await db.$transaction(async (tx) => {
       await tx.recurringTemplate.update({
@@ -67,11 +75,20 @@ export async function PATCH(
       }
     });
 
-    const updated = await db.recurringTemplate.findUnique({
+    // Outside the transaction on purpose: only writes through `db` are audited.
+    // Affects todos generated from now on; existing todos keep their own set.
+    if (input.resources) await replaceTemplateResources(id, input.resources);
+    if (input.taskIds) await replaceTemplateTasks(id, input.taskIds);
+
+    const updated = await db.recurringTemplate.findUniqueOrThrow({
       where: { id },
-      include: { windows: { orderBy: { sortOrder: "asc" } } },
+      include: { windows: { orderBy: { sortOrder: "asc" } }, ...recurringExtrasInclude },
     });
-    return NextResponse.json({ ...updated, estimatedHours: Number(updated?.estimatedHours) });
+    return NextResponse.json({
+      ...updated,
+      estimatedHours: Number(updated.estimatedHours),
+      ...toRecurringExtrasDto(updated),
+    });
   } catch (error) {
     return handleApiError(error);
   }

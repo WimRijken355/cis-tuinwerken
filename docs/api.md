@@ -91,16 +91,23 @@ Maakt of synchroniseert deze klant in EenvoudigFactureren.
 ### POST /api/todos
 ```json
 { "customerId": 7, "title": "Haag scheren", "estimatedHours": 3.5, "description": "",
-  "resources": [{ "resourceId": 2, "hours": 3.5 }, { "resourceId": 5, "hours": 1 }] }
+  "resources": [{ "resourceId": 2, "hours": 3.5 }, { "resourceId": 5, "hours": 1 }],
+  "taskIds": [4, 1] }
 ```
 `estimatedHours` is de totale tijd; `resources` (optioneel) zijn de in te plannen
 personen/machines met elk hun eigen uren. De som hoeft niet gelijk te zijn aan het
-totaal. Elke resource max. één keer per todo. Todo-antwoorden bevatten
-`resources: [{ resourceId, name, type, hours }]`.
+totaal. Elke resource max. één keer per todo. `taskIds` (optioneel) zijn de
+checklist-taken (ids uit `/api/checklist-items`), in volgorde. Todo-antwoorden
+bevatten `resources: [{ resourceId, name, type, hours }]` en
+`tasks: [{ id, checklistItemId, label, done }]` (`label` = momentopname van de
+taaknaam).
 
 ### GET /api/todos/:id — detail incl. afspraken
-### PATCH /api/todos/:id — `title`, `description`, `estimatedHours`, `resources`, `status`
-`resources` vervangt (indien meegegeven) de volledige set; `[]` = geen resources.
+### PATCH /api/todos/:id — `title`, `description`, `estimatedHours`, `resources`, `taskIds`, `status`
+`resources` / `taskIds` vervangen (indien meegegeven) de volledige set; `[]` = geen.
+Taken die blijven, behouden hun afgevinkte status.
+### PATCH /api/todos/:id/tasks/:taskId — `{ "done": true }`
+Vinkt een checklist-taak af (of terug aan).
 `status: "DONE"` zet `completedAt`; `"OPEN"` wist het weer.
 ### DELETE /api/todos/:id
 409 zodra er afspraken aan hangen — dan annuleren i.p.v. verwijderen.
@@ -175,8 +182,18 @@ pagina **Resources** (`/resources`). Zonder `page`: platte array van actieve
 resources (`?type=PERSON` = picklist van de registratieflow,
 `?includeInactive=1` ook inactieve). Mét `page`: gepagineerd
 `{ items, total, page, pageSize }` met filters `name`, `type` en `status`.
-Verwijderen geeft 409 zolang een todo de resource nog inplant. Verder veilig:
-geregistreerde uren zijn snapshots.
+Verwijderen geeft 409 zolang een todo of terugkerend werk de resource nog
+gebruikt. Verder veilig: geregistreerde uren zijn snapshots.
+
+### GET/POST /api/checklist-items · PATCH/DELETE /api/checklist-items/:id
+Checklist-taken `{ name, active, sortOrder }`, beheerd in **Instellingen →
+Checklist**. `GET` geeft ze in volgorde, enkel actieve tenzij
+`?includeInactive=1`. `POST` zet een nieuwe taak achteraan. Hernoemen wijzigt
+bestaande todo's niet (die bewaren hun eigen label). Verwijderen geeft 409
+zolang een todo of terugkerend werk de taak gebruikt — dan deactiveren.
+
+### POST /api/checklist-items/:id/move — `{ "direction": -1 | 1 }`
+Schuift een taak één plaats omhoog/omlaag.
 
 ### GET/POST /api/price-list · PATCH/DELETE /api/price-list/:id
 Prijslijst `{ name, unit (≤10 tekens), unitPrice, vatRate (0/6/12/21), active,
@@ -229,13 +246,19 @@ Sjablonen met hun periodes (`windows[]`, elk met `label`, `startMonth/Day`,
   "windows": [
     { "label": "Mei", "startMonth": 5, "startDay": 1, "endMonth": 5, "endDay": 31 },
     { "label": "Sep–Okt", "startMonth": 9, "startDay": 1, "endMonth": 10, "endDay": 31 }
-  ] }
+  ],
+  "resources": [{ "resourceId": 2, "hours": 4 }],
+  "taskIds": [4, 1] }
 ```
+`resources` en `taskIds` (optioneel) worden bij elke gegenereerde todo
+meegekopieerd; antwoorden bevatten `resources[]` en `tasks: [{ checklistItemId, name }]`.
 
 ### PATCH /api/recurring-templates/:id
-Zelfde velden. Windows worden gereconcilieerd: met `id` = bijwerken, zonder
-`id` = nieuw, weggelaten = verwijderd. Zo ontstaan er nooit dubbele beurten
-voor al bestaande periodes.
+Zelfde velden, allemaal optioneel (weggelaten = ongewijzigd). Windows worden
+gereconcilieerd: met `id` = bijwerken, zonder `id` = nieuw, weggelaten =
+verwijderd. Zo ontstaan er nooit dubbele beurten voor al bestaande periodes.
+`resources` / `taskIds` vervangen de set; dat geldt voor todo's die vanaf dan
+gegenereerd worden — bestaande todo's houden hun eigen set.
 
 ### DELETE /api/recurring-templates/:id
 Al gegenereerde todo's blijven staan; er komen geen nieuwe beurten meer bij.

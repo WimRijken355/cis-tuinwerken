@@ -10,11 +10,20 @@ import {
 } from "@/lib/schemas/recurring";
 import { apiSend } from "@/lib/api-client";
 import { Button, ErrorNote, Field, Modal, TextInput } from "./ui";
+import {
+  ChecklistPicker,
+  ResourcePicker,
+  resourceSelectionToInput,
+  ResourceSummary,
+  toResourceSelection,
+  type ResourceSelection,
+} from "./work-pickers";
 
 /**
  * Terugkerend werk op de klantfiche: bv. "Haag scheren, 2×/jaar: Mei + Sep–Okt".
  * Elke periode (window) levert per jaar één todo op, die `leadTimeDays` vóór
  * het begin van de periode in "in te plannen" verschijnt.
+ * Resources (with hours) and checklist tasks are copied onto every generated todo.
  */
 
 interface WindowDraft {
@@ -56,7 +65,7 @@ export function RecurringSection({
       ) : (
         <ul className="divide-y divide-gray-100">
           {templates.map((t) => (
-            <li key={t.id} className="flex items-center justify-between gap-3 py-2">
+            <li key={t.id} className="flex items-start justify-between gap-3 py-2">
               <div className="min-w-0 text-sm">
                 <p className={`font-medium ${t.active ? "" : "text-gray-400 line-through"}`}>
                   {t.title}
@@ -64,7 +73,11 @@ export function RecurringSection({
                 <p className="text-gray-500">
                   {t.windows.length}×/jaar: {t.windows.map((w) => w.label).join(" + ")} · ±{" "}
                   {t.estimatedHours} u · verschijnt {t.leadTimeDays} dagen vooraf
+                  {t.tasks.length > 0 && ` · checklist: ${t.tasks.map((task) => task.name).join(", ")}`}
                 </p>
+                <div className="mt-1">
+                  <ResourceSummary resources={t.resources} />
+                </div>
               </div>
               <div className="flex shrink-0 gap-2 text-xs">
                 <button
@@ -120,6 +133,12 @@ function RecurringFormModal({
   const [title, setTitle] = useState(template?.title ?? "");
   const [hours, setHours] = useState(String(template?.estimatedHours ?? 2));
   const [leadTime, setLeadTime] = useState(String(template?.leadTimeDays ?? 30));
+  const [resources, setResources] = useState<ResourceSelection>(() =>
+    toResourceSelection(template?.resources),
+  );
+  const [taskIds, setTaskIds] = useState<number[]>(
+    template?.tasks.map((t) => t.checklistItemId) ?? [],
+  );
   const [windows, setWindows] = useState<WindowDraft[]>(
     template?.windows.map((w: RecurringWindowDto) => ({
       id: w.id,
@@ -134,6 +153,8 @@ function RecurringFormModal({
         title,
         estimatedHours: Number(hours.replace(",", ".")),
         leadTimeDays: Number(leadTime),
+        resources: resourceSelectionToInput(resources),
+        taskIds,
         windows: windows.map((w, i) => ({
           id: w.id,
           label: windowLabel(w.startMonth, w.endMonth),
@@ -234,6 +255,20 @@ function RecurringFormModal({
             + Periode toevoegen
           </button>
         </div>
+
+        <ChecklistPicker value={taskIds} onChange={setTaskIds} initial={template?.tasks} />
+        <ResourcePicker
+          value={resources}
+          onChange={setResources}
+          totalHours={hours}
+          initial={template?.resources}
+        />
+        {template && (
+          <p className="text-xs text-gray-500">
+            Wijzigingen aan checklist en resources gelden voor todo&apos;s die vanaf nu
+            gegenereerd worden; al bestaande todo&apos;s pas je zelf aan.
+          </p>
+        )}
 
         <div className="flex justify-end gap-2 pt-2">
           <Button variant="secondary" type="button" onClick={onClose}>

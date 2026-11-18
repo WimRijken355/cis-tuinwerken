@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { sumResourceHours, todoInputSchema, todoUpdateSchema, toTodoResourceDtos } from "./todos";
+import {
+  planTodoTaskSync,
+  sumResourceHours,
+  todoInputSchema,
+  todoUpdateSchema,
+  toTodoResourceDtos,
+  toTodoTaskDtos,
+} from "./todos";
 
 describe("todoInputSchema", () => {
   it("defaults to no resources", () => {
@@ -54,5 +61,42 @@ describe("resource helpers", () => {
     ]);
     expect(sumResourceHours(dtos)).toBe(6.5);
     expect(sumResourceHours([])).toBe(0);
+  });
+});
+
+describe("todo checklist", () => {
+  it("defaults to no tasks and rejects duplicates", () => {
+    const base = { customerId: 1, title: "X", estimatedHours: 1 };
+    expect(todoInputSchema.parse(base).taskIds).toEqual([]);
+    expect(() => todoInputSchema.parse({ ...base, taskIds: [4, 4] })).toThrow();
+    expect(todoUpdateSchema.parse({}).taskIds).toBeUndefined();
+  });
+
+  it("keeps ticked tasks, deletes removed ones, creates new ones and reorders", () => {
+    const existing = [
+      { id: 100, checklistItemId: 1, sortOrder: 0 }, // stays, moves to position 1
+      { id: 101, checklistItemId: 2, sortOrder: 1 }, // removed
+      { id: 102, checklistItemId: 3, sortOrder: 2 }, // stays, moves to position 0
+    ];
+    const names = new Map([[4, "Gras maaien"]]);
+    expect(planTodoTaskSync(existing, [3, 1, 4], names)).toEqual({
+      deleteIds: [101],
+      create: [{ checklistItemId: 4, label: "Gras maaien", sortOrder: 2 }],
+      updateSortOrder: [
+        { id: 102, sortOrder: 0 },
+        { id: 100, sortOrder: 1 },
+      ],
+    });
+  });
+
+  it("clears the checklist with an empty selection", () => {
+    const plan = planTodoTaskSync([{ id: 1, checklistItemId: 9, sortOrder: 0 }], [], new Map());
+    expect(plan).toEqual({ deleteIds: [1], create: [], updateSortOrder: [] });
+  });
+
+  it("maps task rows to DTOs", () => {
+    expect(
+      toTodoTaskDtos([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true, sortOrder: 0 } as never]),
+    ).toEqual([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true }]);
   });
 });

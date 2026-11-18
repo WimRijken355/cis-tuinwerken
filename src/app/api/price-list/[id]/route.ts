@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { priceListItemInputSchema } from "@/lib/schemas/catalog";
+import { partialWithoutDefaults } from "@/lib/schemas/partial";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
   const id = Number((await params).id);
@@ -17,7 +18,7 @@ export async function PATCH(
   try {
     await requireUser();
     const id = await parseId(params);
-    const input = priceListItemInputSchema.partial().parse(await request.json());
+    const input = partialWithoutDefaults(priceListItemInputSchema).parse(await request.json());
     const item = await db.priceListItem.update({ where: { id }, data: input });
     return NextResponse.json({
       ...item,

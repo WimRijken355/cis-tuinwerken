@@ -2,7 +2,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-resources";
-import { todoResourcesInclude, todoUpdateSchema, toTodoResourceDtos } from "@/lib/schemas/todos";
+import { checklistNames, syncTodoTasks } from "@/lib/services/checklist-tasks";
+import {
+  todoResourcesInclude,
+  todoUpdateSchema,
+  toTodoResourceDtos,
+  toTodoTaskDtos,
+} from "@/lib/schemas/todos";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
   const id = Number((await params).id);
@@ -32,6 +38,7 @@ export async function GET(
       estimatedHours: Number(todo.estimatedHours),
       customerName: todo.customer.name,
       resources: toTodoResourceDtos(todo.resources),
+      tasks: toTodoTaskDtos(todo.tasks),
       customer: undefined,
     });
   } catch (error) {
@@ -47,8 +54,9 @@ export async function PATCH(
   try {
     await requireUser();
     const id = await parseId(params);
-    const { resources, ...input } = todoUpdateSchema.parse(await request.json());
+    const { resources, taskIds, ...input } = todoUpdateSchema.parse(await request.json());
     if (resources) await assertResourcesExist(resources);
+    const names = taskIds ? await checklistNames(taskIds) : null;
 
     await db.todo.update({
       where: { id },
@@ -59,11 +67,13 @@ export async function PATCH(
       },
     });
     if (resources) await replaceTodoResources(id, resources);
+    if (taskIds && names) await syncTodoTasks(id, taskIds, names);
     const todo = await db.todo.findUniqueOrThrow({ where: { id }, include: todoResourcesInclude });
     return NextResponse.json({
       ...todo,
       estimatedHours: Number(todo.estimatedHours),
       resources: toTodoResourceDtos(todo.resources),
+      tasks: toTodoTaskDtos(todo.tasks),
     });
   } catch (error) {
     return handleApiError(error);

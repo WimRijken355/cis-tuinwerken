@@ -29,3 +29,16 @@ export async function replaceTodoResources(
     });
   }
 }
+
+/** Replaces the resources of a recurring template. */
+export async function replaceTemplateResources(
+  templateId: number,
+  resources: TodoResourceInput[],
+): Promise<void> {
+  await db.recurringTemplateResource.deleteMany({ where: { templateId } });
+  if (resources.length > 0) {
+    await db.recurringTemplateResource.createMany({
+      data: resources.map((r) => ({ templateId, resourceId: r.resourceId, hours: r.hours })),
+    });
+  }
+}

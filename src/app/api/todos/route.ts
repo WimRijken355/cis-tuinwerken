@@ -2,7 +2,13 @@ import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-resources";
-import { todoInputSchema, todoResourcesInclude, toTodoResourceDtos } from "@/lib/schemas/todos";
+import { checklistNames, syncTodoTasks } from "@/lib/services/checklist-tasks";
+import {
+  todoInputSchema,
+  todoResourcesInclude,
+  toTodoResourceDtos,
+  toTodoTaskDtos,
+} from "@/lib/schemas/todos";
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
@@ -46,6 +52,7 @@ export async function GET(request: NextRequest) {
         customerName: t.customer.name,
         windowLabel: t.recurringWindow?.label ?? null,
         resources: toTodoResourceDtos(t.resources),
+        tasks: toTodoTaskDtos(t.tasks),
         customer: undefined,
         recurringWindow: undefined,
       })),
@@ -59,11 +66,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await requireUser();
-    const { resources, ...input } = todoInputSchema.parse(await request.json());
+    const { resources, taskIds, ...input } = todoInputSchema.parse(await request.json());
     await assertResourcesExist(resources);
+    const names = await checklistNames(taskIds);
 
     const created = await db.todo.create({ data: input });
     await replaceTodoResources(created.id, resources);
+    await syncTodoTasks(created.id, taskIds, names);
     const todo = await db.todo.findUniqueOrThrow({
       where: { id: created.id },
       include: { customer: { select: { name: true } }, ...todoResourcesInclude },
@@ -74,6 +83,7 @@ export async function POST(request: NextRequest) {
         estimatedHours: Number(todo.estimatedHours),
         customerName: todo.customer.name,
         resources: toTodoResourceDtos(todo.resources),
+        tasks: toTodoTaskDtos(todo.tasks),
         customer: undefined,
       },
       { status: 201 },

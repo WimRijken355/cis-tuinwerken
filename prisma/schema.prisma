@@ -141,6 +141,7 @@ model Todo {
   recurringWindow RecurringWindow? @relation(fields: [recurringWindowId], references: [id], onDelete: SetNull)
   appointments    Appointment[]
   resources       TodoResource[]
+  tasks           TodoTask[]
 
   @@unique([recurringWindowId, occurrenceYear])
   @@index([customerId])
@@ -162,8 +163,10 @@ model RecurringTemplate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  customer Customer          @relation(fields: [customerId], references: [id])
-  windows  RecurringWindow[]
+  customer  Customer                    @relation(fields: [customerId], references: [id])
+  windows   RecurringWindow[]
+  tasks     RecurringTemplateTask[]
+  resources RecurringTemplateResource[]
 
   @@index([customerId])
 }
@@ -268,7 +271,8 @@ model Resource {
   hourlyRate Decimal      @db.Decimal(8, 2)
   active     Boolean      @default(true)
 
-  todoResources TodoResource[]
+  todoResources     TodoResource[]
+  templateResources RecurringTemplateResource[]
 }
 
 /// Resource requirement of a todo: which resource is needed and for how many
@@ -286,18 +290,75 @@ model TodoResource {
   @@index([resourceId])
 }
 
-/// Configureerbare prijslijst: machinegebruik, afvoer groenafval, ...
-model PriceListItem {
+/// Master list of standard tasks ("checklist"), managed in Settings.
+/// Picked per todo / recurring work; todos keep a snapshot of the name.
+model ChecklistItem {
   id        Int     @id @default(autoincrement())
   name      String
-  /// Max 10 tekens — harde limiet van EenvoudigFactureren voor factuureenheden.
-  unit      String  @db.VarChar(10)
-  unitPrice Decimal @db.Decimal(10, 2)
-  vatRate   Decimal @default(21) @db.Decimal(4, 2)
   active    Boolean @default(true)
   sortOrder Int     @default(0)
+
+  todoTasks     TodoTask[]
+  templateTasks RecurringTemplateTask[]
+}
+
+/// One checklist line on a todo. `label` is a snapshot of the checklist item
+/// name, so renaming/deleting the master item never changes existing todos.
+model TodoTask {
+  id              Int     @id @default(autoincrement())
+  todoId          Int
+  checklistItemId Int?
+  label           String
+  done            Boolean @default(false)
+  sortOrder       Int     @default(0)
+
+  todo          Todo           @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  checklistItem ChecklistItem? @relation(fields: [checklistItemId], references: [id], onDelete: SetNull)
+
+  @@index([todoId])
+  @@index([checklistItemId])
+}
+
+/// Checklist items of a recurring work template; copied onto every generated todo.
+model RecurringTemplateTask {
+  id              Int @id @default(autoincrement())
+  templateId      Int
+  checklistItemId Int
+  sortOrder       Int @default(0)
+
+  template      RecurringTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  checklistItem ChecklistItem     @relation(fields: [checklistItemId], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, checklistItemId])
+  @@index([checklistItemId])
+}
+
+/// Resources of a recurring work template (with hours); copied onto every generated todo.
+model RecurringTemplateResource {
+  id         Int     @id @default(autoincrement())
+  templateId Int
+  resourceId Int
+  hours      Decimal @db.Decimal(5, 2)
+
+  template RecurringTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  resource Resource          @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  @@unique([templateId, resourceId])
+  @@index([resourceId])
+}
+
+/// Configureerbare prijslijst: machinegebruik, afvoer groenafval, ...
+model PriceListItem {
+  id            Int     @id @default(autoincrement())
+  name          String
+  /// Max 10 tekens — harde limiet van EenvoudigFactureren voor factuureenheden.
+  unit          String  @db.VarChar(10)
+  unitPrice     Decimal @db.Decimal(10, 2)
+  vatRate       Decimal @default(21) @db.Decimal(4, 2)
+  active        Boolean @default(true)
+  sortOrder     Int     @default(0)
   /// Link to the EenvoudigFactureren stock item (set by the EF product import).
-  efStockItemId Int? @unique
+  efStockItemId Int?    @unique
 }
 
 /// Aangerekende extra op een registratie. Alle velden zijn snapshots;

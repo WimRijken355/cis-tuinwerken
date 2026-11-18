@@ -1,0 +1,74 @@
+import { describe, expect, it } from "vitest";
+import {
+  generatedTodoExtras,
+  recurringTemplateInputSchema,
+  recurringTemplateUpdateSchema,
+  toRecurringExtrasDto,
+} from "./recurring";
+
+const window = { label: "Mei", startMonth: 5, endMonth: 5 };
+
+describe("recurringTemplateInputSchema", () => {
+  it("accepts resources and checklist tasks, defaulting to none", () => {
+    const base = { customerId: 1, title: "Haag scheren", estimatedHours: 3, windows: [window] };
+    expect(recurringTemplateInputSchema.parse(base)).toMatchObject({ resources: [], taskIds: [] });
+    expect(
+      recurringTemplateInputSchema.parse({
+        ...base,
+        resources: [{ resourceId: 2, hours: 3 }, { resourceId: 5, hours: "1,5".replace(",", ".") }],
+        taskIds: [7, 3],
+      }),
+    ).toMatchObject({ resources: [{ resourceId: 2, hours: 3 }, { resourceId: 5, hours: 1.5 }], taskIds: [7, 3] });
+  });
+
+  it("rejects duplicate resources", () => {
+    expect(() =>
+      recurringTemplateInputSchema.parse({
+        customerId: 1,
+        title: "X",
+        estimatedHours: 1,
+        windows: [window],
+        resources: [{ resourceId: 2, hours: 1 }, { resourceId: 2, hours: 1 }],
+      }),
+    ).toThrow();
+  });
+
+  it("leaves resources/tasks untouched on an update that omits them", () => {
+    const update = recurringTemplateUpdateSchema.parse({ title: "Nieuw" });
+    expect(update.resources).toBeUndefined();
+    expect(update.taskIds).toBeUndefined();
+    // Regression: .partial() kept the defaults and reset these on every update.
+    expect(update.leadTimeDays).toBeUndefined();
+    expect(update.active).toBeUndefined();
+  });
+});
+
+describe("recurring extras", () => {
+  const template = {
+    resources: [{ resourceId: 2, hours: "3.00", resource: { name: "Jan", type: "PERSON" as const } }],
+    tasks: [
+      { checklistItemId: 7, checklistItem: { name: "Haag scheren" } },
+      { checklistItemId: 3, checklistItem: { name: "Snoeiafval afvoeren" } },
+    ],
+  };
+
+  it("maps a template to resource and task DTOs", () => {
+    expect(toRecurringExtrasDto(template)).toEqual({
+      resources: [{ resourceId: 2, name: "Jan", type: "PERSON", hours: 3 }],
+      tasks: [
+        { checklistItemId: 7, name: "Haag scheren" },
+        { checklistItemId: 3, name: "Snoeiafval afvoeren" },
+      ],
+    });
+  });
+
+  it("copies resources and the checklist (name snapshot, in order) onto a generated todo", () => {
+    expect(generatedTodoExtras(42, template)).toEqual({
+      resources: [{ todoId: 42, resourceId: 2, hours: "3.00" }],
+      tasks: [
+        { todoId: 42, checklistItemId: 7, label: "Haag scheren", sortOrder: 0 },
+        { todoId: 42, checklistItemId: 3, label: "Snoeiafval afvoeren", sortOrder: 1 },
+      ],
+    });
+  });
+});
