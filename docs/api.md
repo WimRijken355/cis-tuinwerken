@@ -167,7 +167,16 @@ geregistreerde uren zijn snapshots.
 
 ### GET/POST /api/price-list · PATCH/DELETE /api/price-list/:id
 Prijslijst `{ name, unit (≤10 tekens), unitPrice, vatRate (0/6/12/21), active,
-sortOrder }`. `?includeInactive=1` toont ook gedeactiveerde items.
+sortOrder, efStockItemId }`. `?includeInactive=1` toont ook gedeactiveerde items.
+Beheerd via de pagina **Artikels** (`/products`).
+
+### POST /api/price-list/import-ef
+Haalt alle artikels (`GET /stockitems`) uit EenvoudigFactureren op en zet ze in
+de prijslijst. Al gekoppeld → overslaan; zelfde naam → enkel koppelen (lokale
+data blijft leidend); anders aanmaken. Prijzen incl. btw worden omgerekend naar
+excl. btw, eenheden afgekapt op 10 tekens. Btw-mapping `tax_category`: 1 → 21%,
+2 → 12%, 3 → 6%, 0 → 0% (aanname, niet gedocumenteerd door EF). Antwoord:
+`{ totalInEf, created, linked, skipped }`.
 
 ## Instellingen & jobs
 

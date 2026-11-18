@@ -23,6 +23,24 @@ export interface EfClient {
 
 export type EfClientInput = Partial<Omit<EfClient, "client_id">> & { name: string };
 
+/**
+ * Stock item ("artikel") in EF. Only the fields this app reads.
+ * `tax_category` is EF's VAT category (0-3); see mapEfTaxCategory().
+ */
+export interface EfStockItem {
+  stockitem_id: number;
+  code?: string | null;
+  description?: string | null;
+  type?: "single" | "list" | "combined" | "combined_fixed";
+  price?: number | null;
+  tax_category?: number | null;
+  /** Configurable VAT rate code when the account uses dynamic VAT rates. */
+  tax_code?: string | null;
+  tax_included?: boolean | null;
+  unit?: string | null;
+  active?: "yes" | "no" | null;
+}
+
 /** Factuurregel. amount = eenheidsprijs excl. btw; unit max 10 tekens. */
 export interface EfInvoiceItem {
   type: "item" | "text";

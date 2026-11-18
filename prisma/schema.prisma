@@ -270,6 +270,8 @@ model PriceListItem {
   vatRate   Decimal @default(21) @db.Decimal(4, 2)
   active    Boolean @default(true)
   sortOrder Int     @default(0)
+  /// Link to the EenvoudigFactureren stock item (set by the EF product import).
+  efStockItemId Int? @unique
 }
 
 /// Aangerekende extra op een registratie. Alle velden zijn snapshots;

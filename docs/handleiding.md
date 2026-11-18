@@ -92,7 +92,7 @@ EenvoudigFactureren zelf — zo hou je de controle.
 | Onderdeel | Wat je er regelt |
 |---|---|
 | Tarieven | je eigen uurtarief, btw op arbeid (21% of 6%), betaaltermijn |
-| Prijslijst | de extra's die je kan aanrekenen (naam, eenheid, prijs, btw) |
+| Artikels | link naar de aparte pagina **Artikels** (menu, of via Instellingen op gsm): de extra's die je kan aanrekenen (naam, eenheid, prijs, btw) + import uit EenvoudigFactureren |
 | Medewerkers | vaste werkmensen + hun uurtarief (picklist bij het registreren) |
 | Herinneringsmail | verzenduur en de teksten (met {{naam}}, {{datum}}, {{uur}}, {{werk}}) |
 | EF-import | bestaande klanten uit EenvoudigFactureren binnenhalen |
@@ -112,7 +112,7 @@ Planning: een ⚠ toont wat er misliep; met ✉ stuur je er meteen één.
 EenvoudigFactureren vóór je ze definitief maakt.
 
 **Kan ik iets aanrekenen dat niet in de prijslijst staat?** Voeg het item eerst
-toe via Instellingen → Prijslijst (dat is 10 seconden werk) en registreer dan.
+toe via Artikels (dat is 10 seconden werk) en registreer dan.
 
 **Werkt de app zonder internet?** De app opent wel, maar plannen en
 registreren vereisen verbinding. Je krijgt dan een duidelijke melding —

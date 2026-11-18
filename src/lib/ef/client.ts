@@ -4,6 +4,7 @@ import type {
   EfClientInput,
   EfInvoiceInput,
   EfInvoiceResult,
+  EfStockItem,
 } from "./types";
 
 /**
@@ -121,6 +122,23 @@ export async function updateClientPartial(
   input: Partial<EfClientInput>,
 ): Promise<void> {
   await efFetch(`/clients/${clientId}`, { method: "POST", body: input });
+}
+
+// ---------------------------------------------------------------------------
+// Artikels (stock items)
+// ---------------------------------------------------------------------------
+
+/** Fetches ALL stock items, paginated (take 100 per page). */
+export async function listAllStockItems(): Promise<EfStockItem[]> {
+  const all: EfStockItem[] = [];
+  const take = 100;
+  for (let skip = 0; ; skip += take) {
+    const page = await efFetch<EfStockItem[]>(`/stockitems?skip=${skip}&take=${take}`);
+    if (!page || page.length === 0) break;
+    all.push(...page);
+    if (page.length < take) break;
+  }
+  return all;
 }
 
 // ---------------------------------------------------------------------------

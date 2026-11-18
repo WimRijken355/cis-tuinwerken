@@ -18,6 +18,8 @@ const ITEMS = [
   { href: "/planning", label: "Planning", icon: "📅" },
   { href: "/customers", label: "Klanten", icon: "👥" },
   { href: "/invoices", label: "Facturen", icon: "🧾" },
+  // Not in the mobile bottom tabs (already 6 items); reachable there via a link on /settings.
+  { href: "/products", label: "Artikels", icon: "📦", desktopOnly: true },
   // Admin-only features, not a frequent field-use flow — kept out of the
   // mobile bottom tabs (already 6 items) to avoid crowding; see useVisibleItems.
   { href: "/users", label: "Gebruikers", icon: "🧑‍🤝‍🧑", desktopOnly: true, adminOnly: true },

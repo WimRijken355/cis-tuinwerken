@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -46,12 +47,12 @@ export default function SettingsPage() {
       {isLoading && <Spinner />}
       {settings && (
         <div className="space-y-6">
-          <TarievenSection settings={settings} />
-          <PrijslijstSection />
-          <MedewerkersSection />
+          <RatesSection settings={settings} />
+          <ProductsLinkSection />
+          <WorkersSection />
           <ReminderSection settings={settings} />
           <EfImportSection efConfigured={settings.efConfigured} />
-          <BeveiligingSection />
+          <SecuritySection />
           <p className="pt-2 text-center text-xs text-gray-400">
             Tuinwerken Cis · versie {APP_VERSION}
           </p>
@@ -61,8 +62,27 @@ export default function SettingsPage() {
   );
 }
 
-/** Eigen uurtarief, btw op arbeid en betaaltermijn. */
-function TarievenSection({ settings }: { settings: SettingsResponse }) {
+/**
+ * Pointer to the separate products page. The sidebar has a menu item for it,
+ * but the mobile bottom tabs do not, so this keeps it reachable on a phone.
+ */
+function ProductsLinkSection() {
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <h2 className="font-semibold">Artikels</h2>
+      <p className="mt-1 text-sm text-gray-600">
+        De prijslijst met extra&apos;s (machinegebruik, afvoer, ...) en de import
+        uit EenvoudigFactureren staan nu op een aparte pagina.
+      </p>
+      <Link href="/products" className="mt-2 inline-block text-sm text-brand-600 hover:underline">
+        Artikels beheren →
+      </Link>
+    </section>
+  );
+}
+
+/** Own hourly rate, VAT on labour and payment term. */
+function RatesSection({ settings }: { settings: SettingsResponse }) {
   const queryClient = useQueryClient();
   const [rate, setRate] = useState(String(settings.ownHourlyRate));
   const [vat, setVat] = useState(String(settings.laborVatRate));
@@ -130,123 +150,6 @@ function TarievenSection({ settings }: { settings: SettingsResponse }) {
   );
 }
 
-interface PriceItem {
-  id: number;
-  name: string;
-  unit: string;
-  unitPrice: number;
-  vatRate: number;
-  active: boolean;
-}
-
-/** Prijslijst voor extra's (machinegebruik, afvoer, ...). */
-function PrijslijstSection() {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const [unit, setUnit] = useState("stuk");
-  const [price, setPrice] = useState("");
-  const [vat, setVat] = useState("21");
-
-  const { data: items } = useQuery({
-    queryKey: ["price-list", "all"],
-    queryFn: () => apiGet<PriceItem[]>("/api/price-list?includeInactive=1"),
-  });
-
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["price-list"] });
-
-  const addMutation = useMutation({
-    mutationFn: () =>
-      apiSend("/api/price-list", "POST", {
-        name,
-        unit,
-        unitPrice: Number(price.replace(",", ".")),
-        vatRate: Number(vat),
-      }),
-    onSuccess: () => {
-      setName("");
-      setPrice("");
-      invalidate();
-    },
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: (item: PriceItem) =>
-      apiSend(`/api/price-list/${item.id}`, "PATCH", { active: !item.active }),
-    onSuccess: invalidate,
-  });
-
-  return (
-    <section className="rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="font-semibold">Prijslijst (extra&apos;s)</h2>
-      <p className="mt-1 text-sm text-gray-600">
-        Wat je naast uren kan aanrekenen bij een registratie. Eenheid max 10
-        tekens (limiet van EenvoudigFactureren).
-      </p>
-      <ul className="mt-3 divide-y divide-gray-100">
-        {items?.map((item) => (
-          <li key={item.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <span className={item.active ? "" : "text-gray-400 line-through"}>
-              {item.name} — € {item.unitPrice.toFixed(2)}/{item.unit} · {item.vatRate}% btw
-            </span>
-            <button
-              type="button"
-              className="text-xs text-brand-600 hover:underline"
-              onClick={() => toggleMutation.mutate(item)}
-            >
-              {item.active ? "Deactiveren" : "Activeren"}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {addMutation.error && (
-        <div className="mt-2">
-          <ErrorNote message={(addMutation.error as Error).message} />
-        </div>
-      )}
-      <form
-        className="mt-3 flex flex-wrap items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          addMutation.mutate();
-        }}
-      >
-        <div className="min-w-40 flex-1">
-          <Field label="Naam">
-            <TextInput value={name} onChange={(e) => setName(e.target.value)} required />
-          </Field>
-        </div>
-        <div className="w-24">
-          <Field label="Eenheid">
-            <TextInput value={unit} onChange={(e) => setUnit(e.target.value)} maxLength={10} required />
-          </Field>
-        </div>
-        <div className="w-24">
-          <Field label="Prijs (€)">
-            <TextInput inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} required />
-          </Field>
-        </div>
-        <div className="w-24">
-          <Field label="Btw">
-            <select
-              value={vat}
-              onChange={(e) => setVat(e.target.value)}
-              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="21">21%</option>
-              <option value="12">12%</option>
-              <option value="6">6%</option>
-              <option value="0">0%</option>
-            </select>
-          </Field>
-        </div>
-        <Button type="submit" disabled={addMutation.isPending}>
-          + Toevoegen
-        </Button>
-      </form>
-    </section>
-  );
-}
-
 interface WorkerItem {
   id: number;
   name: string;
@@ -254,8 +157,8 @@ interface WorkerItem {
   active: boolean;
 }
 
-/** Vaste medewerkers (picklist in de registratieflow). */
-function MedewerkersSection() {
+/** Regular workers (picklist in the registration flow). */
+function WorkersSection() {
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [rate, setRate] = useState("");
@@ -450,8 +353,8 @@ interface TrustedDevice {
   expiresAt: string;
 }
 
-/** 2FA opnieuw instellen + vertrouwde toestellen beheren. */
-function BeveiligingSection() {
+/** Re-run the 2FA setup and manage trusted devices. */
+function SecuritySection() {
   const queryClient = useQueryClient();
   const [qr, setQr] = useState<string | null>(null);
   const [code, setCode] = useState("");
