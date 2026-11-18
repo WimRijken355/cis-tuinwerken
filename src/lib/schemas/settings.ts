@@ -16,6 +16,8 @@ export const settingsSchema = z.object({
   reminderEmailSubject: z.string().min(1).max(200),
   /** Placeholders: {{naam}} {{datum}} {{uur}} {{werk}} */
   reminderEmailBody: z.string().min(1).max(5000),
+  /** Push invoices to EenvoudigFactureren as concept on registration (default on). */
+  efInvoiceSyncEnabled: z.boolean(),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;

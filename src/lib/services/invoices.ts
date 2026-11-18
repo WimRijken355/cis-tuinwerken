@@ -4,6 +4,14 @@ import type { EfInvoiceItem } from "../ef/types";
 import { nowBrussels } from "../time";
 import { getSettings } from "./settings";
 
+/** Invoice made while EF sync is switched off: stays local, can be sent later. */
+export async function markInvoiceNotSynced(invoiceId: number): Promise<void> {
+  await db.invoice.update({
+    where: { id: invoiceId },
+    data: { pushStatus: "NOT_SYNCED", errorMessage: null },
+  });
+}
+
 /**
  * Push van een lokale factuur naar EenvoudigFactureren als CONCEPT.
  *

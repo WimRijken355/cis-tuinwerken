@@ -10,6 +10,7 @@ import {
   Spinner,
   TextArea,
   TextInput,
+  Toggle,
 } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import type { Settings } from "@/lib/schemas/settings";
@@ -48,6 +49,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <RatesSection settings={settings} />
           <ReminderSection settings={settings} />
+          <EfInvoiceSyncSection settings={settings} />
           <EfImportSection efConfigured={settings.efConfigured} />
           <SecuritySection />
           <p className="pt-2 text-center text-xs text-gray-400">
@@ -56,6 +58,51 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/** On/off switch for pushing invoices to EenvoudigFactureren; saved immediately. */
+function EfInvoiceSyncSection({ settings }: { settings: SettingsResponse }) {
+  const queryClient = useQueryClient();
+  const enabled = settings.efInvoiceSyncEnabled;
+
+  const saveMutation = useMutation({
+    mutationFn: (next: boolean) => apiSend("/api/settings", "PUT", { efInvoiceSyncEnabled: next }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+  });
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-semibold">Facturen synchroniseren naar EenvoudigFactureren</h2>
+          <p className="mt-1 text-sm text-gray-600">
+            {enabled
+              ? "Aan: na elke registratie komt er automatisch een conceptfactuur in EenvoudigFactureren."
+              : "Uit: facturen blijven enkel in deze app (status \"Niet gesynchroniseerd\"). Zet je dit later weer aan, dan kan je ze via Facturen alsnog doorsturen."}
+          </p>
+        </div>
+        <Toggle
+          checked={enabled}
+          label="Facturen synchroniseren naar EenvoudigFactureren"
+          disabled={saveMutation.isPending}
+          onChange={(next) => saveMutation.mutate(next)}
+        />
+      </div>
+      {enabled && !settings.efConfigured && (
+        <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          ⚠ Nog geen API-key geconfigureerd (EF_API_KEY in .env): pushes zullen mislukken tot dat ingevuld is.
+        </p>
+      )}
+      {saveMutation.error && (
+        <div className="mt-2">
+          <ErrorNote message={(saveMutation.error as Error).message} />
+        </div>
+      )}
+    </section>
   );
 }
 

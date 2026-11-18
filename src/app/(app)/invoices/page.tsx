@@ -12,6 +12,7 @@ import {
 } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import type { InvoiceDto } from "@/lib/schemas/completions";
+import { canSendToEf } from "@/lib/services/invoice-sync";
 import { formatDateShort } from "@/lib/time";
 
 /**
@@ -26,6 +27,12 @@ export default function InvoicesPage() {
     queryKey: ["invoices", filter],
     queryFn: () => apiGet<InvoiceDto[]>(`/api/invoices${filter ? `?status=${filter}` : ""}`),
   });
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => apiGet<{ efInvoiceSyncEnabled: boolean }>("/api/settings"),
+  });
+  const syncEnabled = settings?.efInvoiceSyncEnabled ?? true;
 
   const retryMutation = useMutation({
     mutationFn: (id: number) => apiSend(`/api/invoices/${id}/retry-push`, "POST"),
@@ -48,11 +55,19 @@ export default function InvoicesPage() {
         }
       />
 
-      <div className="mb-4 flex gap-2 text-sm">
+      {settings && !syncEnabled && (
+        <p className="mb-4 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700">
+          Synchronisatie naar EenvoudigFactureren staat uit. Nieuwe facturen blijven
+          enkel in deze app. Aanzetten kan via Instellingen → Algemeen.
+        </p>
+      )}
+
+      <div className="mb-4 flex flex-wrap gap-2 text-sm">
         {[
           ["", "Alle"],
           ["CONCEPT_CREATED", "In EF"],
           ["FAILED", "Push mislukt"],
+          ["NOT_SYNCED", "Niet gesynchroniseerd"],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -100,13 +115,14 @@ export default function InvoicesPage() {
               <div className="flex shrink-0 items-center gap-3">
                 <span className="font-medium">€ {inv.totalExclVat.toFixed(2)}</span>
                 <StatusBadge status={inv.pushStatus} />
-                {inv.pushStatus === "FAILED" && (
+                {canSendToEf({ efInvoiceId: inv.efInvoiceId ?? null, pushStatus: inv.pushStatus }, syncEnabled)
+                  .allowed && (
                   <Button
                     variant="secondary"
                     onClick={() => retryMutation.mutate(inv.id)}
                     disabled={retryMutation.isPending}
                   >
-                    ↻ Opnieuw
+                    {inv.pushStatus === "FAILED" ? "↻ Opnieuw" : "→ Naar EF sturen"}
                   </Button>
                 )}
               </div>

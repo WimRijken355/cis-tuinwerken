@@ -48,7 +48,7 @@ export interface InvoiceDto {
   customerId: number;
   customerName: string;
   efInvoiceId: number | null;
-  pushStatus: "PENDING" | "CONCEPT_CREATED" | "FAILED";
+  pushStatus: "PENDING" | "CONCEPT_CREATED" | "FAILED" | "NOT_SYNCED";
   totalExclVat: number;
   errorMessage: string | null;
   createdAt: string;

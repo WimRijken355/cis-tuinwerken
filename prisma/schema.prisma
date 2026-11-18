@@ -386,6 +386,9 @@ enum InvoicePushStatus {
   PENDING // lokaal aangemaakt, push nog bezig/niet gestart
   CONCEPT_CREATED // conceptfactuur staat in EenvoudigFactureren
   FAILED // push mislukt; retry mogelijk vanuit de UI
+  /// Invoice sync to EF was switched off in Settings when this invoice was made;
+  /// can be sent to EF later from the invoices page once sync is on again.
+  NOT_SYNCED
 }
 
 model Invoice {

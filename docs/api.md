@@ -171,8 +171,9 @@ Overzicht (nieuwste eerst, max 200) met `pushStatus`
 (`PENDING`/`CONCEPT_CREATED`/`FAILED`), `totalExclVat`, `workTitle`, `workDate`.
 
 ### POST /api/invoices/:id/retry-push
-Mislukte EF-push opnieuw proberen. 409 zodra er al een `efInvoiceId` is
-(nooit dubbele concepten), 502 als het opnieuw faalt.
+Factuur met status `FAILED` of `NOT_SYNCED` (alsnog) naar EF sturen. 409 zodra
+er al een `efInvoiceId` is (nooit dubbele concepten) of zolang
+`efInvoiceSyncEnabled` uit staat; 502 als de push faalt.
 
 ## Catalogus
 
@@ -222,8 +223,12 @@ Alle zakelijke instellingen + configuratiestatus:
 ```json
 { "ownHourlyRate": 45, "laborVatRate": 21, "reminderSendHour": 18,
   "invoiceDaysDue": 30, "reminderEmailSubject": "…", "reminderEmailBody": "…",
+  "efInvoiceSyncEnabled": true,
   "mailConfigured": false, "efConfigured": false }
 ```
+`efInvoiceSyncEnabled` (standaard `true`): pusht een registratie automatisch een
+conceptfactuur naar EenvoudigFactureren? Bij `false` krijgt de factuur status
+`NOT_SYNCED` en blijft ze lokaal.
 
 ### PUT /api/settings
 Werkt een of meer instellingen bij (zelfde velden, alles optioneel).

@@ -1,11 +1,14 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, jsonError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
+import { canSendToEf } from "@/lib/services/invoice-sync";
 import { pushInvoiceToEf } from "@/lib/services/invoices";
+import { getSettings } from "@/lib/services/settings";
 
 /**
- * POST /api/invoices/:id/retry-push — mislukte EF-push opnieuw proberen.
- * Kan alleen zolang er nog géén efInvoiceId is → nooit dubbele concepten.
+ * POST /api/invoices/:id/retry-push — send a failed or not-synced invoice to
+ * EF. Refused while invoice sync is off in Settings, and once there is an
+ * efInvoiceId (never duplicate concepts). Rules: canSendToEf().
  */
 export async function POST(
   _request: NextRequest,
@@ -17,9 +20,10 @@ export async function POST(
 
     const invoice = await db.invoice.findUnique({ where: { id } });
     if (!invoice) throw new ApiError("Factuur niet gevonden", 404);
-    if (invoice.efInvoiceId) {
-      throw new ApiError("Deze factuur staat al in EenvoudigFactureren", 409);
-    }
+
+    const settings = await getSettings();
+    const check = canSendToEf(invoice, settings.efInvoiceSyncEnabled);
+    if (!check.allowed) throw new ApiError(check.reason, check.status);
 
     const result = await pushInvoiceToEf(id);
     if (!result.ok) {

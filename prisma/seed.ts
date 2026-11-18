@@ -52,6 +52,7 @@ async function main() {
     labor_vat_rate: 21,
     reminder_send_hour: 18,
     invoice_days_due: 30,
+    ef_invoice_sync_enabled: true,
     reminder_email_subject: "Afspraak morgen — Tuinwerken Cis",
     reminder_email_body:
       "Beste {{naam}},\n\nMorgen, {{datum}} om {{uur}}, komen wij bij u langs voor: {{werk}}.\n\n" +

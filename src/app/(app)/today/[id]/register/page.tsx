@@ -38,7 +38,7 @@ interface CompleteResult {
   completed: boolean;
   invoiceId: number;
   totalExclVat: number;
-  efPush: { ok: boolean; efInvoiceId?: number; error?: string };
+  efPush: { ok: boolean; skipped?: boolean; efInvoiceId?: number; error?: string };
 }
 
 const parseNum = (v: string) => Number(v.replace(",", "."));
@@ -118,7 +118,12 @@ export default function RegisterPage() {
           <p className="mt-1 text-gray-600">
             {appointment.customerName} · € {result.totalExclVat.toFixed(2)} excl. btw
           </p>
-          {result.efPush.ok ? (
+          {result.efPush.skipped ? (
+            <p className="mt-3 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700">
+              De factuur is lokaal bewaard. Synchronisatie naar EenvoudigFactureren
+              staat uit (Instellingen → Algemeen).
+            </p>
+          ) : result.efPush.ok ? (
             <p className="mt-3 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">
               Conceptfactuur aangemaakt in EenvoudigFactureren ✓<br />
               Kijk ze daar na en maak ze definitief.

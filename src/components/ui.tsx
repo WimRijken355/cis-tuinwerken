@@ -139,6 +139,7 @@ export function StatusBadge({ status }: { status: string }) {
     PENDING: { label: "Push bezig", cls: "bg-amber-100 text-amber-800" },
     CONCEPT_CREATED: { label: "Concept in EF", cls: "bg-green-100 text-green-800" },
     FAILED: { label: "Push mislukt", cls: "bg-red-100 text-red-800" },
+    NOT_SYNCED: { label: "Niet gesynchroniseerd", cls: "bg-gray-100 text-gray-600" },
   };
   const { label, cls } = map[status] ?? { label: status, cls: "bg-gray-100 text-gray-600" };
   return (
@@ -161,5 +162,39 @@ export function PageHeader({
       <h1 className="text-2xl font-bold text-brand-900">{title}</h1>
       {actions && <div className="flex gap-2">{actions}</div>}
     </div>
+  );
+}
+
+/** Accessible on/off switch (role="switch"). */
+export function Toggle({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  /** Accessible name; shown by the caller next to the switch. */
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 ${
+        checked ? "bg-brand-600" : "bg-gray-300"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
+    </button>
   );
 }

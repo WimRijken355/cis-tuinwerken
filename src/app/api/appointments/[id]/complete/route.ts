@@ -3,7 +3,8 @@ import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { completionInputSchema } from "@/lib/schemas/completions";
 import { buildInvoiceLines } from "@/lib/services/invoice-builder";
-import { pushInvoiceToEf } from "@/lib/services/invoices";
+import { initialSyncAction } from "@/lib/services/invoice-sync";
+import { markInvoiceNotSynced, pushInvoiceToEf } from "@/lib/services/invoices";
 import { getSettings } from "@/lib/services/settings";
 
 /**
@@ -100,17 +101,21 @@ export async function POST(
       });
     });
 
-    // Stap 2: push naar EF (nooit blokkerend voor de registratie).
-    const push = await pushInvoiceToEf(invoice.id);
+    // Stap 2: push naar EF (nooit blokkerend voor de registratie), unless
+    // invoice sync is switched off in Settings: then the invoice stays local.
+    const efPush =
+      initialSyncAction(settings.efInvoiceSyncEnabled) === "skip"
+        ? await markInvoiceNotSynced(invoice.id).then(() => ({ ok: false, skipped: true }))
+        : await pushInvoiceToEf(invoice.id).then((push) =>
+            push.ok ? { ok: true, efInvoiceId: push.efInvoiceId } : { ok: false, error: push.error },
+          );
 
     return NextResponse.json(
       {
         completed: true,
         invoiceId: invoice.id,
         totalExclVat: built.totalExclVat,
-        efPush: push.ok
-          ? { ok: true, efInvoiceId: push.efInvoiceId }
-          : { ok: false, error: push.error },
+        efPush,
       },
       { status: 201 },
     );

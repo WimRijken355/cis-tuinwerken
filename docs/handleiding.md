@@ -93,6 +93,9 @@ toepassing zijn. Op de klantfiche vink je ze af zodra ze gedaan zijn
 **Facturen** toont alles wat de app heeft aangemaakt, met status:
 - **Concept in EF** — staat klaar in EenvoudigFactureren om na te kijken
 - **Push mislukt** — tik ↻ Opnieuw (de foutoorzaak staat erbij)
+- **Niet gesynchroniseerd** — gemaakt terwijl de synchronisatie uit stond
+  (Instellingen → Algemeen → *Facturen synchroniseren naar EenvoudigFactureren*).
+  Zet je de schakelaar weer aan, dan stuur je ze met **→ Naar EF sturen** alsnog door.
 
 Bedragen zijn excl. btw. Definitief maken en versturen doe je altijd in
 EenvoudigFactureren zelf — zo hou je de controle.
