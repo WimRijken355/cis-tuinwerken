@@ -36,6 +36,7 @@ export const SETTINGS_ITEMS: NavItem[] = [
   { href: "/products", label: "Artikels", icon: "📦" },
   { href: "/resources", label: "Resources", icon: "🛠️" },
   { href: "/checklist", label: "Checklist", icon: "☑️" },
+  { href: "/loose-todo-presets", label: "Losse todo's", icon: "📌" },
   { href: "/users", label: "Gebruikers", icon: "🧑‍🤝‍🧑", adminOnly: true },
 ];
 

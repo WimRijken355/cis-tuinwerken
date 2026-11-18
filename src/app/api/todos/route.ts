@@ -4,7 +4,9 @@ import { db } from "@/lib/db";
 import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-resources";
 import { checklistNames, syncTodoTasks } from "@/lib/services/checklist-tasks";
 import {
+  contactForTodo,
   todoInputSchema,
+  todoPlace,
   todoResourcesInclude,
   toTodoResourceDtos,
   toTodoTaskDtos,
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
     const todos = await db.todo.findMany({
       where,
       include: {
-        customer: { select: { name: true, city: true, postalCode: true } },
+        customer: { select: { name: true, street: true, city: true, postalCode: true } },
         recurringWindow: { select: { label: true } },
         ...todoResourcesInclude,
       },
@@ -56,9 +58,10 @@ export async function GET(request: NextRequest) {
       visible.map(({ todo: t, meta: m }) => ({
         ...t,
         estimatedHours: Number(t.estimatedHours),
-        customerName: t.customer?.name ?? "",
-        customerCity: t.customer?.city ?? null,
-        customerPostalCode: t.customer?.postalCode ?? null,
+        // Losse todo: falls back to its free-text contact name/address.
+        customerName: todoPlace(t.customer, t).name,
+        customerCity: todoPlace(t.customer, t).city,
+        customerPostalCode: todoPlace(t.customer, t).postalCode,
         plannedMinutes: m?.plannedMinutes ?? 0,
         remainingMinutes: m?.remainingMinutes ?? 0,
         appointmentCount: m?.parts.size ?? 0,
@@ -82,11 +85,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     await requireUser();
-    const { resources, taskIds, ...input } = todoInputSchema.parse(await request.json());
+    const { resources, taskIds, contactName, contactStreet, contactPostalCode, contactCity, ...input } =
+      todoInputSchema.parse(await request.json());
     await assertResourcesExist(resources);
     const names = await checklistNames(taskIds);
 
-    const created = await db.todo.create({ data: input });
+    const created = await db.todo.create({
+      data: {
+        ...input,
+        ...contactForTodo(input.customerId, { contactName, contactStreet, contactPostalCode, contactCity }),
+      },
+    });
     await replaceTodoResources(created.id, resources);
     await syncTodoTasks(created.id, taskIds, names);
     const todo = await db.todo.findUniqueOrThrow({
@@ -97,7 +106,7 @@ export async function POST(request: NextRequest) {
       {
         ...todo,
         estimatedHours: Number(todo.estimatedHours),
-        customerName: todo.customer?.name ?? "",
+        customerName: todo.customer?.name ?? todo.contactName ?? "",
         resources: toTodoResourceDtos(todo.resources),
         tasks: toTodoTaskDtos(todo.tasks),
         customer: undefined,

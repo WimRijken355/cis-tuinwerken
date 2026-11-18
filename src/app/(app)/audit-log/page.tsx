@@ -32,6 +32,7 @@ const TABLE_LABELS: Record<string, string> = {
   TodoResource: "Todo-resource",
   TodoTask: "Todo-taak",
   ChecklistItem: "Checklist-taak",
+  LooseTodoPreset: "Type losse todo",
   RecurringTemplateTask: "Taak terugkerend werk",
   RecurringTemplateResource: "Resource terugkerend werk",
   PriceListItem: "Artikel",

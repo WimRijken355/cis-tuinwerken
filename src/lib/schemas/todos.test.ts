@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  contactForTodo,
   planTodoTaskSync,
   sumResourceHours,
   todoInputSchema,
   todoUpdateSchema,
   toTodoResourceDtos,
+  todoPlace,
   toTodoTaskDtos,
 } from "./todos";
 
@@ -98,5 +100,44 @@ describe("todo checklist", () => {
     expect(
       toTodoTaskDtos([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true, sortOrder: 0 } as never]),
     ).toEqual([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true }]);
+  });
+});
+
+describe("losse todo contact name/address", () => {
+  it("is accepted on input, empty strings becoming undefined", () => {
+    const todo = todoInputSchema.parse({
+      title: "Bomen kappen",
+      estimatedHours: 4,
+      contactName: " Buurman Jef ",
+      contactStreet: "",
+      contactPostalCode: "2260",
+      contactCity: "Westerlo",
+    });
+    expect(todo).toMatchObject({ customerId: null, contactName: "Buurman Jef", contactPostalCode: "2260", contactCity: "Westerlo" });
+    expect(todo.contactStreet).toBeUndefined();
+  });
+
+  it("is only stored for a losse todo, never for a customer todo", () => {
+    const input = { contactName: "Jef", contactCity: "Geel" };
+    expect(contactForTodo(null, input)).toEqual({
+      contactName: "Jef",
+      contactStreet: null,
+      contactPostalCode: null,
+      contactCity: "Geel",
+    });
+    expect(contactForTodo(7, input)).toEqual({
+      contactName: null,
+      contactStreet: null,
+      contactPostalCode: null,
+      contactCity: null,
+    });
+  });
+
+  it("shows the customer, or else the losse todo contact", () => {
+    const contact = { contactName: "Jef", contactStreet: "Markt 1", contactPostalCode: "2440", contactCity: "Geel" };
+    expect(todoPlace(null, contact)).toEqual({ name: "Jef", street: "Markt 1", postalCode: "2440", city: "Geel" });
+    const customer = { name: "Peeters", street: "Kerkstraat 2", postalCode: "2260", city: "Westerlo" };
+    expect(todoPlace(customer, contact)).toEqual(customer);
+    expect(todoPlace(null, { contactName: null, contactStreet: null, contactPostalCode: null, contactCity: null }).name).toBe("");
   });
 });

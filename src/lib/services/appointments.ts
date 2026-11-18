@@ -2,7 +2,7 @@ import { db } from "../db";
 import { partNumbers, plannedMinutes, remainingMinutes } from "../planning";
 import type { AppointmentDto } from "../schemas/appointments";
 import { formatAddress } from "../schemas/customers";
-import { toTodoResourceDtos } from "../schemas/todos";
+import { todoPlace, toTodoResourceDtos } from "../schemas/todos";
 
 /** Prisma-include waarmee een afspraak alles heeft voor de DTO. */
 export const appointmentInclude = {
@@ -31,6 +31,10 @@ type AppointmentWithRelations = {
   todo: {
     title: string;
     estimatedHours: unknown;
+    contactName: string | null;
+    contactStreet: string | null;
+    contactPostalCode: string | null;
+    contactCity: string | null;
     resources: { resourceId: number; hours: unknown; resource: { name: string; type: "PERSON" | "MACHINE" } }[];
     customer: {
       id: number;
@@ -79,6 +83,8 @@ export async function loadPlanningMeta(todoIds: number[]): Promise<Map<number, T
 
 export function toAppointmentDto(a: AppointmentWithRelations, meta?: TodoPlanningMeta): AppointmentDto {
   const customer = a.todo.customer;
+  // Losse todo: name/address come from its free-text contact fields.
+  const place = todoPlace(customer, a.todo);
   return {
     id: a.id,
     todoId: a.todoId,
@@ -91,11 +97,11 @@ export function toAppointmentDto(a: AppointmentWithRelations, meta?: TodoPlannin
     todoTitle: a.todo.title,
     estimatedHours: Number(a.todo.estimatedHours),
     customerId: customer?.id ?? null,
-    customerName: customer?.name ?? "",
+    customerName: place.name,
     isLoose: customer === null,
     isDemo: customer?.isDemo ?? false,
-    customerCity: customer?.city ?? null,
-    address: customer ? formatAddress(customer) : "",
+    customerCity: place.city,
+    address: formatAddress(place),
     customerEmail: customer?.email ?? null,
     confirmed: a.confirmed,
     reservation: a.reservation,

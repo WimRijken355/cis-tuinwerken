@@ -3,28 +3,48 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiGet, apiSend } from "@/lib/api-client";
-import type { ChecklistItemDto } from "@/lib/schemas/checklist";
 import { Button, ErrorNote, TextInput } from "./ui";
 
+interface SortableItem {
+  id: number;
+  name: string;
+  active: boolean;
+  sortOrder: number;
+}
+
 /**
- * Manages the checklist master list (page /checklist): add, rename,
- * reorder, (de)activate and delete standard tasks.
+ * Manages a user-sortable master list: add, rename, reorder (▲▼),
+ * (de)activate and delete. Used for the checklist and the losse todo-types.
+ * The API at `apiPath` follows one shape: GET ?includeInactive=1, POST,
+ * PATCH/DELETE :id and POST :id/move { direction }.
  */
-export function ChecklistManager() {
+export function SortableListManager({
+  apiPath,
+  queryKey,
+  intro,
+  newPlaceholder,
+  emptyText = "Nog niets toegevoegd.",
+}: {
+  apiPath: string;
+  queryKey: string;
+  intro: React.ReactNode;
+  newPlaceholder: string;
+  emptyText?: string;
+}) {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
 
   const { data: items } = useQuery({
-    queryKey: ["checklist-items", "all"],
-    queryFn: () => apiGet<ChecklistItemDto[]>("/api/checklist-items?includeInactive=1"),
+    queryKey: [queryKey, "all"],
+    queryFn: () => apiGet<SortableItem[]>(`${apiPath}?includeInactive=1`),
   });
 
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["checklist-items"] });
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: [queryKey] });
 
   const addMutation = useMutation({
-    mutationFn: () => apiSend("/api/checklist-items", "POST", { name: newName }),
+    mutationFn: () => apiSend(apiPath, "POST", { name: newName }),
     onSuccess: () => {
       setNewName("");
       invalidate();
@@ -32,8 +52,8 @@ export function ChecklistManager() {
   });
 
   const patchMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<ChecklistItemDto> }) =>
-      apiSend(`/api/checklist-items/${id}`, "PATCH", data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<SortableItem> }) =>
+      apiSend(`${apiPath}/${id}`, "PATCH", data),
     onSuccess: () => {
       setEditingId(null);
       invalidate();
@@ -42,12 +62,12 @@ export function ChecklistManager() {
 
   const moveMutation = useMutation({
     mutationFn: ({ id, direction }: { id: number; direction: -1 | 1 }) =>
-      apiSend(`/api/checklist-items/${id}/move`, "POST", { direction }),
+      apiSend(`${apiPath}/${id}/move`, "POST", { direction }),
     onSuccess: invalidate,
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiSend(`/api/checklist-items/${id}`, "DELETE"),
+    mutationFn: (id: number) => apiSend(`${apiPath}/${id}`, "DELETE"),
     onSuccess: invalidate,
   });
 
@@ -58,11 +78,7 @@ export function ChecklistManager() {
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-4">
-      <p className="text-sm text-gray-600">
-        Standaardtaken die je aanvinkt bij een todo of bij terugkerend werk (bv.
-        &quot;Haag scheren&quot;, &quot;Snoeiafval afvoeren&quot;). Een bestaande todo houdt
-        de naam die de taak had toen hij werd toegevoegd.
-      </p>
+      <p className="text-sm text-gray-600">{intro}</p>
       {error && (
         <div className="mt-2">
           <ErrorNote message={(error as Error).message} />
@@ -70,7 +86,7 @@ export function ChecklistManager() {
       )}
 
       {list.length === 0 ? (
-        <p className="mt-3 text-sm text-gray-500">Nog geen taken.</p>
+        <p className="mt-3 text-sm text-gray-500">{emptyText}</p>
       ) : (
         <ul className="mt-3 divide-y divide-gray-100">
           {list.map((item, index) => (
@@ -137,7 +153,7 @@ export function ChecklistManager() {
                       type="button"
                       className="text-red-500 hover:underline"
                       onClick={() => {
-                        if (confirm(`Taak "${item.name}" verwijderen?`)) deleteMutation.mutate(item.id);
+                        if (confirm(`"${item.name}" verwijderen?`)) deleteMutation.mutate(item.id);
                       }}
                     >
                       Verwijderen
@@ -158,7 +174,7 @@ export function ChecklistManager() {
         }}
       >
         <TextInput
-          placeholder="Nieuwe taak, bv. Gras maaien"
+          placeholder={newPlaceholder}
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           required

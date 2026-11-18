@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { isActivePath, isSettingsPath, MAIN_ITEMS, SETTINGS_ITEMS, visibleItems } from "./nav-items";
 
 describe("navigation items", () => {
-  it("groups artikels, resources, checklist and gebruikers under Instellingen", () => {
+  it("groups artikels, resources, checklist, losse todo's and gebruikers under Instellingen", () => {
     expect(SETTINGS_ITEMS.map((i) => i.href)).toEqual([
       "/settings",
       "/products",
       "/resources",
       "/checklist",
+      "/loose-todo-presets",
       "/users",
     ]);
     // ...and none of them is also a top-level item.

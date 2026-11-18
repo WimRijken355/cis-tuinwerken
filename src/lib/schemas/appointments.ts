@@ -45,7 +45,7 @@ export interface AppointmentDto {
   estimatedHours: number;
   /** null for a "losse todo" (holiday, doctor, ...). */
   customerId: number | null;
-  /** "" for a losse todo. */
+  /** Customer name, or the free-text contact name of a losse todo ("" if none). */
   customerName: string;
   isLoose: boolean;
   isDemo: boolean;

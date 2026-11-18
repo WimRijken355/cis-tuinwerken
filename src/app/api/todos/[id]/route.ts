@@ -36,7 +36,7 @@ export async function GET(
     return NextResponse.json({
       ...todo,
       estimatedHours: Number(todo.estimatedHours),
-      customerName: todo.customer?.name ?? "",
+      customerName: todo.customer?.name ?? todo.contactName ?? "",
       resources: toTodoResourceDtos(todo.resources),
       tasks: toTodoTaskDtos(todo.tasks),
       customer: undefined,
@@ -54,7 +54,13 @@ export async function PATCH(
   try {
     await requireUser();
     const id = await parseId(params);
-    const { resources, taskIds, ...input } = todoUpdateSchema.parse(await request.json());
+    const { resources, taskIds, contactName, contactStreet, contactPostalCode, contactCity, ...input } =
+      todoUpdateSchema.parse(await request.json());
+    // Contact name/address only apply to a losse todo (no customer).
+    const current = await db.todo.findUnique({ where: { id }, select: { customerId: true } });
+    if (!current) throw new ApiError("Todo niet gevonden", 404);
+    const contact =
+      current.customerId === null ? { contactName, contactStreet, contactPostalCode, contactCity } : {};
     if (resources) await assertResourcesExist(resources);
     const names = taskIds ? await checklistNames(taskIds) : null;
 
@@ -62,6 +68,7 @@ export async function PATCH(
       where: { id },
       data: {
         ...input,
+        ...contact,
         ...(input.status === "DONE" ? { completedAt: new Date() } : {}),
         ...(input.status === "OPEN" ? { completedAt: null } : {}),
       },

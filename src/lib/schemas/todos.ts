@@ -31,6 +31,22 @@ export const resourcesSchema = z
     "Elke resource kan maar één keer per todo voorkomen",
   );
 
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => v || undefined);
+
+/** Free-text name/address of a losse todo (not a customer record). */
+const contactFields = {
+  contactName: optionalText(200),
+  contactStreet: optionalText(200),
+  contactPostalCode: optionalText(20),
+  contactCity: optionalText(100),
+};
+
 export const todoInputSchema = z.object({
   /** null/omitted = "losse todo" (holiday, doctor, ...): no customer, never invoiced. */
   customerId: z.number().int().positive().nullable().default(null),
@@ -41,6 +57,7 @@ export const todoInputSchema = z.object({
   resources: resourcesSchema.default([]),
   /** Checklist item ids (ordered) that make up this todo's checklist. */
   taskIds: checklistItemIdsSchema.default([]),
+  ...contactFields,
 });
 export type TodoInput = z.infer<typeof todoInputSchema>;
 
@@ -54,6 +71,7 @@ export const todoUpdateSchema = z.object({
   estimatedHours: hoursField("Geschatte uren").optional(),
   resources: resourcesSchema.optional(),
   taskIds: checklistItemIdsSchema.optional(),
+  ...contactFields,
   status: z.enum(["OPEN", "PLANNED", "DONE", "CANCELLED"]).optional(),
 });
 export type TodoUpdate = z.infer<typeof todoUpdateSchema>;
@@ -85,6 +103,11 @@ export interface TodoDto {
   resources?: TodoResourceDto[];
   /** Checklist of tasks to carry out, in order. */
   tasks?: TodoTaskDto[];
+  /** Free-text name/address of a losse todo (null for customer todos). */
+  contactName?: string | null;
+  contactStreet?: string | null;
+  contactPostalCode?: string | null;
+  contactCity?: string | null;
   /** Customer location (GET /api/todos), for filtering/grouping in the planning. */
   customerCity?: string | null;
   customerPostalCode?: string | null;
@@ -174,4 +197,47 @@ export function toTodoResourceDtos(
 /** Sum of the hours planned per resource (shown next to the total estimate). */
 export function sumResourceHours(resources: { hours: number }[]): number {
   return Math.round(resources.reduce((sum, r) => sum + r.hours, 0) * 100) / 100;
+}
+
+export interface TodoContact {
+  contactName: string | null;
+  contactStreet: string | null;
+  contactPostalCode: string | null;
+  contactCity: string | null;
+}
+
+/**
+ * Contact fields to store: only a losse todo (no customer) keeps a free-text
+ * name/address; a customer todo always gets them cleared (the customer record
+ * is the single source of its name/address).
+ */
+export function contactForTodo(
+  customerId: number | null,
+  input: Partial<Record<keyof TodoContact, string | undefined>>,
+): TodoContact {
+  if (customerId !== null) {
+    return { contactName: null, contactStreet: null, contactPostalCode: null, contactCity: null };
+  }
+  return {
+    contactName: input.contactName ?? null,
+    contactStreet: input.contactStreet ?? null,
+    contactPostalCode: input.contactPostalCode ?? null,
+    contactCity: input.contactCity ?? null,
+  };
+}
+
+/** Name/city/address to show for a todo: the customer's, or the losse todo contact. */
+export function todoPlace(
+  customer: { name: string; street: string | null; postalCode: string | null; city: string | null } | null,
+  contact: TodoContact,
+): { name: string; city: string | null; street: string | null; postalCode: string | null } {
+  if (customer) {
+    return { name: customer.name, city: customer.city, street: customer.street, postalCode: customer.postalCode };
+  }
+  return {
+    name: contact.contactName ?? "",
+    city: contact.contactCity,
+    street: contact.contactStreet,
+    postalCode: contact.contactPostalCode,
+  };
 }

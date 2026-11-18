@@ -119,15 +119,21 @@ enum TodoStatus {
 }
 
 model Todo {
-  id             Int        @id @default(autoincrement())
+  id                Int        @id @default(autoincrement())
   /// NULL = "losse todo" (holiday, doctor, ...): planned like any other todo, but
   /// never registered, invoiced or e-mailed.
-  customerId     Int?
-  title          String
-  description    String?
-  estimatedHours Decimal    @db.Decimal(5, 2)
-  status         TodoStatus @default(OPEN)
-  completedAt    DateTime?
+  customerId        Int?
+  title             String
+  description       String?
+  estimatedHours    Decimal    @db.Decimal(5, 2)
+  status            TodoStatus @default(OPEN)
+  /// Free-text name/address for a losse todo (customerId NULL); not a customer
+  /// record, so never invoiced/synced. Always NULL when customerId is set.
+  contactName       String?
+  contactStreet     String?
+  contactPostalCode String?
+  contactCity       String?
+  completedAt       DateTime?
 
   // --- Koppeling met terugkerend werk -------------------------------------
   /// Gezet wanneer deze todo gegenereerd is uit een RecurringWindow.
@@ -299,6 +305,15 @@ model TodoResource {
 
   @@unique([todoId, resourceId])
   @@index([resourceId])
+}
+
+/// Quick picks for the title of a losse todo ("Vakantie", "Doktersafspraak", ...),
+/// managed in Settings → Losse todo's.
+model LooseTodoPreset {
+  id        Int     @id @default(autoincrement())
+  name      String
+  active    Boolean @default(true)
+  sortOrder Int     @default(0)
 }
 
 /// Master list of standard tasks ("checklist"), managed in Settings.

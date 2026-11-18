@@ -1,17 +1,16 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { CustomerPicker, type PickedCustomer } from "@/components/customer-picker";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { Button, ErrorNote, Field, Modal, TextInput, Toggle } from "@/components/ui";
-import { apiSend } from "@/lib/api-client";
+import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours, partLabel, WORKDAY_MINUTES } from "@/lib/planning";
 import type { AppointmentDto, AppointmentInput } from "@/lib/schemas/appointments";
+import type { LooseTodoPresetDto } from "@/lib/schemas/loose-todo-presets";
 import type { TodoDto } from "@/lib/schemas/todos";
 import { ResourceChips } from "./planning-cards";
-
-const LOOSE_TODO_SUGGESTIONS = ["Vakantie", "Doktersafspraak", "Opleiding", "Administratie", "Onderhoud machines"];
 
 /** Click on a block: details, the bevestigd/reservatie switches, reminder, remove. */
 export function AppointmentDialog({
@@ -230,6 +229,13 @@ export function NewTodoDialog({
 }) {
   const [kind, setKind] = useState<"customer" | "loose">("customer");
   const [customer, setCustomer] = useState<PickedCustomer | null>(null);
+  // Free-text name/address for a losse todo (not added to the customer list).
+  const [contact, setContact] = useState({ contactName: "", contactStreet: "", contactPostalCode: "", contactCity: "" });
+  const setContactField = (key: keyof typeof contact, value: string) => setContact((c) => ({ ...c, [key]: value }));
+  const { data: presets } = useQuery({
+    queryKey: ["loose-todo-presets", "active"],
+    queryFn: () => apiGet<LooseTodoPresetDto[]>("/api/loose-todo-presets"),
+  });
   const durationMinutes = Math.round((end.getTime() - start.getTime()) / 60000);
 
   const createMutation = useMutation({
@@ -238,6 +244,7 @@ export function NewTodoDialog({
       const todo = await apiSend<TodoDto>("/api/todos", "POST", {
         ...values,
         customerId: kind === "customer" ? customer!.id : null,
+        ...(kind === "loose" ? contact : {}),
       });
       await apiSend("/api/appointments", "POST", {
         todoId: todo.id,
@@ -284,10 +291,31 @@ export function NewTodoDialog({
           </Field>
         </div>
       ) : (
-        <p className="mb-3 text-xs text-gray-500">
-          Een losse todo heeft geen klant (bv. vakantie of doktersafspraak). Kies wie er niet beschikbaar is via de
-          resources. Losse todo&apos;s worden nooit geregistreerd of gefactureerd.
-        </p>
+        <div className="mb-3 space-y-2">
+          <p className="text-xs text-gray-500">
+            Een losse todo hoort niet bij een klant uit je klantenbestand (bv. vakantie, doktersafspraak, een
+            eenmalige klus). Naam en adres zijn optioneel. Losse todo&apos;s worden nooit geregistreerd of
+            gefactureerd.
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Naam (optioneel)">
+              <TextInput value={contact.contactName} onChange={(e) => setContactField("contactName", e.target.value)} />
+            </Field>
+            <Field label="Straat + nr (optioneel)">
+              <TextInput value={contact.contactStreet} onChange={(e) => setContactField("contactStreet", e.target.value)} />
+            </Field>
+            <Field label="Postcode">
+              <TextInput
+                inputMode="numeric"
+                value={contact.contactPostalCode}
+                onChange={(e) => setContactField("contactPostalCode", e.target.value)}
+              />
+            </Field>
+            <Field label="Plaats">
+              <TextInput value={contact.contactCity} onChange={(e) => setContactField("contactCity", e.target.value)} />
+            </Field>
+          </div>
+        </div>
       )}
 
       <TodoForm
@@ -301,7 +329,7 @@ export function NewTodoDialog({
         showChecklist={kind === "customer"}
         titleLabel={kind === "customer" ? "Wat moet er gebeuren?" : "Omschrijving"}
         titlePlaceholder={kind === "customer" ? "bv. Haag scheren" : "bv. Vakantie"}
-        titleSuggestions={kind === "loose" ? LOOSE_TODO_SUGGESTIONS : []}
+        titleSuggestions={kind === "loose" ? (presets ?? []).map((p) => p.name) : []}
       />
       {kind === "customer" && (
         <p className="mt-2 text-xs text-gray-400">
