@@ -36,6 +36,7 @@ export async function sendReminderForAppointment(appointmentId: number): Promise
   if (!appointment) throw new Error("Afspraak niet gevonden");
 
   const customer = appointment.todo.customer;
+  if (!customer) throw new Error("Een losse todo heeft geen klant om te mailen");
   if (customer.isDemo) {
     throw new Error(`${customer.name} is een demoklant: daar worden nooit mails naar gestuurd`);
   }
@@ -114,7 +115,7 @@ export async function runReminderJob(): Promise<ReminderRunResult> {
   };
 
   for (const appointment of candidates) {
-    if (!appointment.todo.customer.email) {
+    if (!appointment.todo.customer?.email) {
       result.skippedNoEmail++;
       continue;
     }

@@ -44,13 +44,14 @@ export default function TodayPage() {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-lg font-bold text-brand-900">{formatTime(a.startAt)}</p>
-                <p className="truncate font-medium">{a.customerName}</p>
+                <p className="truncate font-medium">{a.isLoose ? "Losse todo" : a.customerName}</p>
                 <p className="truncate text-sm text-gray-600">{a.todoTitle}</p>
                 {a.address && <p className="mt-1 truncate text-sm text-gray-400">{a.address}</p>}
               </div>
               <StatusBadge status={a.status} />
             </div>
 
+            {!a.isLoose && (
             <div className="mt-3 flex gap-2">
               {a.address ? (
                 <a
@@ -75,6 +76,7 @@ export default function TodayPage() {
                 </Link>
               )}
             </div>
+            )}
           </li>
         ))}
       </ul>

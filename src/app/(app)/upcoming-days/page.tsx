@@ -71,7 +71,7 @@ export default function UpcomingDaysPage() {
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium">
-                        {formatTime(a.startAt)} · {a.customerName}
+                        {formatTime(a.startAt)} · {a.isLoose ? a.todoTitle : a.customerName}
                       </p>
                       <p className="truncate text-sm text-gray-500">{a.todoTitle}</p>
                     </div>
@@ -126,7 +126,7 @@ function RescheduleSheet({
   });
 
   return (
-    <Modal title={`${appointment.customerName} verplaatsen`} open onClose={onClose}>
+    <Modal title={`${appointment.isLoose ? appointment.todoTitle : appointment.customerName} verplaatsen`} open onClose={onClose}>
       <p className="mb-3 text-sm text-gray-500">{appointment.todoTitle}</p>
       {moveMutation.error && <ErrorNote message={(moveMutation.error as Error).message} />}
       <form

@@ -36,7 +36,7 @@ export async function GET(
     return NextResponse.json({
       ...todo,
       estimatedHours: Number(todo.estimatedHours),
-      customerName: todo.customer.name,
+      customerName: todo.customer?.name ?? "",
       resources: toTodoResourceDtos(todo.resources),
       tasks: toTodoTaskDtos(todo.tasks),
       customer: undefined,

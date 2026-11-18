@@ -14,3 +14,11 @@ body {
   background-color: #f6f8f6;
   color: #1d2a1f;
 }
+
+/* Planning grid: our own block content (PlanningEventContent) fills the event. */
+.tc-planning-event,
+.tc-planning-event > * {
+  padding: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}

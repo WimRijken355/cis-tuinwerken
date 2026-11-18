@@ -54,11 +54,21 @@ Had je al klanten in EenvoudigFactureren? Importeer ze in één keer via
 ## Werk plannen
 
 1. Zet het werk als **todo op de klantfiche** ("Haag scheren, ± 3 u").
-2. Ga naar **Planning** (op de computer): links staat alles wat ingepland
-   moet worden. Klik een todo aan, kies dag + uur (de duur is al ingevuld met
-   je schatting) en klaar.
-3. Verslepen in de kalender = verplaatsen; aan de rand trekken = langer/korter.
-4. Onderweg herplannen doe je via **Komende dagen** op je telefoon: tik een
+2. Ga naar **Planning** (op de computer, 6u tot middernacht): links staat
+   alles wat nog ingepland moet worden, met de gekoppelde resources en
+   hoeveel tijd er nog rest. **Sleep** een todo naar de gewenste dag en uur.
+   Is het werk langer dan 8 u, dan wordt er één werkdag (max. 8 u) ingepland
+   en blijft de rest links staan om verder in te plannen — de blokken van
+   dezelfde todo krijgen dezelfde kleur en een nummer (1/5, 2/5, …).
+3. Verslepen in de kalender = verplaatsen; de **boven- of onderrand** trekken =
+   vroeger/later beginnen of stoppen. Maak je een blok korter, dan komt de
+   tijd er links weer bij.
+4. Klik een blok aan voor de details en de schakelaars **✓ Bevestigd** (effen
+   kleur) en **⏳ Reservatie** (gearceerd, stippellijn — voorlopig).
+5. **Nieuwe todo vanuit de planning**: selecteer een leeg vak in de kalender.
+   Kies een klant (met checklist en resources), of maak een **losse todo**
+   zoals vakantie of een doktersafspraak (grijs; wordt nooit gefactureerd).
+6. Onderweg herplannen doe je via **Komende dagen** op je telefoon: tik een
    afspraak aan en kies een nieuwe dag/uur — handig bij slecht weer.
 
 De klant krijgt **automatisch een e-mail op de avond vóór de afspraak**

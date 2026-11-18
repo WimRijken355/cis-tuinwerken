@@ -23,9 +23,13 @@ export async function POST(
     if (appointment.status !== "PLANNED") {
       throw new ApiError("Alleen voor geplande afspraken", 409);
     }
-    if (!appointment.todo.customer.email) {
+    const customer = appointment.todo.customer;
+    if (!customer) {
+      throw new ApiError("Een losse todo heeft geen klant om te mailen.", 409);
+    }
+    if (!customer.email) {
       throw new ApiError(
-        `${appointment.todo.customer.name} heeft geen e-mailadres. Vul dit eerst aan op de klantfiche.`,
+        `${customer.name} heeft geen e-mailadres. Vul dit eerst aan op de klantfiche.`,
         400,
       );
     }

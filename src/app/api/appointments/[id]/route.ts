@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { appointmentUpdateSchema } from "@/lib/schemas/appointments";
-import { appointmentInclude, syncTodoStatus, toAppointmentDto } from "@/lib/services/appointments";
+import { applyPlanningFlags } from "@/lib/planning";
+import { appointmentInclude, syncTodoStatus, toAppointmentDtos } from "@/lib/services/appointments";
 import { isSameBrusselsDay } from "@/lib/time";
 
 async function loadAppointment(params: Promise<{ id: string }>) {
@@ -25,14 +26,16 @@ export async function GET(
       where: { id: existing.id },
       include: appointmentInclude,
     });
-    return NextResponse.json(toAppointmentDto(full!));
+    return NextResponse.json((await toAppointmentDtos([full!]))[0]);
   } catch (error) {
     return handleApiError(error);
   }
 }
 
 /**
- * PATCH /api/appointments/:id — verplaatsen/verlengen/annuleren.
+ * PATCH /api/appointments/:id — verplaatsen/verlengen/annuleren, and the
+ * "bevestigd"/"reservatie" flags (mutually exclusive, see applyPlanningFlags).
+ * Shortening a block raises the todo's remaining time (it is derived).
  *
  * Herinneringsregel: verschuift de afspraak naar een ándere (Brusselse) dag,
  * dan wordt reminderSentAt gereset zodat de klant een nieuwe, correcte
@@ -62,13 +65,16 @@ export async function PATCH(
           : {}),
         ...(input.note !== undefined ? { note: input.note } : {}),
         ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.confirmed !== undefined || input.reservation !== undefined
+          ? applyPlanningFlags(existing, input)
+          : {}),
         ...(movedToOtherDay ? { reminderSentAt: null, reminderError: null } : {}),
       },
       include: appointmentInclude,
     });
     await syncTodoStatus(appointment.todoId);
 
-    return NextResponse.json(toAppointmentDto(appointment));
+    return NextResponse.json((await toAppointmentDtos([appointment]))[0]);
   } catch (error) {
     return handleApiError(error);
   }

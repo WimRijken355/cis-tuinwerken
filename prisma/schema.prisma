@@ -120,7 +120,9 @@ enum TodoStatus {
 
 model Todo {
   id             Int        @id @default(autoincrement())
-  customerId     Int
+  /// NULL = "losse todo" (holiday, doctor, ...): planned like any other todo, but
+  /// never registered, invoiced or e-mailed.
+  customerId     Int?
   title          String
   description    String?
   estimatedHours Decimal    @db.Decimal(5, 2)
@@ -140,7 +142,7 @@ model Todo {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  customer        Customer         @relation(fields: [customerId], references: [id])
+  customer        Customer?        @relation(fields: [customerId], references: [id])
   recurringWindow RecurringWindow? @relation(fields: [recurringWindowId], references: [id], onDelete: SetNull)
   appointments    Appointment[]
   resources       TodoResource[]
@@ -215,6 +217,10 @@ model Appointment {
   reminderSentAt  DateTime?
   /// Laatste foutmelding bij het versturen; zichtbaar als badge in de UI.
   reminderError   String?
+  /// Confirmed to the customer. Mutually exclusive with `reservation`.
+  confirmed       Boolean           @default(false)
+  /// Provisional booking that may still change. Mutually exclusive with `confirmed`.
+  reservation     Boolean           @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

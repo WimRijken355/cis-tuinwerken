@@ -32,6 +32,10 @@ export function TodoForm({
   error,
   onSubmit,
   onCancel,
+  showChecklist = true,
+  titleLabel = "Wat moet er gebeuren?",
+  titlePlaceholder = "bv. Gazon aanleggen achtertuin",
+  titleSuggestions = [],
 }: {
   initial?: {
     title: string;
@@ -44,6 +48,12 @@ export function TodoForm({
   error?: string | null;
   onSubmit: (values: TodoFormValues) => void;
   onCancel?: () => void;
+  /** Losse todo's (holiday, doctor, ...) have no checklist. */
+  showChecklist?: boolean;
+  titleLabel?: string;
+  titlePlaceholder?: string;
+  /** Quick picks that fill in the title (e.g. "Vakantie"). */
+  titleSuggestions?: string[];
 }) {
   const initialTasks = (initial?.tasks ?? [])
     .filter((t): t is TodoTaskDto & { checklistItemId: number } => t.checklistItemId !== null)
@@ -63,21 +73,37 @@ export function TodoForm({
           title,
           estimatedHours: parseHours(hours),
           resources: resourceSelectionToInput(resources),
-          taskIds,
+          taskIds: showChecklist ? taskIds : [],
         });
       }}
     >
       {error && <ErrorNote message={error} />}
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-48 flex-1">
-          <Field label="Wat moet er gebeuren?">
+          <Field label={titleLabel}>
             <TextInput
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="bv. Gazon aanleggen achtertuin"
+              placeholder={titlePlaceholder}
               required
             />
           </Field>
+          {titleSuggestions.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {titleSuggestions.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setTitle(s)}
+                  className={`rounded-full px-2 py-0.5 text-xs ${
+                    title === s ? "bg-brand-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="w-32">
           <Field label="Totale tijd (uren)">
@@ -86,7 +112,7 @@ export function TodoForm({
         </div>
       </div>
 
-      <ChecklistPicker value={taskIds} onChange={setTaskIds} initial={initialTasks} />
+      {showChecklist && <ChecklistPicker value={taskIds} onChange={setTaskIds} initial={initialTasks} />}
       <ResourcePicker value={resources} onChange={setResources} totalHours={hours} initial={initial?.resources} />
 
       <div className="flex justify-end gap-2">

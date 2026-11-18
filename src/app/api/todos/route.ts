@@ -10,11 +10,14 @@ import {
   toTodoTaskDtos,
 } from "@/lib/schemas/todos";
 import type { Prisma } from "@/generated/prisma/client";
+import { loadPlanningMeta } from "@/lib/services/appointments";
 
 /**
  * GET /api/todos?customerId=&status=&plannable=1
- * - plannable=1 → alleen OPEN todo's (voor de planning-zijbalk),
- *   gesorteerd op voorkeursvenster (terugkerend werk eerst dat eraan komt).
+ * - plannable=1 → todos that still have time left to plan (OPEN, or PLANNED
+ *   but only partly), for the planning sidebar; sorted on preferred window
+ *   (recurring work that is due first).
+ * Every todo carries plannedMinutes / remainingMinutes / appointmentCount.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -27,7 +30,7 @@ export async function GET(request: NextRequest) {
     const where: Prisma.TodoWhereInput = {
       ...(customerId ? { customerId: Number(customerId) } : {}),
       ...(plannable
-        ? { status: "OPEN" }
+        ? { status: { in: ["OPEN", "PLANNED"] } }
         : status
           ? { status: status as Prisma.TodoWhereInput["status"] }
           : {}),
@@ -45,11 +48,18 @@ export async function GET(request: NextRequest) {
         : [{ createdAt: "desc" }],
     });
 
+    const meta = await loadPlanningMeta(todos.map((t) => t.id));
+    const withMeta = todos.map((t) => ({ todo: t, meta: meta.get(t.id) }));
+    const visible = plannable ? withMeta.filter(({ meta: m }) => (m?.remainingMinutes ?? 0) > 0) : withMeta;
+
     return NextResponse.json(
-      todos.map((t) => ({
+      visible.map(({ todo: t, meta: m }) => ({
         ...t,
         estimatedHours: Number(t.estimatedHours),
-        customerName: t.customer.name,
+        customerName: t.customer?.name ?? "",
+        plannedMinutes: m?.plannedMinutes ?? 0,
+        remainingMinutes: m?.remainingMinutes ?? 0,
+        appointmentCount: m?.parts.size ?? 0,
         windowLabel: t.recurringWindow?.label ?? null,
         resources: toTodoResourceDtos(t.resources),
         tasks: toTodoTaskDtos(t.tasks),
@@ -62,7 +72,11 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/todos — new todo for a customer, optionally with planned resources. */
+/**
+ * POST /api/todos — new todo for a customer, or a "losse todo" without
+ * customer (customerId null: holiday, doctor, ...), optionally with resources
+ * and checklist.
+ */
 export async function POST(request: NextRequest) {
   try {
     await requireUser();
@@ -81,7 +95,7 @@ export async function POST(request: NextRequest) {
       {
         ...todo,
         estimatedHours: Number(todo.estimatedHours),
-        customerName: todo.customer.name,
+        customerName: todo.customer?.name ?? "",
         resources: toTodoResourceDtos(todo.resources),
         tasks: toTodoTaskDtos(todo.tasks),
         customer: undefined,

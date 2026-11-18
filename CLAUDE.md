@@ -40,6 +40,15 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 
 - Zod `.partial()` behoudt `.default(...)`: een PATCH die een veld weglaat, zet het dan stil terug op de default (bv. `active` → true). Gebruik voor PATCH-schemas `partialWithoutDefaults()` uit `src/lib/schemas/partial.ts` of een expliciet schema zonder defaults (zie `recurringTemplateUpdateSchema`).
 
+## Planning
+
+- Pagina `/planning` (FullCalendar v7, weekraster 06:00–24:00). Pure regels in `src/lib/planning.ts` (getest in `planning.test.ts`).
+- **Resterende tijd wordt nooit opgeslagen** maar afgeleid: `todo.estimatedHours − som(niet-geannuleerde afspraken)`. Droppen zonder duur → server plant `dropDurationMinutes()` (max. 8 u = `WORKDAY_MINUTES`, nooit over middernacht); de rest blijft in de zijbalk (`GET /api/todos?plannable=1` = todo's met resterende tijd). Inkorten van een blok verhoogt de rest dus vanzelf.
+- "x/y" per blok: `partNumbers()` (chronologisch; y = geplande blokken + resterende werkdagen). Elke todo heeft een vaste kleur (`todoColor()`).
+- `Appointment.confirmed` / `reservation` sluiten elkaar uit (`applyPlanningFlags()`, ook server-side).
+- **Losse todo** = `Todo.customerId = NULL` (vakantie, dokter, …): wel inplannen + resources, nooit registreren/factureren/mailen. Code die `todo.customer` gebruikt moet `null` afhandelen.
+- In v7 heten event-kleuren `color`/`className` (geen `backgroundColor`); de blokken worden volledig getekend door `PlanningEventContent` (`src/components/planning/`).
+
 ## Demodata
 
 - Aan/uit via **Instellingen → Algemeen → Demodata** (ADMIN-only, `/api/demo-data`) of `npm run demo:on` / `demo:off` / `demo:status`. Dataset: `src/lib/demo/dataset.ts` (pure data, getest), laden/verwijderen: `src/lib/demo/demo-data.ts`.

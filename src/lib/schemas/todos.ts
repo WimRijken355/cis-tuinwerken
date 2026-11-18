@@ -32,7 +32,8 @@ export const resourcesSchema = z
   );
 
 export const todoInputSchema = z.object({
-  customerId: z.number().int().positive(),
+  /** null/omitted = "losse todo" (holiday, doctor, ...): no customer, never invoiced. */
+  customerId: z.number().int().positive().nullable().default(null),
   title: z.string().trim().min(1, "Titel is verplicht").max(200),
   description: z.string().max(5000).optional(),
   /** Total estimated time of the job. */
@@ -66,7 +67,8 @@ export interface TodoResourceDto {
 
 export interface TodoDto {
   id: number;
-  customerId: number;
+  /** null for a "losse todo". */
+  customerId: number | null;
   customerName?: string;
   title: string;
   description: string | null;
@@ -83,6 +85,10 @@ export interface TodoDto {
   resources?: TodoResourceDto[];
   /** Checklist of tasks to carry out, in order. */
   tasks?: TodoTaskDto[];
+  /** Planning: minutes already planned in blocks / still to plan (GET /api/todos). */
+  plannedMinutes?: number;
+  remainingMinutes?: number;
+  appointmentCount?: number;
 }
 
 export interface TodoTaskDto {

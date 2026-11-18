@@ -34,6 +34,10 @@ export async function POST(
     if (appointment.status !== "PLANNED") {
       throw new ApiError("Alleen geplande afspraken kunnen afgerond worden", 409);
     }
+    const customer = appointment.todo.customer;
+    if (!customer) {
+      throw new ApiError("Een losse todo (zonder klant) wordt niet geregistreerd of gefactureerd.", 409);
+    }
 
     const settings = await getSettings();
 
@@ -93,7 +97,7 @@ export async function POST(
       return tx.invoice.create({
         data: {
           completionId: completion.id,
-          customerId: appointment.todo.customer.id,
+          customerId: customer.id,
           pushStatus: "PENDING",
           linesJson: built.items as unknown as object,
           totalExclVat: built.totalExclVat,
@@ -104,7 +108,7 @@ export async function POST(
     // Stap 2: push naar EF (nooit blokkerend voor de registratie), unless
     // invoice sync is switched off in Settings: then the invoice stays local.
     const efPush =
-      initialSyncAction(settings.efInvoiceSyncEnabled, appointment.todo.customer.isDemo) === "skip"
+      initialSyncAction(settings.efInvoiceSyncEnabled, customer.isDemo) === "skip"
         ? await markInvoiceNotSynced(invoice.id).then(() => ({ ok: false, skipped: true }))
         : await pushInvoiceToEf(invoice.id).then((push) =>
             push.ok ? { ok: true, efInvoiceId: push.efInvoiceId } : { ok: false, error: push.error },
