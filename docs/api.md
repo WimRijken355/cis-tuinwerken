@@ -202,12 +202,25 @@ wordt gezet. De geregistreerde uren zelf blijven ongewijzigd.
 
 ### GET /api/invoices?status=
 Overzicht (nieuwste eerst, max 200) met `pushStatus`
-(`PENDING`/`CONCEPT_CREATED`/`FAILED`), `totalExclVat`, `workTitle`, `workDate`.
+(`PENDING`/`CONCEPT_CREATED`/`FAILED`/`NOT_SYNCED`), `syncExcluded`, `customerIsDemo`,
+`totalExclVat`, `totalInclVat`, `workTitle`, `workDate`, `errorMessage`.
 
 ### POST /api/invoices/:id/retry-push
 Factuur met status `FAILED` of `NOT_SYNCED` (alsnog) naar EF sturen. 409 zodra
 er al een `efInvoiceId` is (nooit dubbele concepten) of zolang
-`efInvoiceSyncEnabled` uit staat; 502 als de push faalt.
+`efInvoiceSyncEnabled` uit staat, de klant een demoklant is of de factuur op
+"niet versturen" staat (`syncExcluded`); 502 als de push faalt.
+
+### POST /api/invoices/sync-all
+Stuurt alle facturen zonder `efInvoiceId` met status `NOT_SYNCED`/`FAILED` één
+voor één naar EF (oudste eerst). Slaat "niet versturen" en demoklanten over
+(`selectInvoicesToSync`). 409 als `efInvoiceSyncEnabled` uit staat.
+→ `{ total, sent, failed, errors: [{ invoiceId, customerName, error }] }`.
+
+### PUT /api/invoices/:id/sync-exclusion
+Body `{ excluded: boolean }` — zet "niet versturen" aan/uit. Een uitgesloten
+factuur gaat nooit naar EF (ook niet via sync-all of retry-push). 409 als de
+factuur al in EF staat. → `{ id, syncExcluded }`.
 
 ## Catalogus
 

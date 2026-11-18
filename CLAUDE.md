@@ -52,6 +52,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 
 - `Invoice.contentJson` = bewerkbare opbouw `{ lines: [{ item, remark? }], notes: [] }` (`src/lib/invoice-content.ts`); `Invoice.linesJson` (de EF-payload) wordt er **altijd** uit gegenereerd met `itemsFromContent()`. Oudere facturen zonder contentJson: `contentFromItems()` (heuristiek).
 - Aanpassen in Facturen → Details → ✏️ Aanpassen enkel zolang `canEditInvoice()` (geen `efInvoiceId`, status NOT_SYNCED/FAILED); `PATCH /api/invoices/:id` vervangt de hele inhoud, herberekent het totaal en zet `editedAt`. De registraties (uren per resource) blijven ongewijzigd.
+- **Synchroniseren**: per factuur `POST /api/invoices/:id/retry-push`, alles in één keer via `POST /api/invoices/sync-all` (selectie: `selectInvoicesToSync()`). `Invoice.syncExcluded` = "Niet versturen" (`PUT /api/invoices/:id/sync-exclusion`): `canSendToEf()` én `pushInvoiceToEf()` weigeren zo'n factuur. De facturenlijst is een compacte tabel met client-side filters (`filterInvoices()` in `src/lib/invoice-list.ts`) + de gedeelde paginering.
 - Totaal incl. btw: `vatSummary()` (btw per tarief op het totaal van dat tarief, in centen) — getoond in de facturenlijst, het detail en de laatste stap van het klaarmelden. EF maakt de officiële berekening.
 
 ## Planning

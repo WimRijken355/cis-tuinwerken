@@ -46,6 +46,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       customerId: invoice.customerId,
       customerName: invoice.customer.name,
       customerIsDemo: invoice.customer.isDemo,
+      syncExcluded: invoice.syncExcluded,
       efInvoiceId: invoice.efInvoiceId,
       pushStatus: invoice.pushStatus,
       totalExclVat: Number(invoice.totalExclVat),

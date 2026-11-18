@@ -4,7 +4,9 @@ import {
   canSendToEf,
   DEMO_CUSTOMER_MESSAGE,
   initialSyncAction,
+  selectInvoicesToSync,
   SYNC_DISABLED_MESSAGE,
+  SYNC_EXCLUDED_MESSAGE,
 } from "./invoice-sync";
 
 describe("initialSyncAction", () => {
@@ -51,5 +53,29 @@ describe("demo customers", () => {
       allowed: false,
       reason: DEMO_CUSTOMER_MESSAGE,
     });
+  });
+});
+
+describe("niet versturen + alle niet-gesyncte versturen", () => {
+  it("never sends an invoice switched to 'niet versturen'", () => {
+    expect(canSendToEf({ efInvoiceId: null, pushStatus: "NOT_SYNCED", syncExcluded: true }, true)).toMatchObject({
+      allowed: false,
+      reason: SYNC_EXCLUDED_MESSAGE,
+    });
+    expect(canSendToEf({ efInvoiceId: null, pushStatus: "NOT_SYNCED", syncExcluded: false }, true)).toEqual({ allowed: true });
+  });
+
+  it("selects the sendable invoices, oldest first", () => {
+    const base = { efInvoiceId: null, syncExcluded: false, isDemoCustomer: false };
+    const list = [
+      { ...base, id: 5, pushStatus: "FAILED" as const },
+      { ...base, id: 2, pushStatus: "NOT_SYNCED" as const },
+      { ...base, id: 3, pushStatus: "NOT_SYNCED" as const, syncExcluded: true },
+      { ...base, id: 4, pushStatus: "NOT_SYNCED" as const, isDemoCustomer: true },
+      { ...base, id: 6, pushStatus: "CONCEPT_CREATED" as const, efInvoiceId: 77 },
+      { ...base, id: 7, pushStatus: "PENDING" as const },
+    ];
+    expect(selectInvoicesToSync(list, true).map((i) => i.id)).toEqual([2, 5]);
+    expect(selectInvoicesToSync(list, false)).toEqual([]);
   });
 });

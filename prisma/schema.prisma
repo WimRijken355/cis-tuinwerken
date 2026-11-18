@@ -454,6 +454,8 @@ model Invoice {
   contentJson  Json?
   /// Set when the invoice was edited by hand after the registration.
   editedAt     DateTime?
+  /// "Niet versturen": never pushed to EF (single or bulk) until switched off again.
+  syncExcluded Boolean           @default(false)
   errorMessage String?
   createdAt    DateTime          @default(now())
   pushedAt     DateTime?

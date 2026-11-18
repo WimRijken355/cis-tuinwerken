@@ -2,7 +2,7 @@ import { db } from "../db";
 import { createClient, createInvoice, EfApiError, efIsConfigured } from "../ef/client";
 import type { EfInvoiceItem } from "../ef/types";
 import { nowBrussels } from "../time";
-import { DEMO_CUSTOMER_MESSAGE } from "./invoice-sync";
+import { DEMO_CUSTOMER_MESSAGE, SYNC_EXCLUDED_MESSAGE } from "./invoice-sync";
 import { getSettings } from "./settings";
 
 /** Invoice made while EF sync is switched off: stays local, can be sent later. */
@@ -42,6 +42,10 @@ export async function pushInvoiceToEf(invoiceId: number): Promise<{
   }
   if (invoice.efInvoiceId) {
     return { ok: true, efInvoiceId: invoice.efInvoiceId }; // al gepusht
+  }
+  // "Niet versturen": never leaves the app, whatever path calls this.
+  if (invoice.syncExcluded) {
+    return { ok: false, error: SYNC_EXCLUDED_MESSAGE };
   }
 
   async function markFailed(message: string) {

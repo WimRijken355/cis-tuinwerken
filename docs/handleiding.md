@@ -132,8 +132,10 @@ toepassing zijn. Op de klantfiche vink je ze af zodra ze gedaan zijn
 
 ## Facturen
 
-**Facturen** toont alles wat de app heeft aangemaakt. Tik een factuur aan voor
-de details: exact wat naar EenvoudigFactureren ging, en per dag de uren per
+**Facturen** toont alles wat de app heeft aangemaakt, als compacte lijst (één
+regel per factuur; een foutmelding staat achter de klantnaam). Bovenaan filter
+je op klant/werk, status (ook "Niet versturen") en werkdatum. Tik ✏️ achteraan
+een regel voor de details: exact wat naar EenvoudigFactureren ging, en per dag de uren per
 resource (geregistreerd en gefactureerd) waaruit "Werkuren op …" is opgebouwd,
 en het totaal excl. en incl. btw. Zolang de factuur nog niet in
 EenvoudigFactureren staat ("Niet gesynchroniseerd" of "Push mislukt"), kan je
@@ -145,9 +147,16 @@ De status per factuur:
 - **Push mislukt** — tik ↻ Opnieuw (de foutoorzaak staat erbij)
 - **Niet gesynchroniseerd** — gemaakt terwijl de synchronisatie uit stond
   (Instellingen → Algemeen → *Facturen synchroniseren naar EenvoudigFactureren*).
-  Zet je de schakelaar weer aan, dan stuur je ze met **→ Naar EF sturen** alsnog door.
+  Zet je de schakelaar weer aan, dan stuur je ze met **→ Naar EF** alsnog door.
 
-Bedragen zijn excl. btw. Definitief maken en versturen doe je altijd in
+**⇪ Alle niet-gesyncte versturen** (bovenaan) stuurt in één keer alle facturen
+die nog niet in EenvoudigFactureren staan; je ziet daarna hoeveel er gelukt
+zijn en wat er misliep. Wil je een factuur om een of andere reden **niet**
+versturen, zet dan de schakelaar **Niet versturen** op die regel aan: ze
+blijft dan in de app, ook bij "alle versturen", tot je de schakelaar weer
+uitzet.
+
+Definitief maken en versturen doe je altijd in
 EenvoudigFactureren zelf — zo hou je de controle.
 
 ## Instellingen

@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         customerId: inv.customerId,
         customerName: inv.customer.name,
         customerIsDemo: inv.customer.isDemo,
+        syncExcluded: inv.syncExcluded,
         efInvoiceId: inv.efInvoiceId,
         pushStatus: inv.pushStatus,
         totalExclVat: Number(inv.totalExclVat),

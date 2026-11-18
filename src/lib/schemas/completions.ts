@@ -132,6 +132,8 @@ export interface InvoiceDto {
   pushStatus: "PENDING" | "CONCEPT_CREATED" | "FAILED" | "NOT_SYNCED";
   /** Invoice of a demo customer: never sent to EF. */
   customerIsDemo?: boolean;
+  /** "Niet versturen": excluded from (bulk) sync to EF. */
+  syncExcluded: boolean;
   totalExclVat: number;
   /** Computed from the EF lines (VAT per rate), for display. */
   totalInclVat: number;
