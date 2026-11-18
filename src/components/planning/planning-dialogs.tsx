@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { CustomerPicker, type PickedCustomer } from "@/components/customer-picker";
+import { QuarterTimeInput } from "@/components/quarter-time-input";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { Button, ErrorNote, Field, Modal, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
@@ -186,7 +187,7 @@ export function PlanDialog({
             <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </Field>
           <Field label="Startuur">
-            <TextInput type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} required />
+            <QuarterTimeInput value={time} onChange={setTime} />
           </Field>
         </div>
         <Field label="Duur" hint="Max. één werkdag per blok; de rest blijft in te plannen.">

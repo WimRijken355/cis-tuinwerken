@@ -219,3 +219,17 @@ export function quarterHourOptions(maxMinutes = WORKDAY_MINUTES): { value: numbe
 export function roundToQuarter(minutes: number): number {
   return Math.max(SLOT_MINUTES, Math.round(minutes / SLOT_MINUTES) * SLOT_MINUTES);
 }
+
+/** Minute choices for a start time: whole quarters only. */
+export const QUARTER_MINUTES = [0, 15, 30, 45] as const;
+
+/**
+ * "HH:mm" rounded to the nearest quarter (08:07 → 08:00, 08:08 → 08:15,
+ * 23:53 → 23:45 so it never rolls over to the next day).
+ */
+export function roundTimeToQuarter(time: string): string {
+  const [h, m] = time.split(":").map(Number);
+  const total = Math.min(Math.round(((h || 0) * 60 + (m || 0)) / 15) * 15, 23 * 60 + 45);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
+}

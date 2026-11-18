@@ -16,6 +16,7 @@ import {
   partLabel,
   partNumbers,
   quarterHourOptions,
+  roundTimeToQuarter,
   roundToQuarter,
   plannedMinutes,
   remainingMinutes,
@@ -209,5 +210,16 @@ describe("quarter-hour durations (no minutes in the UI)", () => {
     expect(roundToQuarter(100)).toBe(105);
     expect(roundToQuarter(5)).toBe(15);
     expect(roundToQuarter(480)).toBe(480);
+  });
+});
+
+describe("roundTimeToQuarter (hour + quarter-minute fields)", () => {
+  it("rounds to the nearest quarter without rolling over to the next day", () => {
+    expect(roundTimeToQuarter("08:00")).toBe("08:00");
+    expect(roundTimeToQuarter("08:07")).toBe("08:00");
+    expect(roundTimeToQuarter("08:08")).toBe("08:15");
+    expect(roundTimeToQuarter("09:52")).toBe("09:45");
+    expect(roundTimeToQuarter("09:53")).toBe("10:00");
+    expect(roundTimeToQuarter("23:58")).toBe("23:45");
   });
 });

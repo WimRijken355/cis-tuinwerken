@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { QuarterTimeInput } from "@/components/quarter-time-input";
 import {
   Button,
   EmptyState,
@@ -12,6 +13,7 @@ import {
   TextInput,
 } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
+import { roundTimeToQuarter } from "@/lib/planning";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import { formatTime, toBrussels } from "@/lib/time";
 
@@ -110,7 +112,7 @@ function RescheduleSheet({
 }) {
   const current = toBrussels(appointment.startAt);
   const [date, setDate] = useState(current.toFormat("yyyy-MM-dd"));
-  const [time, setTime] = useState(current.toFormat("HH:mm"));
+  const [time, setTime] = useState(roundTimeToQuarter(current.toFormat("HH:mm")));
 
   const moveMutation = useMutation({
     mutationFn: () =>
@@ -141,7 +143,7 @@ function RescheduleSheet({
             <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </Field>
           <Field label="Startuur">
-            <TextInput type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} required />
+            <QuarterTimeInput value={time} onChange={setTime} />
           </Field>
         </div>
         <p className="text-xs text-gray-400">
