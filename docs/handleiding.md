@@ -169,6 +169,21 @@ selecteerbaar, tot je de schakelaar weer uitzet.
 Definitief maken en versturen doe je altijd in
 EenvoudigFactureren zelf — zo hou je de controle.
 
+## Dashboard
+
+Via **Dashboard** (in het menu op de computer) zie je per resource hoeveel uren
+er **gepland**, **geregistreerd** (echt gewerkt) of **gefactureerd** zijn:
+
+- Kies **Week** (per dag), **Maand** (per week) of **Jaar** (per maand) en blader
+  met ‹ › of spring terug naar **Vandaag**.
+- Tik een resource aan of uit om ze te tonen of te verbergen (wordt onthouden).
+- **Naast elkaar** vergelijkt de resources; **Gestapeld** toont het totaal per
+  dag/week/maand, opgebouwd uit de resources.
+- Ga met de muis over een kolom voor de exacte uren; onder de grafiek staat
+  dezelfde info als tabel met totalen.
+- Bij *Gepland* tellen losse todo's (vakantie, dokter …) standaard niet mee;
+  vink **Losse todo's meetellen** aan om ze toch mee te nemen.
+
 ## Instellingen
 
 Alles wat de app configureert staat onder **Instellingen**: in de zijbalk een

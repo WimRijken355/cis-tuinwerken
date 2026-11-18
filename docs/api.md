@@ -342,6 +342,15 @@ Al gegenereerde todo's blijven staan; er komen geen nieuwe beurten meer bij.
 Draait de generatie onmiddellijk (idempotent).
 → `{ "windowsChecked": 4, "todosCreated": 1 }`
 
+## Dashboard
+
+### GET /api/dashboard/hours?metric=&from=&to=&loose=
+`metric` = `planned` | `registered` | `invoiced`, `from`/`to` = `jjjj-mm-dd`
+(inclusief, Brusselse dagen), `loose=1` telt bij `planned` ook losse todo's mee.
+→ `{ resources: [{ id, name, type, active }], entries: [{ resourceId, day, hours }] }`.
+Gepland = toegewezen met `allocatePlannedHours()` (bloklengte per resource,
+begrensd door de uren van die resource op de todo).
+
 ## Overig
 
 ### GET /api/health

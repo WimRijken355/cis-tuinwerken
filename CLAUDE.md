@@ -70,6 +70,13 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - Week/maand-toggle (`dayGridMonth`): bezetting per dag via `minutesPerDay()`/`dayLoad()`, respecteert de filter. **Valkuil**: de datum van een maandcel is een echte lokale `Date` (middernacht Brussel) — gebruik `dayKey()`, nooit `toISOString().slice(0,10)` (geeft de vorige dag).
 - In v7 heten event-kleuren `color`/`className` (geen `backgroundColor`); de blokken worden volledig getekend door `PlanningEventContent` (`src/components/planning/`).
 
+## Dashboard
+
+- Pagina `/dashboard` (menu "Dashboard", enkel desktop-sidebar). Uren per resource voor **Gepland / Geregistreerd / Gefactureerd**, per week (staven per dag), maand (per week, geknipt op de maand) of jaar (per maand); resources aan/uit (onthouden in localStorage), staven naast elkaar of gestapeld, plus een tabel met dezelfde cijfers.
+- Pure logica in `src/lib/dashboard.ts` (getest): `periodBuckets()`, `bucketHours()`, `allocatePlannedHours()`, `niceTicks()`, `resourceColor()`. API: `GET /api/dashboard/hours?metric=&from=&to=&loose=` (per resource per Brusselse dag).
+- **Gepland** wordt afgeleid, niet opgeslagen: per todo de niet-geannuleerde blokken chronologisch; elke resource krijgt de bloklengte, begrensd door wat er voor die resource op de todo nog openstaat (zelfde regel als `proposeHours`). Losse todo's tellen enkel mee als "Losse todo's meetellen" aan staat. Geregistreerd/gefactureerd = `LaborEntry.registeredHours`/`invoicedHours` op de dag van het blok.
+- Grafiek: eigen SVG (`src/components/dashboard/hours-chart.tsx`, geen chartbibliotheek). Kleur volgt de resource (positie op id over álle resources, vaste volgorde van het gevalideerde palet), nooit de filter; >8 resources → grijs.
+
 ## Demodata
 
 - Aan/uit via **Instellingen → Algemeen → Demodata** (ADMIN-only, `/api/demo-data`) of `npm run demo:on` / `demo:off` / `demo:status`. Dataset: `src/lib/demo/dataset.ts` (pure data, getest), laden/verwijderen: `src/lib/demo/demo-data.ts`.

@@ -25,6 +25,7 @@ export const MAIN_ITEMS: NavItem[] = [
   { href: "/planning", label: "Planning", icon: "📅" },
   { href: "/customers", label: "Klanten", icon: "👥" },
   { href: "/invoices", label: "Facturen", icon: "🧾" },
+  { href: "/dashboard", label: "Dashboard", icon: "📊", desktopOnly: true },
   // Admin-only, not a field-use flow — kept out of the mobile bottom tabs.
   { href: "/audit-log", label: "Audittrail", icon: "📜", desktopOnly: true, adminOnly: true },
 ];
