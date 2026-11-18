@@ -15,6 +15,8 @@ import {
   minutesUntilMidnight,
   partLabel,
   partNumbers,
+  quarterHourOptions,
+  roundToQuarter,
   plannedMinutes,
   remainingMinutes,
   todoColor,
@@ -191,5 +193,21 @@ describe("focus on one todo (sidebar ↔ grid)", () => {
     expect(blockEmphasis({ todoId: 5, focusTodoId: 4, matchesFilter: true })).toEqual({ highlighted: false, opacity: 0.55 });
     expect(blockEmphasis({ todoId: 5, focusTodoId: 4, matchesFilter: false })).toEqual({ highlighted: false, opacity: 0.25 });
     expect(blockEmphasis({ todoId: 5, focusTodoId: null, matchesFilter: true })).toEqual({ highlighted: false, opacity: 1 });
+  });
+});
+
+describe("quarter-hour durations (no minutes in the UI)", () => {
+  it("offers quarters up to one working day, labelled in hours", () => {
+    const options = quarterHourOptions();
+    expect(options[0]).toEqual({ value: 15, label: "0,25 u" });
+    expect(options.find((o) => o.value === 90)?.label).toBe("1,5 u");
+    expect(options.at(-1)).toEqual({ value: 480, label: "8 u" });
+    expect(options).toHaveLength(32);
+  });
+
+  it("rounds a remaining time to whole quarters", () => {
+    expect(roundToQuarter(100)).toBe(105);
+    expect(roundToQuarter(5)).toBe(15);
+    expect(roundToQuarter(480)).toBe(480);
   });
 });

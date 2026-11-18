@@ -141,7 +141,7 @@ function RescheduleSheet({
             <TextInput type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
           </Field>
           <Field label="Startuur">
-            <TextInput type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+            <TextInput type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} required />
           </Field>
         </div>
         <p className="text-xs text-gray-400">

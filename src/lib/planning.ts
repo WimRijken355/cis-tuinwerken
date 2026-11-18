@@ -202,3 +202,20 @@ export function blockEmphasis(input: {
   if (!input.matchesFilter) return { highlighted, opacity: 0.25 };
   return { highlighted, opacity: input.focusTodoId !== null ? 0.55 : 1 };
 }
+
+/**
+ * Duration choices in whole quarters (the smallest unit in the planning),
+ * labelled in hours: 15 min → "0,25 u", 90 min → "1,5 u", up to `maxMinutes`.
+ */
+export function quarterHourOptions(maxMinutes = WORKDAY_MINUTES): { value: number; label: string }[] {
+  const options: { value: number; label: string }[] = [];
+  for (let m = SLOT_MINUTES; m <= maxMinutes; m += SLOT_MINUTES) {
+    options.push({ value: m, label: formatMinutesAsHours(m) });
+  }
+  return options;
+}
+
+/** Rounds minutes to the nearest whole quarter (at least one). */
+export function roundToQuarter(minutes: number): number {
+  return Math.max(SLOT_MINUTES, Math.round(minutes / SLOT_MINUTES) * SLOT_MINUTES);
+}
