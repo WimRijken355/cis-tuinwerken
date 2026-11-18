@@ -136,7 +136,8 @@ export interface PlanningFilterSubject {
 /** Label used for todos without a city (losse todo's, unknown address). */
 export const NO_CITY_LABEL = "Zonder plaats";
 
-const normalize = (s: string) =>
+/** Lower case, without accents, trimmed — for forgiving text search. */
+export const normalize = (s: string) =>
   s
     .toLocaleLowerCase("nl-BE")
     .normalize("NFD")

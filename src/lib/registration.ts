@@ -1,5 +1,6 @@
 import { DateTime } from "luxon";
 import type { EfInvoiceItem } from "./ef/types";
+import { normalize } from "./planning";
 import { ZONE } from "./time";
 
 /**
@@ -167,4 +168,27 @@ export function windowLabel(start: Date | string | null, end: Date | string | nu
   if (s.year === e.year && s.month === e.month) return `${m(s)} ${s.year}`;
   if (s.year === e.year) return `${m(s)}–${m(e)} ${s.year}`;
   return `${m(s)} ${s.year}–${m(e)} ${e.year}`;
+}
+
+// ---------------------------------------------------------------------------
+// Articles step: search in the price list
+// ---------------------------------------------------------------------------
+
+/**
+ * Articles to offer for the search text: unselected items whose name contains
+ * all typed words (case/accent-insensitive), alphabetically, at most `limit`.
+ * `more` tells whether results were cut off. Selected items are shown apart.
+ */
+export function searchArticles<T extends { id: number; name: string }>(
+  items: T[],
+  query: string,
+  selectedIds: Set<number>,
+  limit = 30,
+): { results: T[]; more: boolean } {
+  const words = normalize(query).split(/\s+/).filter(Boolean);
+  const matches = items
+    .filter((i) => !selectedIds.has(i.id))
+    .filter((i) => words.every((w) => normalize(i.name).includes(w)))
+    .sort((a, b) => a.name.localeCompare(b.name, "nl-BE"));
+  return { results: matches.slice(0, limit), more: matches.length > limit };
 }

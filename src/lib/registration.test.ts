@@ -5,6 +5,7 @@ import {
   defaultInvoiceNow,
   periodToWindow,
   proposeHours,
+  searchArticles,
   windowLabel,
 } from "./registration";
 
@@ -112,5 +113,26 @@ describe("preferred period", () => {
     expect(winter.windowEnd.toISOString()).toBe("2027-02-28T00:00:00.000Z");
     expect(windowLabel(winter.windowStart, winter.windowEnd)).toBe("nov 2026–feb 2027");
     expect(windowLabel(null, null)).toBeNull();
+  });
+});
+
+describe("searchArticles", () => {
+  const items = [
+    { id: 1, name: "Graszoden" },
+    { id: 2, name: "Afvoer groenafval" },
+    { id: 3, name: "Barenbrug RPR (graszaad)" },
+    { id: 4, name: "Béton herstel" },
+  ];
+
+  it("matches all words, case- and accent-insensitive, alphabetically", () => {
+    expect(searchArticles(items, "gras", new Set()).results.map((i) => i.id)).toEqual([3, 1]);
+    expect(searchArticles(items, "GRAS zaad", new Set()).results.map((i) => i.id)).toEqual([3]);
+    expect(searchArticles(items, "beton", new Set()).results.map((i) => i.id)).toEqual([4]);
+  });
+
+  it("leaves out selected items and limits the list", () => {
+    expect(searchArticles(items, "", new Set([2, 4])).results.map((i) => i.id)).toEqual([3, 1]);
+    expect(searchArticles(items, "", new Set(), 2)).toMatchObject({ more: true });
+    expect(searchArticles(items, "", new Set(), 2).results).toHaveLength(2);
   });
 });

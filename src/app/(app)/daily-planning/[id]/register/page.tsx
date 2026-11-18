@@ -9,7 +9,7 @@ import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { Button, ErrorNote, Spinner, TextArea, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours } from "@/lib/planning";
-import { buildJobInvoice, ceilToQuarterHour } from "@/lib/registration";
+import { buildJobInvoice, ceilToQuarterHour, searchArticles } from "@/lib/registration";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { PriceListItemDto } from "@/lib/schemas/catalog";
 import type { ChecklistItemDto } from "@/lib/schemas/checklist";
@@ -40,14 +40,17 @@ interface ResourceLine {
   invoicedTouched: boolean;
   /** Planned info, e.g. "gepland 12 u · al 8 u geregistreerd". */
   info?: string;
+  /** Planned but did not come along: kept visible (to undo), never registered. */
+  absent?: boolean;
 }
 
 interface ExtraLine {
   priceListItemId: number;
   description: string;
+  /** As typed (comma allowed); both editable on site. */
   quantity: string;
   unit: string;
-  unitPrice: number;
+  unitPrice: string;
   vatRate: number;
 }
 
@@ -167,7 +170,9 @@ function RegisterFlow({
       },
     ]);
   }
-  const hasHours = lines.some((l) => l.registeredHours > 0 || l.invoicedHours > 0);
+  // Resources that actually came along (planned ones marked "niet mee" are left out).
+  const activeLines = lines.filter((l) => !l.absent);
+  const hasHours = activeLines.some((l) => l.registeredHours > 0 || l.invoicedHours > 0);
 
   // --- Step 2: artikels -----------------------------------------------------------
   const { data: priceList } = useQuery({
@@ -175,6 +180,28 @@ function RegisterFlow({
     queryFn: () => apiGet<PriceListItemDto[]>("/api/price-list"),
   });
   const [extras, setExtras] = useState<ExtraLine[]>([]);
+  const [articleSearch, setArticleSearch] = useState("");
+  const articleResults = searchArticles(
+    priceList ?? [],
+    articleSearch,
+    new Set(extras.map((e) => e.priceListItemId)),
+  );
+  function addArticle(p: PriceListItemDto) {
+    setExtras((list) => [
+      ...list,
+      {
+        priceListItemId: p.id,
+        description: p.name,
+        quantity: "1",
+        unit: p.unit,
+        unitPrice: String(p.unitPrice).replace(".", ","),
+        vatRate: p.vatRate,
+      },
+    ]);
+    setArticleSearch("");
+  }
+  const updateArticle = (priceListItemId: number, patch: Partial<ExtraLine>) =>
+    setExtras((list) => list.map((x) => (x.priceListItemId === priceListItemId ? { ...x, ...patch } : x)));
 
   // --- Step 3: checklist + note ---------------------------------------------------
   const [taskDone, setTaskDone] = useState<Map<number, boolean>>(
@@ -195,7 +222,7 @@ function RegisterFlow({
   const todayDay = useMemo(
     () => ({
       date: appointment.startAt,
-      labor: lines.map((l) => ({
+      labor: activeLines.map((l) => ({
         resourceId: l.resourceId,
         name: l.name,
         type: l.type,
@@ -204,10 +231,10 @@ function RegisterFlow({
         vatRate: context.laborVatRate,
       })),
       extras: extras
-        .filter((e) => parseNum(e.quantity) > 0)
-        .map((e) => ({ ...e, quantity: parseNum(e.quantity) })),
+        .filter((e) => parseNum(e.quantity) > 0 && parseNum(e.unitPrice) >= 0)
+        .map((e) => ({ ...e, quantity: parseNum(e.quantity), unitPrice: parseNum(e.unitPrice) })),
     }),
-    [appointment.startAt, lines, extras, context.laborVatRate],
+    [appointment.startAt, activeLines, extras, context.laborVatRate],
   );
   const preview = useMemo(() => {
     try {
@@ -221,7 +248,7 @@ function RegisterFlow({
   const completeMutation = useMutation({
     mutationFn: () => {
       const input: CompletionInput = {
-        resources: lines
+        resources: activeLines
           .filter((l) => l.registeredHours > 0 || l.invoicedHours > 0)
           .map((l) => ({ resourceId: l.resourceId, registeredHours: l.registeredHours, invoicedHours: l.invoicedHours })),
         extras: todayDay.extras.map((e) => ({
@@ -289,9 +316,36 @@ function RegisterFlow({
             {plannedLines.length === 0 && (
               <p className="text-sm text-gray-500">Er waren geen resources ingepland op deze todo.</p>
             )}
-            {plannedLines.map((l) => (
-              <ResourceHours key={l.resourceId} line={l} onChange={(patch) => updateLine(l.resourceId, patch)} />
-            ))}
+            {plannedLines.map((l) =>
+              l.absent ? (
+                <div
+                  key={l.resourceId}
+                  className="flex items-center justify-between gap-2 border-b border-gray-100 py-2 text-sm last:border-0"
+                >
+                  <span className="text-gray-400 line-through">
+                    {l.type === "PERSON" ? "👷" : "🚜"} {l.name}
+                  </span>
+                  <span className="flex items-center gap-3">
+                    <span className="text-xs text-gray-400">niet mee</span>
+                    <button
+                      type="button"
+                      onClick={() => updateLine(l.resourceId, { absent: false })}
+                      className="rounded-md border border-gray-300 px-2.5 py-1.5 text-xs text-gray-700 active:bg-gray-50"
+                    >
+                      ↩ toch mee
+                    </button>
+                  </span>
+                </div>
+              ) : (
+                <ResourceHours
+                  key={l.resourceId}
+                  line={l}
+                  onChange={(patch) => updateLine(l.resourceId, patch)}
+                  onRemove={() => updateLine(l.resourceId, { absent: true })}
+                  removeLabel="niet mee"
+                />
+              ),
+            )}
           </Card>
           <ExtraResourceCard
             title="👷 Extra personen"
@@ -321,61 +375,94 @@ function RegisterFlow({
 
       {step === 1 && (
         <div className="space-y-3">
-          <Card title="Artikels aanrekenen? (optioneel)">
-            {(priceList ?? []).length === 0 && <p className="text-sm text-gray-500">Geen artikels.</p>}
-            <ul className="divide-y divide-gray-100">
-              {(priceList ?? []).map((p) => {
-                const line = extras.find((e) => e.priceListItemId === p.id);
-                return (
-                  <li key={p.id} className="flex items-center gap-3 py-2">
-                    <label className="flex min-w-0 flex-1 items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="h-5 w-5 accent-brand-600"
-                        checked={Boolean(line)}
-                        onChange={(e) =>
-                          setExtras((list) =>
-                            e.target.checked
-                              ? [
-                                  ...list,
-                                  {
-                                    priceListItemId: p.id,
-                                    description: p.name,
-                                    quantity: "1",
-                                    unit: p.unit,
-                                    unitPrice: p.unitPrice,
-                                    vatRate: p.vatRate,
-                                  },
-                                ]
-                              : list.filter((x) => x.priceListItemId !== p.id),
-                          )
-                        }
-                      />
-                      <span className="min-w-0">
-                        <span className="block truncate">{p.name}</span>
-                        <span className="text-xs text-gray-400">
-                          {euro.format(p.unitPrice)}/{p.unit}
-                        </span>
-                      </span>
-                    </label>
-                    {line && (
-                      <div className="w-20">
-                        <TextInput
-                          inputMode="decimal"
-                          aria-label={`Aantal ${p.name}`}
-                          value={line.quantity}
-                          onChange={(e) =>
-                            setExtras((list) =>
-                              list.map((x) => (x.priceListItemId === p.id ? { ...x, quantity: e.target.value } : x)),
-                            )
-                          }
-                        />
+          {extras.length > 0 && (
+            <Card title={`Gekozen artikels (${extras.length})`}>
+              <ul className="divide-y divide-gray-100">
+                {extras.map((x) => {
+                  const lineTotal = parseNum(x.quantity) * parseNum(x.unitPrice);
+                  return (
+                    <li key={x.priceListItemId} className="py-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium leading-snug">{x.description}</p>
+                        <button
+                          type="button"
+                          onClick={() => setExtras((list) => list.filter((y) => y.priceListItemId !== x.priceListItemId))}
+                          className="shrink-0 text-xs text-red-500"
+                        >
+                          verwijderen
+                        </button>
                       </div>
-                    )}
-                  </li>
-                );
-              })}
+                      <div className="mt-1.5 flex flex-wrap items-end gap-2">
+                        <label className="block">
+                          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                            Aantal ({x.unit})
+                          </span>
+                          <TextInput
+                            inputMode="decimal"
+                            aria-label={`Aantal ${x.description}`}
+                            value={x.quantity}
+                            onChange={(e) => updateArticle(x.priceListItemId, { quantity: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="!w-24 text-base"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                            Prijs/{x.unit} (€, excl. btw)
+                          </span>
+                          <TextInput
+                            inputMode="decimal"
+                            aria-label={`Prijs ${x.description}`}
+                            value={x.unitPrice}
+                            onChange={(e) => updateArticle(x.priceListItemId, { unitPrice: e.target.value })}
+                            onFocus={(e) => e.target.select()}
+                            className="!w-28 text-base"
+                          />
+                        </label>
+                        <span className="pb-2 text-sm text-gray-600">
+                          = {Number.isFinite(lineTotal) ? euro.format(lineTotal) : "–"}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          )}
+          <Card title="Artikel toevoegen (optioneel)">
+            <TextInput
+              type="search"
+              placeholder="Zoek op naam, bv. graszaad…"
+              value={articleSearch}
+              onChange={(e) => setArticleSearch(e.target.value)}
+              className="text-base"
+            />
+            {(priceList ?? []).length === 0 && <p className="mt-2 text-sm text-gray-500">Geen artikels.</p>}
+            <ul className="mt-1 divide-y divide-gray-100">
+              {articleResults.results.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => addArticle(p)}
+                    className="flex w-full items-center justify-between gap-3 py-2.5 text-left text-sm active:bg-gray-50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate">{p.name}</span>
+                      <span className="text-xs text-gray-400">
+                        {euro.format(p.unitPrice)}/{p.unit} · {p.vatRate}% btw
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-lg text-brand-600">＋</span>
+                  </button>
+                </li>
+              ))}
             </ul>
+            {articleResults.more && (
+              <p className="mt-1 text-xs text-gray-400">Meer artikels gevonden — typ verder om te verfijnen.</p>
+            )}
+            {articleSearch && articleResults.results.length === 0 && (
+              <p className="mt-2 text-sm text-gray-500">Geen artikels voor &quot;{articleSearch}&quot;.</p>
+            )}
           </Card>
           <Nav onBack={() => setStep(0)} onNext={() => setStep(2)} />
         </div>
@@ -525,7 +612,7 @@ function RegisterFlow({
           ) : (
             <Card title="Vandaag geregistreerd">
               <ul className="divide-y divide-gray-100 text-sm">
-                {lines
+                {activeLines
                   .filter((l) => l.registeredHours > 0 || l.invoicedHours > 0)
                   .map((l) => (
                     <li key={l.resourceId} className="flex justify-between py-1.5">
@@ -591,10 +678,12 @@ function ResourceHours({
   line,
   onChange,
   onRemove,
+  removeLabel = "verwijderen",
 }: {
   line: ResourceLine;
   onChange: (patch: Partial<ResourceLine>) => void;
   onRemove?: () => void;
+  removeLabel?: string;
 }) {
   return (
     <div className="border-b border-gray-100 py-2 last:border-0">
@@ -603,8 +692,12 @@ function ResourceHours({
           {line.type === "PERSON" ? "👷" : "🚜"} {line.name}
         </p>
         {onRemove && (
-          <button type="button" onClick={onRemove} className="text-xs text-red-500">
-            verwijderen
+          <button
+            type="button"
+            onClick={onRemove}
+            className="rounded-md px-2 py-1 text-xs text-red-500 active:bg-red-50"
+          >
+            {removeLabel}
           </button>
         )}
       </div>
