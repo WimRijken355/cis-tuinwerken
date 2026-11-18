@@ -7,10 +7,10 @@ import type { ChecklistItemDto } from "@/lib/schemas/checklist";
 import { Button, ErrorNote, TextInput } from "./ui";
 
 /**
- * Settings section to manage the checklist master list: add, rename,
+ * Manages the checklist master list (page /checklist): add, rename,
  * reorder, (de)activate and delete standard tasks.
  */
-export function ChecklistSettingsSection() {
+export function ChecklistManager() {
   const queryClient = useQueryClient();
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -58,8 +58,7 @@ export function ChecklistSettingsSection() {
 
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="font-semibold">Checklist</h2>
-      <p className="mt-1 text-sm text-gray-600">
+      <p className="text-sm text-gray-600">
         Standaardtaken die je aanvinkt bij een todo of bij terugkerend werk (bv.
         &quot;Haag scheren&quot;, &quot;Snoeiafval afvoeren&quot;). Een bestaande todo houdt
         de naam die de taak had toen hij werd toegevoegd.

@@ -18,7 +18,7 @@ krijgen automatisch een **herinneringsmail** de dag vóór je langskomt.
 - Vink "Vertrouw dit toestel 30 dagen" aan op je eigen telefoon/pc, dan hoef
   je niet elke keer een code in te tikken.
 - Authenticator kwijt? Log in met een herstelcode, en stel daarna 2FA opnieuw
-  in via **Instellingen → Beveiliging**.
+  in via **Instellingen → Algemeen → Beveiliging**.
 
 ## Op je telefoon installeren
 
@@ -49,7 +49,7 @@ dan als een echte app, zonder adresbalk.
   (de klantfiche waarschuwt met ⚠ als iets ontbreekt)
 
 Had je al klanten in EenvoudigFactureren? Importeer ze in één keer via
-**Instellingen → Importeer klanten uit EF**.
+**Instellingen → Algemeen → Importeer klanten uit EF**.
 
 ## Werk plannen
 
@@ -83,7 +83,7 @@ hoeft er nooit meer zelf aan te denken.
 ## Checklist
 
 De standaardtaken (bv. "Haag scheren", "Snoeiafval afvoeren") beheer je in
-**Instellingen → Checklist**: toevoegen, hernoemen, volgorde (▲▼),
+**Instellingen → Checklist** (eigen pagina): toevoegen, hernoemen, volgorde (▲▼),
 deactiveren. Bij een todo of terugkerend werk vink je aan welke taken van
 toepassing zijn. Op de klantfiche vink je ze af zodra ze gedaan zijn
 (*Checklist 2/5*).
@@ -99,14 +99,16 @@ EenvoudigFactureren zelf — zo hou je de controle.
 
 ## Instellingen
 
-| Onderdeel | Wat je er regelt |
+Alles wat de app configureert staat onder **Instellingen**: in de zijbalk een
+uitklapbaar submenu, op je gsm via **Meer** en dan de tabbladen bovenaan.
+
+| Submenu | Wat je er regelt |
 |---|---|
-| Tarieven | je eigen uurtarief, btw op arbeid (21% of 6%), betaaltermijn |
-| Artikels | link naar de aparte pagina **Artikels** (menu, of via Instellingen op gsm): de extra's die je kan aanrekenen (naam, eenheid, prijs, btw) + import uit EenvoudigFactureren |
-| Resources | link naar de aparte pagina **Resources** (menu, of via Instellingen op gsm): personen en machines + hun uurtarief. Personen zijn de picklist bij het registreren; bij een todo kies je welke resources nodig zijn en hoeveel uren elk |
-| Herinneringsmail | verzenduur en de teksten (met {{naam}}, {{datum}}, {{uur}}, {{werk}}) |
-| EF-import | bestaande klanten uit EenvoudigFactureren binnenhalen |
-| Beveiliging | vertrouwde toestellen bekijken/intrekken, 2FA opnieuw instellen |
+| Algemeen | tarieven (eigen uurtarief, btw op arbeid 21% of 6%, betaaltermijn), herinneringsmail (verzenduur + teksten met {{naam}}, {{datum}}, {{uur}}, {{werk}}), klanten importeren uit EenvoudigFactureren, beveiliging (vertrouwde toestellen, 2FA opnieuw instellen) |
+| Artikels | de extra's die je kan aanrekenen (naam, eenheid, prijs, btw) + import uit EenvoudigFactureren |
+| Resources | personen en machines + hun uurtarief. Personen zijn de picklist bij het registreren; bij een todo of terugkerend werk kies je welke resources nodig zijn en hoeveel uren elk |
+| Checklist | de standaardtaken die je bij een todo of terugkerend werk aanvinkt |
+| Gebruikers | wie mag aanmelden en met welke rol (enkel voor beheerders) |
 
 Goed om te weten: tarieven worden **vastgeklikt per registratie**. Verhoog je
 later je uurtarief of een prijs, dan veranderen oude registraties en facturen

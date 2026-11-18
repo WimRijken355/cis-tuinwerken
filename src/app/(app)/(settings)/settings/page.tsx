@@ -1,7 +1,6 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   Button,
@@ -12,7 +11,6 @@ import {
   TextArea,
   TextInput,
 } from "@/components/ui";
-import { ChecklistSettingsSection } from "@/components/checklist-settings";
 import { apiGet, apiSend } from "@/lib/api-client";
 import type { Settings } from "@/lib/schemas/settings";
 import { APP_VERSION } from "@/lib/version";
@@ -49,9 +47,6 @@ export default function SettingsPage() {
       {settings && (
         <div className="space-y-6">
           <RatesSection settings={settings} />
-          <ProductsLinkSection />
-          <ResourcesLinkSection />
-          <ChecklistSettingsSection />
           <ReminderSection settings={settings} />
           <EfImportSection efConfigured={settings.efConfigured} />
           <SecuritySection />
@@ -61,41 +56,6 @@ export default function SettingsPage() {
         </div>
       )}
     </div>
-  );
-}
-
-/**
- * Pointer to the separate products page. The sidebar has a menu item for it,
- * but the mobile bottom tabs do not, so this keeps it reachable on a phone.
- */
-function ProductsLinkSection() {
-  return (
-    <section className="rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="font-semibold">Artikels</h2>
-      <p className="mt-1 text-sm text-gray-600">
-        De prijslijst met extra&apos;s (machinegebruik, afvoer, ...) en de import
-        uit EenvoudigFactureren staan nu op een aparte pagina.
-      </p>
-      <Link href="/products" className="mt-2 inline-block text-sm text-brand-600 hover:underline">
-        Artikels beheren →
-      </Link>
-    </section>
-  );
-}
-
-/** Pointer to the Resources page (people + machines); same reason as ProductsLinkSection. */
-function ResourcesLinkSection() {
-  return (
-    <section className="rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="font-semibold">Resources</h2>
-      <p className="mt-1 text-sm text-gray-600">
-        Medewerkers en machines die je inplant en aanrekent staan nu op een
-        aparte pagina.
-      </p>
-      <Link href="/resources" className="mt-2 inline-block text-sm text-brand-600 hover:underline">
-        Resources beheren →
-      </Link>
-    </section>
   );
 }
 
