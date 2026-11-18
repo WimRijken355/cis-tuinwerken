@@ -82,7 +82,13 @@ Had je al klanten in EenvoudigFactureren? Importeer ze in één keer via
    moet er iets gehuurd worden?) en vink
    **Groeperen per plaats** aan om werk in dezelfde regio samen te plannen.
    Blokken in de kalender die niet aan de filter voldoen, worden vager getoond.
-7. Onderweg herplannen doe je via **Komende dagen** op je telefoon: tik een
+7. **Week of maand**: rechts boven de kalender wissel je tussen de week- en
+   de maandweergave (de app onthoudt je keuze). In de maand zie je per dag hoe
+   vol hij zit: **groen = vrij**, oranje = deels, rood = vol (8 u of meer). Met
+   een resourcefilter (bv. Wim) telt enkel diens werk mee — zo zie je wanneer
+   iemand nog beschikbaar is. Sleep je een todo op een dag, dan start hij om
+   08:00; klik op een dagnummer om naar die week te gaan.
+8. Onderweg herplannen doe je via **Komende dagen** op je telefoon: tik een
    afspraak aan en kies een nieuwe dag/uur — handig bij slecht weer.
 
 De klant krijgt **automatisch een e-mail op de avond vóór de afspraak**

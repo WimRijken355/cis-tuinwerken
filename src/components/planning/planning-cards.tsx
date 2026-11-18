@@ -1,6 +1,6 @@
 "use client";
 
-import { formatMinutesAsHours, partLabel, todoColor } from "@/lib/planning";
+import { dayLoad, formatMinutesAsHours, partLabel, todoColor, WORKDAY_MINUTES } from "@/lib/planning";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { TodoDto, TodoResourceDto } from "@/lib/schemas/todos";
 
@@ -270,6 +270,73 @@ export function SidebarTodoCard({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Compact one-line block for the month view: colour, time, name, x/y and flags. */
+export function MonthEventContent({
+  appointment: a,
+  timeText,
+  opacity = 1,
+  highlighted = false,
+  onDetails,
+}: {
+  appointment: AppointmentDto;
+  timeText: string;
+  opacity?: number;
+  highlighted?: boolean;
+  onDetails?: () => void;
+}) {
+  const color = todoColor(a.todoId, a.isLoose);
+  const part = partLabel(a.part);
+  return (
+    <div
+      className="flex w-full items-center gap-1 overflow-hidden rounded px-1 text-[11px] leading-5"
+      style={{
+        ...blockStyle(color, { confirmed: a.confirmed, reservation: a.reservation, done: a.status === "DONE" }),
+        opacity,
+        boxShadow: highlighted ? "0 0 0 2px #facc15" : undefined,
+      }}
+      title={`${a.isLoose ? a.todoTitle : `${a.customerName} — ${a.todoTitle}`} (${formatMinutesAsHours(a.durationMinutes)})`}
+      onDoubleClick={onDetails}
+    >
+      <span className="shrink-0 font-semibold tabular-nums">{timeText}</span>
+      <span className="truncate">{a.isLoose ? a.todoTitle : a.customerName}</span>
+      <span className="ml-auto shrink-0 opacity-90">{formatMinutesAsHours(a.durationMinutes)}</span>
+      {part && <span className="shrink-0 font-bold">{part}</span>}
+      {a.confirmed && <span className="shrink-0" title="Bevestigd">✓</span>}
+      {a.reservation && <span className="shrink-0" title="Reservatie">⏳</span>}
+      {highlighted && onDetails && (
+        <button
+          type="button"
+          data-action="details"
+          className="shrink-0 rounded bg-white/95 px-1 text-[10px] font-semibold text-gray-800"
+          title="Details"
+        >
+          ⓘ
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Top of a month day cell: day number + how full the day is (free / partial / full). */
+export function DayCellTop({ dayNumberText, minutes }: { dayNumberText: string; minutes: number }) {
+  const load = dayLoad(minutes);
+  const percent = Math.min(100, Math.round((minutes / WORKDAY_MINUTES) * 100));
+  const tone = {
+    free: { bar: "bg-green-500", text: "text-green-700", label: "vrij" },
+    partial: { bar: "bg-amber-500", text: "text-amber-700", label: formatMinutesAsHours(minutes) },
+    full: { bar: "bg-red-500", text: "text-red-700", label: `vol · ${formatMinutesAsHours(minutes)}` },
+  }[load];
+  return (
+    <div className="flex w-full items-center gap-1.5 px-1 pt-0.5" title={`${formatMinutesAsHours(minutes)} gepland`}>
+      <span className="text-sm font-medium">{dayNumberText}</span>
+      <span className={`text-[10px] font-medium ${tone.text}`}>{tone.label}</span>
+      <span className="ml-auto h-1.5 w-10 overflow-hidden rounded-full bg-gray-200">
+        <span className={`block h-full ${tone.bar}`} style={{ width: `${load === "free" ? 100 : percent}%` }} />
+      </span>
     </div>
   );
 }

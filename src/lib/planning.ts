@@ -254,3 +254,37 @@ export function splitOverWorkdays(
   }
   return blocks;
 }
+
+// ---------------------------------------------------------------------------
+// Month view: load per day ("which days are still free?")
+// ---------------------------------------------------------------------------
+
+/** Planned minutes per Brussels calendar day ("yyyy-MM-dd"), cancelled blocks excluded. */
+export function minutesPerDay(
+  blocks: { startAt: string; durationMinutes: number; status: "PLANNED" | "DONE" | "CANCELLED" }[],
+): Map<string, number> {
+  const perDay = new Map<string, number>();
+  for (const b of blocks) {
+    if (b.status === "CANCELLED") continue;
+    const day = DateTime.fromISO(b.startAt).setZone(ZONE).toISODate()!;
+    perDay.set(day, (perDay.get(day) ?? 0) + b.durationMinutes);
+  }
+  return perDay;
+}
+
+export type DayLoad = "free" | "partial" | "full";
+
+/** Free (nothing planned), partial, or full (a working day or more). */
+export function dayLoad(minutes: number): DayLoad {
+  if (minutes <= 0) return "free";
+  return minutes >= WORKDAY_MINUTES ? "full" : "partial";
+}
+
+/**
+ * Brussels calendar day ("yyyy-MM-dd") of a real Date — e.g. the date of a
+ * month cell (local midnight). Not toISOString(): that is UTC and would give
+ * the previous day for a Brussels midnight.
+ */
+export function dayKey(date: Date): string {
+  return DateTime.fromJSDate(date).setZone(ZONE).toISODate()!;
+}

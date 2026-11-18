@@ -50,6 +50,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - Zijbalkfilters (tekst op titel/klant/plaats, meerdere plaatsen, meerdere resources — binnen een filter OF, tussen filters EN) + groeperen per plaats: `matchesPlanningFilter()` / `groupByCity()` in `src/lib/planning.ts`. Dezelfde predicate maakt niet-passende blokken in het raster transparant.
 - **Focus**: één klik (zijbalk of blok) duidt een todo aan (`toggleFocus()`/`blockEmphasis()`), dialogen openen enkel via expliciete knoppen of dubbelklik. `selectMinDistance` zorgt dat een gewone klik op een leeg vak geen nieuwe todo start.
 - Todo volledig bewerken (ook van klant wisselen / omzetten naar losse todo): `TodoEditor` (`src/components/todo-editor.tsx`), gedeeld door `NewTodoDialog` en `TodoEditDialog`. Server-regel `resolveTodoOwner()`: contactvelden enkel vervangen als ze in de body zitten; eigenaar wijzigen geweigerd (409) zodra er een registratie is.
+- Week/maand-toggle (`dayGridMonth`): bezetting per dag via `minutesPerDay()`/`dayLoad()`, respecteert de filter. **Valkuil**: de datum van een maandcel is een echte lokale `Date` (middernacht Brussel) — gebruik `dayKey()`, nooit `toISOString().slice(0,10)` (geeft de vorige dag).
 - In v7 heten event-kleuren `color`/`className` (geen `backgroundColor`); de blokken worden volledig getekend door `PlanningEventContent` (`src/components/planning/`).
 
 ## Demodata

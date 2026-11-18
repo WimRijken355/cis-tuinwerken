@@ -11,19 +11,27 @@ import FullCalendar, {
 import interactionPlugin, { Draggable } from "@fullcalendar/react/interaction";
 import nlLocale from "@fullcalendar/react/locales/nl";
 import classicTheme from "@fullcalendar/react/themes/classic";
+import dayGridPlugin from "@fullcalendar/react/daygrid";
 import timeGridPlugin from "@fullcalendar/react/timegrid";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { PlanningEventContent, SidebarTodoCard } from "@/components/planning/planning-cards";
+import {
+  DayCellTop,
+  MonthEventContent,
+  PlanningEventContent,
+  SidebarTodoCard,
+} from "@/components/planning/planning-cards";
 import { AppointmentDialog, NewTodoDialog, PlanDialog, TodoEditDialog } from "@/components/planning/planning-dialogs";
 import { PlanningFilters } from "@/components/planning/planning-filters";
 import { EmptyState, ErrorNote, Spinner } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import {
   blockEmphasis,
+  dayKey,
+  minutesPerDay,
   EMPTY_PLANNING_FILTER,
   groupByCity,
   isFilterActive,
@@ -48,6 +56,10 @@ import type { TodoDto } from "@/lib/schemas/todos";
  *   Details/plan dialogs open via explicit buttons (or a double click on a
  *   block), never on a plain click. Escape or a click on an empty slot clears.
  */
+const VIEW_STORAGE_KEY = "tc-planning-view";
+/** Start time when a todo is dropped on a whole day in the month view. */
+const DEFAULT_START_HOUR = 8;
+
 export default function PlanningPage() {
   const queryClient = useQueryClient();
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
@@ -61,7 +73,10 @@ export default function PlanningPage() {
   const [focusTodoId, setFocusTodoId] = useState<number | null>(null);
   /** Todo open in the full editor (null = closed). */
   const [editTodoId, setEditTodoId] = useState<number | null>(null);
-  const calendarApiRef = useRef<{ gotoDate: (date: Date | string) => void } | null>(null);
+  const calendarApiRef = useRef<{
+    gotoDate: (date: Date | string) => void;
+    changeView: (view: string, date?: Date | string) => void;
+  } | null>(null);
 
   const { data: todos, isLoading: todosLoading } = useQuery({
     queryKey: ["todos", "plannable"],
@@ -114,6 +129,23 @@ export default function PlanningPage() {
       filter,
     );
   const selected = selectedId !== null ? (byId.get(String(selectedId)) ?? null) : null;
+
+  // Month view: planned time per day (respecting the filter, e.g. one resource).
+  const loadPerDay = useMemo(
+    () => minutesPerDay((appointments ?? []).filter((a) => matchesFilter(a))),
+    [appointments, filter],
+  );
+
+  // Remember week/month per browser (a viewer convenience; may be unavailable).
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(VIEW_STORAGE_KEY) === "dayGridMonth") {
+        calendarApiRef.current?.changeView("dayGridMonth");
+      }
+    } catch {
+      // storage blocked: keep the week view
+    }
+  }, []);
 
   // The focused todo, wherever it is: in the sidebar list (maybe hidden by the
   // filter), or fully planned and only visible as blocks in the grid.
@@ -184,7 +216,11 @@ export default function PlanningPage() {
 
   function onDrop(info: DropInfo) {
     const todoId = Number(info.draggedEl.dataset.todoId);
-    if (todoId) dropMutation.mutate({ todoId, startAt: info.date.toISOString() });
+    if (!todoId) return;
+    // Dropped on a whole day (month view): start at 08:00 that day.
+    const start = new Date(info.date);
+    if (info.allDay) start.setHours(DEFAULT_START_HOUR, 0, 0, 0);
+    dropMutation.mutate({ todoId, startAt: start.toISOString() });
   }
 
   function onEventDrop(arg: EventDropInfo) {
@@ -321,7 +357,7 @@ export default function PlanningPage() {
         {mutationError && <ErrorNote message={(mutationError as Error).message} />}
         <div className="min-h-0 flex-1 rounded-lg border border-gray-200 bg-white p-2 [&_.fc]:h-full">
           <FullCalendar
-            plugins={[timeGridPlugin, interactionPlugin, classicTheme]}
+            plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin, classicTheme]}
             initialView="timeGridWeek"
             locale={nlLocale}
             height="100%"
@@ -340,9 +376,30 @@ export default function PlanningPage() {
             selectMirror
             // A new todo needs a real drag; a plain click on an empty slot only clears the focus.
             selectMinDistance={8}
-            headerToolbar={{ left: "prev,next today", center: "title", right: "" }}
+            headerToolbar={{ left: "prev,next today", center: "title", right: "timeGridWeek,dayGridMonth" }}
+            views={{
+              // Month: overview of which days are still free; planning details in the week view.
+              dayGridMonth: { selectable: false, eventDurationEditable: false, dayMaxEvents: 4 },
+            }}
+            navLinks
+            navLinkDayClick={(date: Date) => calendarApiRef.current?.changeView("timeGridWeek", date)}
+            dayCellTopContent={(info) =>
+              info.view.type === "dayGridMonth" ? (
+                <DayCellTop
+                  dayNumberText={info.dayNumberText}
+                  minutes={loadPerDay.get(dayKey(info.date)) ?? 0}
+                />
+              ) : (
+                true
+              )
+            }
             datesSet={(info) => {
               calendarApiRef.current = info.view.calendar;
+              try {
+                localStorage.setItem(VIEW_STORAGE_KEY, info.view.type);
+              } catch {
+                // storage blocked: not remembered, no problem
+              }
               setRange({ from: info.start.toISOString(), to: info.end.toISOString() });
             }}
             events={appointments?.map((a) => ({
@@ -360,6 +417,17 @@ export default function PlanningPage() {
               const a = byId.get(arg.event.id);
               if (!a) return true;
               const emphasis = blockEmphasis({ todoId: a.todoId, focusTodoId, matchesFilter: matchesFilter(a) });
+              if (arg.view.type === "dayGridMonth") {
+                return (
+                  <MonthEventContent
+                    appointment={a}
+                    timeText={arg.timeText}
+                    opacity={emphasis.opacity}
+                    highlighted={emphasis.highlighted}
+                    onDetails={() => setSelectedId(a.id)}
+                  />
+                );
+              }
               return (
                 <PlanningEventContent
                   appointment={a}

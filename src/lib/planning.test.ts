@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   applyPlanningFlags,
   blockEmphasis,
+  dayKey,
+  dayLoad,
+  minutesPerDay,
   toggleFocus,
   EMPTY_PLANNING_FILTER,
   groupByCity,
@@ -236,5 +239,36 @@ describe("duration as hours + quarter minutes", () => {
     const blocks = splitOverWorkdays("2026-11-19", "20:00", 10 * 60);
     // Every day starts at 20:00 and stops at midnight: 4 h + 4 h + 2 h.
     expect(blocks.map((b) => b.durationMinutes)).toEqual([240, 240, 120]);
+  });
+});
+
+describe("month view load per day", () => {
+  it("sums planned minutes per Brussels day, ignoring cancelled blocks", () => {
+    const perDay = minutesPerDay([
+      { startAt: "2026-11-19T07:00:00Z", durationMinutes: 480, status: "PLANNED" },
+      { startAt: "2026-11-20T07:00:00Z", durationMinutes: 120, status: "PLANNED" },
+      { startAt: "2026-11-20T13:00:00Z", durationMinutes: 60, status: "DONE" },
+      { startAt: "2026-11-20T15:00:00Z", durationMinutes: 999, status: "CANCELLED" },
+      // 23:30 UTC on the 21st is already the 22nd in Brussels.
+      { startAt: "2026-11-21T23:30:00Z", durationMinutes: 30, status: "PLANNED" },
+    ]);
+    expect(Object.fromEntries(perDay)).toEqual({ "2026-11-19": 480, "2026-11-20": 180, "2026-11-22": 30 });
+  });
+
+  it("classifies a day as free, partial or full", () => {
+    expect(dayLoad(0)).toBe("free");
+    expect(dayLoad(180)).toBe("partial");
+    expect(dayLoad(480)).toBe("full");
+    expect(dayLoad(600)).toBe("full");
+  });
+});
+
+describe("dayKey", () => {
+  it("uses the Brussels calendar day, not the UTC one", () => {
+    // Brussels midnight of 20 Nov 2026 = 19 Nov 23:00 UTC.
+    expect(dayKey(new Date("2026-11-19T23:00:00Z"))).toBe("2026-11-20");
+    expect(new Date("2026-11-19T23:00:00Z").toISOString().slice(0, 10)).toBe("2026-11-19"); // the trap
+    // Summer time (UTC+2).
+    expect(dayKey(new Date("2026-07-14T22:00:00Z"))).toBe("2026-07-15");
   });
 });
