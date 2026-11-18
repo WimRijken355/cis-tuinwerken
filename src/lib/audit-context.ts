@@ -22,7 +22,18 @@ interface AuditScope {
   userId: number | null;
 }
 
-const storage = new AsyncLocalStorage<AuditScope>();
+/**
+ * Process-wide singleton, shared via globalThis — NOT a plain module-level
+ * `new AsyncLocalStorage()`. Next.js bundles instrumentation.ts (background
+ * jobs) and the route handlers separately, so this module can be loaded more
+ * than once. The Prisma client (db.ts) is itself cached on globalThis and was
+ * first created from the instrumentation bundle: its audit hook then read
+ * *that* bundle's storage, while requireUser() wrote into the route bundle's
+ * storage — so every change was logged as "system" (fixed in v0.13.1).
+ */
+const STORAGE_KEY = Symbol.for("tuinwerken.auditContext.storage");
+const globalStore = globalThis as unknown as { [STORAGE_KEY]?: AsyncLocalStorage<AuditScope> };
+const storage = (globalStore[STORAGE_KEY] ??= new AsyncLocalStorage<AuditScope>());
 
 /**
  * Installs a fresh scope in the *current* async context. Must be called
