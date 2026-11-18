@@ -201,6 +201,7 @@ uitklapbaar submenu, op je gsm via **Meer** en dan de tabbladen bovenaan.
 | Resources | personen en machines + hun uurtarief. Personen zijn de picklist bij het registreren; bij een todo of terugkerend werk kies je welke resources nodig zijn en hoeveel uren elk |
 | Checklist | de standaardtaken die je bij een todo of terugkerend werk aanvinkt |
 | Gebruikers | wie mag aanmelden en met welke rol (enkel voor beheerders) |
+| Audittrail | wie wat wanneer gewijzigd heeft, met filters (enkel voor beheerders, enkel op de computer) |
 
 Goed om te weten: tarieven worden **vastgeklikt per registratie**. Verhoog je
 later je uurtarief of een prijs, dan veranderen oude registraties en facturen

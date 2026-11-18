@@ -26,8 +26,6 @@ export const MAIN_ITEMS: NavItem[] = [
   { href: "/customers", label: "Klanten", icon: "👥" },
   { href: "/invoices", label: "Facturen", icon: "🧾" },
   { href: "/dashboard", label: "Dashboard", icon: "📊", desktopOnly: true },
-  // Admin-only, not a field-use flow — kept out of the mobile bottom tabs.
-  { href: "/audit-log", label: "Audittrail", icon: "📜", desktopOnly: true, adminOnly: true },
 ];
 
 /**
@@ -42,6 +40,8 @@ export const SETTINGS_ITEMS: NavItem[] = [
   { href: "/checklist", label: "Checklist", icon: "☑️" },
   { href: "/loose-todo-presets", label: "Losse todo's", icon: "📌" },
   { href: "/users", label: "Gebruikers", icon: "🧑‍🤝‍🧑", adminOnly: true },
+  // Admin-only, a wide table — not in the mobile settings tabs.
+  { href: "/audit-log", label: "Audittrail", icon: "📜", desktopOnly: true, adminOnly: true },
 ];
 
 export const SETTINGS_GROUP = { label: "Instellingen", shortLabel: "Meer", icon: "⚙️" };

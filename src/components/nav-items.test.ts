@@ -7,7 +7,7 @@ describe("navigation items", () => {
     expect(MAIN_ITEMS.some((i) => i.href === START_PATH)).toBe(true);
   });
 
-  it("groups artikels, resources, checklist, losse todo's and gebruikers under Instellingen", () => {
+  it("groups artikels, resources, checklist, losse todo's, gebruikers and audittrail under Instellingen", () => {
     expect(SETTINGS_ITEMS.map((i) => i.href)).toEqual([
       "/settings",
       "/products",
@@ -15,6 +15,7 @@ describe("navigation items", () => {
       "/checklist",
       "/loose-todo-presets",
       "/users",
+      "/audit-log",
     ]);
     // ...and none of them is also a top-level item.
     const main = new Set(MAIN_ITEMS.map((i) => i.href));
@@ -25,6 +26,7 @@ describe("navigation items", () => {
     expect(isSettingsPath("/checklist")).toBe(true);
     expect(isSettingsPath("/resources")).toBe(true);
     expect(isSettingsPath("/users/3")).toBe(true);
+    expect(isSettingsPath("/audit-log")).toBe(true);
     expect(isSettingsPath("/customers")).toBe(false);
     expect(isSettingsPath("/settingsx")).toBe(false);
   });
@@ -37,7 +39,8 @@ describe("navigation items", () => {
   it("hides admin-only items for non-admins and desktop-only items on mobile", () => {
     expect(visibleItems(SETTINGS_ITEMS, false).map((i) => i.href)).not.toContain("/users");
     expect(visibleItems(SETTINGS_ITEMS, true).map((i) => i.href)).toContain("/users");
-    expect(visibleItems(MAIN_ITEMS, true, false).map((i) => i.href)).not.toContain("/audit-log");
-    expect(visibleItems(MAIN_ITEMS, true, true).map((i) => i.href)).toContain("/audit-log");
+    expect(visibleItems(SETTINGS_ITEMS, false).map((i) => i.href)).not.toContain("/audit-log");
+    expect(visibleItems(SETTINGS_ITEMS, true, false).map((i) => i.href)).not.toContain("/audit-log");
+    expect(visibleItems(SETTINGS_ITEMS, true, true).map((i) => i.href)).toContain("/audit-log");
   });
 });

@@ -147,7 +147,7 @@ export function SettingsSubnav() {
       aria-label="Instellingen"
       className="sticky top-0 z-10 -mx-0 flex gap-1 overflow-x-auto border-b border-gray-200 bg-white px-4 py-2 md:hidden"
     >
-      {visibleItems(SETTINGS_ITEMS, isAdmin).map((item) => {
+      {visibleItems(SETTINGS_ITEMS, isAdmin, false).map((item) => {
         const active = isActivePath(pathname, item.href);
         return (
           <Link
