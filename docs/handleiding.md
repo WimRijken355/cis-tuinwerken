@@ -43,7 +43,9 @@ dan als een echte app, zonder adresbalk.
    - *Factuur:* **Nu factureren** staat aan bij de laatste dag van een job (bij
      een job over meerdere dagen registreer je eerst de tussendagen). Je ziet
      exact welke regels gefactureerd worden — alle nog niet gefactureerde dagen
-     samen.
+     samen, per dag "Werkuren op …" (met ⓘ de uren per persoon, enkel ter
+     info). Per regel kan je een opmerking toevoegen, en onderaan extra
+     opmerkingsregels; die gaan mee naar EenvoudigFactureren.
 3. **Klaar!** Daarna kan je meteen een nieuwe todo voor de klant maken, met
    een voorkeursperiode (bv. april 2027). De conceptfactuur staat in
    EenvoudigFactureren. Daar kijk je ze na en maak je ze definitief.
@@ -130,7 +132,10 @@ toepassing zijn. Op de klantfiche vink je ze af zodra ze gedaan zijn
 
 ## Facturen
 
-**Facturen** toont alles wat de app heeft aangemaakt, met status:
+**Facturen** toont alles wat de app heeft aangemaakt. Tik een factuur aan voor
+de details: exact wat naar EenvoudigFactureren ging, en per dag de uren per
+resource (geregistreerd en gefactureerd) waaruit "Werkuren op …" is opgebouwd.
+De status per factuur:
 - **Concept in EF** — staat klaar in EenvoudigFactureren om na te kijken
 - **Push mislukt** — tik ↻ Opnieuw (de foutoorzaak staat erbij)
 - **Niet gesynchroniseerd** — gemaakt terwijl de synchronisatie uit stond

@@ -45,41 +45,86 @@ describe("defaultInvoiceNow", () => {
 
 describe("buildJobInvoice", () => {
   const cis = { resourceId: 1, name: "Cis", type: "PERSON" as const, hourlyRate: 45, vatRate: 21 };
-  const wim = { resourceId: 2, name: "Wim", type: "PERSON" as const, hourlyRate: 35, vatRate: 21 };
+  const wim = { resourceId: 2, name: "Wim", type: "PERSON" as const, hourlyRate: 45, vatRate: 21 };
+  const ken = { resourceId: 3, name: "Ken", type: "PERSON" as const, hourlyRate: 35, vatRate: 21 };
   const mini = { resourceId: 9, name: "Minigraver", type: "MACHINE" as const, hourlyRate: 55, vatRate: 21 };
+  const day1 = "2026-12-07T07:00:00Z";
+  const day2 = "2026-12-08T07:00:00Z";
 
-  it("sums the invoiced hours per resource over all days, with the dates", () => {
+  it("sums the people's hours per day into 'Werkuren op <datum>', machines apart per day", () => {
     const built = buildJobInvoice({
-      workTitle: "Vijver aanleggen",
       days: [
         // Given out of order on purpose.
-        { date: "2026-11-20T07:00:00Z", labor: [{ ...cis, invoicedHours: 6 }, { ...mini, invoicedHours: 4 }], extras: [] },
-        { date: "2026-11-19T07:00:00Z", labor: [{ ...cis, invoicedHours: 8 }, { ...wim, invoicedHours: 8 }, { ...mini, invoicedHours: 8 }], extras: [] },
+        { date: day2, labor: [{ ...cis, invoicedHours: 6 }, { ...mini, invoicedHours: 4 }], extras: [] },
+        { date: day1, labor: [{ ...cis, invoicedHours: 8 }, { ...wim, invoicedHours: 7.5 }, { ...mini, invoicedHours: 8 }], extras: [] },
       ],
     });
     expect(built.items).toEqual([
-      { type: "item", description: "Werkuren Cis – Vijver aanleggen (19/11, 20/11)", quantity: 14, unit: "uur", amount: 45, tax_rate: 21 },
-      { type: "item", description: "Werkuren Wim – Vijver aanleggen (19/11)", quantity: 8, unit: "uur", amount: 35, tax_rate: 21 },
-      { type: "item", description: "Minigraver – Vijver aanleggen (19/11, 20/11)", quantity: 12, unit: "uur", amount: 55, tax_rate: 21 },
+      { type: "item", description: "Werkuren op 07/12/2026", quantity: 15.5, unit: "uur", amount: 45, tax_rate: 21 },
+      { type: "item", description: "Minigraver op 07/12/2026", quantity: 8, unit: "uur", amount: 55, tax_rate: 21 },
+      { type: "item", description: "Werkuren op 08/12/2026", quantity: 6, unit: "uur", amount: 45, tax_rate: 21 },
+      { type: "item", description: "Minigraver op 08/12/2026", quantity: 4, unit: "uur", amount: 55, tax_rate: 21 },
     ]);
-    expect(built.totalExclVat).toBe(14 * 45 + 8 * 35 + 12 * 55);
+    expect(built.totalExclVat).toBe(21.5 * 45 + 12 * 55);
   });
 
-  it("leaves out resources with 0 invoiced hours (registered only)", () => {
+  it("keeps the per-person composition for consultation (not sent to EF)", () => {
     const built = buildJobInvoice({
-      workTitle: "X",
-      days: [{ date: "2026-11-19T07:00:00Z", labor: [{ ...cis, invoicedHours: 2 }, { ...wim, invoicedHours: 0 }], extras: [] }],
+      days: [{ date: day1, labor: [{ ...cis, invoicedHours: 8 }, { ...wim, invoicedHours: 7.5 }], extras: [] }],
     });
-    expect(built.items).toHaveLength(1);
+    expect(built.lines[0]).toMatchObject({
+      key: "labor|2026-12-07|45|21",
+      kind: "labor",
+      details: [
+        { name: "Cis", hours: 8 },
+        { name: "Wim", hours: 7.5 },
+      ],
+    });
+    expect(JSON.stringify(built.items)).not.toContain("Wim");
   });
 
-  it("sums extras per article and keeps money exact in cents", () => {
+  it("makes one 'Werkuren' line per hourly rate when rates differ that day", () => {
+    const built = buildJobInvoice({
+      days: [{ date: day1, labor: [{ ...cis, invoicedHours: 8 }, { ...ken, invoicedHours: 8 }], extras: [] }],
+    });
+    expect(built.items.map((i) => [i.description, i.quantity, i.amount])).toEqual([
+      ["Werkuren op 07/12/2026", 8, 45],
+      ["Werkuren op 07/12/2026", 8, 35],
+    ]);
+    expect(built.totalExclVat).toBe(8 * 45 + 8 * 35);
+  });
+
+  it("adds a remark as a text line below its line, and notes at the bottom", () => {
+    const built = buildJobInvoice({
+      days: [{ date: day1, labor: [{ ...cis, invoicedHours: 8 }, { ...mini, invoicedHours: 2 }], extras: [] }],
+      remarks: { "machine|9|2026-12-07|55|21": "incl. transport", "labor|2026-12-07|45|21": "  " },
+      notes: ["Bedankt voor het vertrouwen!", " "],
+    });
+    expect(built.items).toEqual([
+      { type: "item", description: "Werkuren op 07/12/2026", quantity: 8, unit: "uur", amount: 45, tax_rate: 21 },
+      { type: "item", description: "Minigraver op 07/12/2026", quantity: 2, unit: "uur", amount: 55, tax_rate: 21 },
+      { type: "text", description: "incl. transport" },
+      { type: "text", description: "Bedankt voor het vertrouwen!" },
+    ]);
+    // Text lines do not change the total.
+    expect(built.totalExclVat).toBe(8 * 45 + 2 * 55);
+  });
+
+  it("never loses a remark: one for a line that no longer exists becomes a note", () => {
+    const built = buildJobInvoice({
+      days: [{ date: day1, labor: [{ ...cis, invoicedHours: 1 }], extras: [] }],
+      remarks: { "machine|9|2026-12-07|55|21": "minigraver kwam niet" },
+    });
+    expect(built.notes).toEqual(["minigraver kwam niet"]);
+    expect(built.items.at(-1)).toEqual({ type: "text", description: "minigraver kwam niet" });
+  });
+
+  it("leaves out 0 invoiced hours and sums extras over the job, exact in cents", () => {
     const afvoer = { priceListItemId: 3, description: "Afvoer groenafval", unit: "m³", unitPrice: 35.1, vatRate: 21 };
     const built = buildJobInvoice({
-      workTitle: "X",
       days: [
-        { date: "2026-11-19T07:00:00Z", labor: [], extras: [{ ...afvoer, quantity: 1.5 }] },
-        { date: "2026-11-20T07:00:00Z", labor: [], extras: [{ ...afvoer, quantity: 1.5 }] },
+        { date: day1, labor: [{ ...cis, invoicedHours: 0 }], extras: [{ ...afvoer, quantity: 1.5 }] },
+        { date: day2, labor: [], extras: [{ ...afvoer, quantity: 1.5 }] },
       ],
     });
     expect(built.items).toEqual([
@@ -88,12 +133,20 @@ describe("buildJobInvoice", () => {
     expect(built.totalExclVat).toBe(105.3);
   });
 
+  it("keeps an edited article description as its own line", () => {
+    const base = { priceListItemId: 7, unit: "m²", unitPrice: 9, vatRate: 21 };
+    const built = buildJobInvoice({
+      days: [
+        { date: day1, labor: [], extras: [{ ...base, description: "Graszoden", quantity: 10 }] },
+        { date: day2, labor: [], extras: [{ ...base, description: "Graszoden schaduwmengsel", quantity: 5 }] },
+      ],
+    });
+    expect(built.items.map((i) => i.description)).toEqual(["Graszoden", "Graszoden schaduwmengsel"]);
+  });
+
   it("enforces the EF limits", () => {
     expect(() =>
-      buildJobInvoice({
-        workTitle: "X",
-        days: [{ date: "2026-11-19T07:00:00Z", labor: [{ ...cis, vatRate: 15, invoicedHours: 1 }], extras: [] }],
-      }),
+      buildJobInvoice({ days: [{ date: day1, labor: [{ ...cis, vatRate: 15, invoicedHours: 1 }], extras: [] }] }),
     ).toThrow("btw");
   });
 });
@@ -134,23 +187,5 @@ describe("searchArticles", () => {
     expect(searchArticles(items, "", new Set([2, 4])).results.map((i) => i.id)).toEqual([3, 1]);
     expect(searchArticles(items, "", new Set(), 2)).toMatchObject({ more: true });
     expect(searchArticles(items, "", new Set(), 2).results).toHaveLength(2);
-  });
-});
-
-describe("buildJobInvoice with edited article descriptions", () => {
-  it("keeps an edited description as its own line instead of merging it away", () => {
-    const base = { priceListItemId: 7, unit: "m²", unitPrice: 9, vatRate: 21 };
-    const built = buildJobInvoice({
-      workTitle: "X",
-      days: [
-        { date: "2026-11-19T07:00:00Z", labor: [], extras: [{ ...base, description: "Graszoden", quantity: 10 }] },
-        { date: "2026-11-20T07:00:00Z", labor: [], extras: [{ ...base, description: "Graszoden schaduwmengsel", quantity: 5 }] },
-        { date: "2026-11-21T07:00:00Z", labor: [], extras: [{ ...base, description: "Graszoden", quantity: 2 }] },
-      ],
-    });
-    expect(built.items.map((i) => [i.description, i.quantity])).toEqual([
-      ["Graszoden", 12],
-      ["Graszoden schaduwmengsel", 5],
-    ]);
   });
 });

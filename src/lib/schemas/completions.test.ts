@@ -45,3 +45,23 @@ describe("completionInputSchema", () => {
     expect(result.extraTasks).toHaveLength(2);
   });
 });
+
+describe("invoice remarks and note lines", () => {
+  it("accepts a remark per line key and note lines, defaulting to none", () => {
+    const base = { resources: [line(1, 1, 1)], invoiceNow: true };
+    expect(completionInputSchema.parse(base)).toMatchObject({ lineRemarks: {}, invoiceNotes: [] });
+    const parsed = completionInputSchema.parse({
+      ...base,
+      lineRemarks: { "labor|2026-12-07|45|21": "incl. snoeiwerk" },
+      invoiceNotes: [" Bedankt! "],
+    });
+    expect(parsed.lineRemarks).toEqual({ "labor|2026-12-07|45|21": "incl. snoeiwerk" });
+    expect(parsed.invoiceNotes).toEqual(["Bedankt!"]);
+  });
+
+  it("limits the length of remarks", () => {
+    expect(() =>
+      completionInputSchema.parse({ resources: [line(1, 1, 1)], invoiceNow: true, lineRemarks: { k: "x".repeat(501) } }),
+    ).toThrow();
+  });
+});

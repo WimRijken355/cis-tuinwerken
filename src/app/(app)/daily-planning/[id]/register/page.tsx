@@ -246,13 +246,20 @@ function RegisterFlow({
     }),
     [appointment.startAt, activeLines, extras, context.laborVatRate],
   );
+  // Remarks per invoice line (by line key) and extra note lines — both go to EF.
+  const [lineRemarks, setLineRemarks] = useState<Record<string, string>>({});
+  const [openRemark, setOpenRemark] = useState<string | null>(null);
+  const [invoiceNotes, setInvoiceNotes] = useState<string[]>([]);
   const preview = useMemo(() => {
     try {
-      return buildJobInvoice({ workTitle: appointment.todoTitle, days: [...context.uninvoicedDays, todayDay] });
+      return {
+        ...buildJobInvoice({ days: [...context.uninvoicedDays, todayDay], remarks: lineRemarks, notes: invoiceNotes }),
+        error: null as string | null,
+      };
     } catch (e) {
-      return { items: [], totalExclVat: 0, error: (e as Error).message };
+      return { items: [], lines: [], notes: [], totalExclVat: 0, error: (e as Error).message };
     }
-  }, [appointment.todoTitle, context.uninvoicedDays, todayDay]);
+  }, [context.uninvoicedDays, todayDay, lineRemarks, invoiceNotes]);
 
   const [result, setResult] = useState<CompleteResult | null>(null);
   const completeMutation = useMutation({
@@ -273,6 +280,8 @@ function RegisterFlow({
         extraTasks,
         note: note.trim() || undefined,
         invoiceNow,
+        lineRemarks: invoiceNow ? lineRemarks : {},
+        invoiceNotes: invoiceNow ? invoiceNotes.map((n) => n.trim()).filter(Boolean) : [],
       };
       return apiSend<CompleteResult>(`/api/appointments/${appointment.id}/complete`, "POST", input);
     },
@@ -610,24 +619,69 @@ function RegisterFlow({
 
           {invoiceNow ? (
             <Card title="Dit wordt gefactureerd">
-              {"error" in preview && preview.error ? (
-                <ErrorNote message={String(preview.error)} />
-              ) : preview.items.length === 0 ? (
+              {preview.error ? (
+                <ErrorNote message={preview.error} />
+              ) : preview.lines.length === 0 ? (
                 <p className="text-sm text-gray-500">Geen gefactureerde uren of artikels.</p>
               ) : (
                 <ul className="divide-y divide-gray-100 text-sm">
-                  {preview.items.map((item, i) => (
-                    <li key={i} className="py-2">
-                      <p className="leading-snug">{item.description}</p>
-                      <p className="flex justify-between text-xs text-gray-500">
-                        <span>
-                          {String(item.quantity).replace(".", ",")} {item.unit} × {euro.format(item.amount ?? 0)} ·{" "}
-                          {item.tax_rate}% btw
-                        </span>
-                        <span className="font-medium text-gray-800">
-                          {euro.format((item.quantity ?? 0) * (item.amount ?? 0))}
-                        </span>
-                      </p>
+                  {preview.lines.map((line) => {
+                    const item = line.item;
+                    const editing = openRemark === line.key;
+                    return (
+                      <li key={line.key} className="py-2">
+                        <p className="font-medium leading-snug">{item.description}</p>
+                        <p className="flex justify-between text-xs text-gray-500">
+                          <span>
+                            {String(item.quantity).replace(".", ",")} {item.unit} × {euro.format(item.amount ?? 0)} ·{" "}
+                            {item.tax_rate}% btw
+                          </span>
+                          <span className="font-medium text-gray-800">
+                            {euro.format((item.quantity ?? 0) * (item.amount ?? 0))}
+                          </span>
+                        </p>
+                        {line.kind === "labor" && line.details.length > 0 && (
+                          <p className="mt-0.5 text-[11px] text-gray-400" title="Enkel ter info — niet op de factuur">
+                            ⓘ {line.details.map((d) => `${d.name} ${hoursText(d.hours)}`).join(" + ")}
+                          </p>
+                        )}
+                        {editing ? (
+                          <div className="mt-1.5 flex gap-2">
+                            <TextInput
+                              autoFocus
+                              placeholder="Opmerking bij deze regel…"
+                              value={lineRemarks[line.key] ?? ""}
+                              maxLength={500}
+                              onChange={(e) => setLineRemarks((r) => ({ ...r, [line.key]: e.target.value }))}
+                              className="text-base"
+                            />
+                            <Button type="button" variant="secondary" onClick={() => setOpenRemark(null)}>
+                              OK
+                            </Button>
+                          </div>
+                        ) : line.remark ? (
+                          <button
+                            type="button"
+                            onClick={() => setOpenRemark(line.key)}
+                            className="mt-1 block w-full rounded bg-gray-50 px-2 py-1 text-left text-xs italic text-gray-700"
+                          >
+                            💬 {line.remark} <span className="not-italic text-brand-600">· wijzigen</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setOpenRemark(line.key)}
+                            className="mt-1 py-1 text-xs text-brand-600"
+                          >
+                            + opmerking bij deze regel
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                  {preview.notes.map((n, i) => (
+                    <li key={`note-${i}`} className="py-2 text-xs italic text-gray-600">
+                      💬 {n}
                     </li>
                   ))}
                   <li className="flex justify-between pt-2 font-semibold">
@@ -636,6 +690,39 @@ function RegisterFlow({
                   </li>
                 </ul>
               )}
+              <div className="mt-3 border-t border-gray-100 pt-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Opmerkingsregels op de factuur</p>
+                {invoiceNotes.map((n, i) => (
+                  <div key={i} className="mt-1.5 flex gap-2">
+                    <TextInput
+                      value={n}
+                      maxLength={1000}
+                      placeholder="Opmerking…"
+                      onChange={(e) => setInvoiceNotes((list) => list.map((x, j) => (j === i ? e.target.value : x)))}
+                      className="text-base"
+                    />
+                    <button
+                      type="button"
+                      aria-label="Opmerkingsregel verwijderen"
+                      onClick={() => setInvoiceNotes((list) => list.filter((_, j) => j !== i))}
+                      className="shrink-0 rounded-md px-2 text-red-500 active:bg-red-50"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setInvoiceNotes((list) => [...list, ""])}
+                  className="mt-1.5 py-1 text-sm text-brand-600"
+                >
+                  + Opmerkingsregel toevoegen
+                </button>
+                <p className="text-[11px] text-gray-400">
+                  Opmerkingen komen als tekstregel op de factuur in EenvoudigFactureren. De ⓘ-opsplitsing per persoon
+                  is enkel ter info.
+                </p>
+              </div>
               {context.uninvoicedDays.length > 0 && (
                 <p className="mt-2 text-xs text-gray-400">
                   Inclusief {context.uninvoicedDays.length} eerder geregistreerde dag(en) van deze job.

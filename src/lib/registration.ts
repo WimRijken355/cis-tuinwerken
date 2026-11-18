@@ -68,76 +68,154 @@ export interface RegisteredDay {
   extras: RegisteredExtra[];
 }
 
+export interface BuiltInvoiceLine {
+  /**
+   * Stable key of the line (same on client and server for the same data):
+   * used to attach a remark to a line chosen in the preview.
+   */
+  key: string;
+  kind: "labor" | "machine" | "extra";
+  item: EfInvoiceItem;
+  /** Remark shown as a text line right below the item (sent to EF). */
+  remark?: string;
+  /**
+   * How the line is composed, for consultation only (NOT sent to EF):
+   * e.g. "Werkuren op 07/12/2026" = Cis 8 u + Ken 7,5 u.
+   */
+  details: { name: string; hours: number }[];
+}
+
 export interface BuiltInvoice {
+  /** Exactly what is sent to EenvoudigFactureren (items + remark/note text lines). */
   items: EfInvoiceItem[];
+  /** The priced lines with their key and composition (for preview and detail views). */
+  lines: BuiltInvoiceLine[];
+  /** Free note lines added at the bottom of the invoice. */
+  notes: string[];
   totalExclVat: number;
 }
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
-const dayLabel = (d: Date | string) =>
-  (typeof d === "string" ? DateTime.fromISO(d) : DateTime.fromJSDate(d)).setZone(ZONE).toFormat("dd/LL");
+const dayKeyOf = (d: Date | string) =>
+  (typeof d === "string" ? DateTime.fromISO(d) : DateTime.fromJSDate(d)).setZone(ZONE);
 
 /**
  * Builds the EenvoudigFactureren lines of a job from all its registered days
  * that were not invoiced yet:
- * - one line per resource (same resource, rate and VAT summed over the days),
- *   "Werkuren <naam> – <titel> (19/11, 20/11)" for people,
- *   "<machine> – <titel> (…)" for machines; quantity = invoiced hours;
- * - extras (artikels) summed per article/description/price/VAT/unit;
- * - lines with 0 invoiced hours / quantity are left out.
+ * - per day "Werkuren op dd/MM/yyyy": the invoiced hours of all PEOPLE that
+ *   day summed — one line per hourly rate (+VAT), so amounts stay exact when
+ *   rates differ; the per-person split is kept in `details` (not sent to EF);
+ * - per day and machine "<machine> op dd/MM/yyyy";
+ * - extras (artikels) summed over the job per article/description/price/VAT/unit;
+ * - lines with 0 invoiced hours / quantity are left out;
+ * - `remarks` (by line key) become a text line right below their line;
+ *   remarks for unknown keys are not lost but added as notes;
+ * - `notes` become text lines at the bottom of the invoice.
  * EF limits enforced: quantity max 2 decimals, unit max 10 chars, VAT 0/6/12/21;
  * money in cents (no float drift in the total).
  */
-export function buildJobInvoice(params: { workTitle: string; days: RegisteredDay[] }): BuiltInvoice {
-  const items: EfInvoiceItem[] = [];
+export function buildJobInvoice(params: {
+  days: RegisteredDay[];
+  remarks?: Record<string, string>;
+  notes?: string[];
+}): BuiltInvoice {
+  const lines: BuiltInvoiceLine[] = [];
   let totalCents = 0;
 
-  function addItem(description: string, quantity: number, unit: string, amount: number, taxRate: number) {
+  function addLine(
+    key: string,
+    kind: BuiltInvoiceLine["kind"],
+    description: string,
+    quantity: number,
+    unit: string,
+    amount: number,
+    taxRate: number,
+    details: BuiltInvoiceLine["details"],
+  ) {
     const qty = round2(quantity);
     const unitPrice = round2(amount);
     if (qty <= 0) return;
     if (unit.length > 10) throw new Error(`Eenheid "${unit}" is langer dan 10 tekens (limiet EenvoudigFactureren)`);
     if (![0, 6, 12, 21].includes(taxRate)) throw new Error(`Ongeldig btw-tarief: ${taxRate}`);
-    items.push({ type: "item", description: description.slice(0, 500), quantity: qty, unit, amount: unitPrice, tax_rate: taxRate });
+    lines.push({
+      key,
+      kind,
+      item: { type: "item", description: description.slice(0, 500), quantity: qty, unit, amount: unitPrice, tax_rate: taxRate },
+      details,
+    });
     totalCents += Math.round(qty * Math.round(unitPrice * 100));
   }
 
   const sortedDays = [...params.days].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  // Labor, grouped per resource + rate + VAT (keeps first-seen order).
-  const labor = new Map<string, { line: RegisteredLabor; hours: number; dates: string[] }>();
+  // Per day: people summed per rate, then each machine.
+  type Group = { description: string; kind: "labor" | "machine"; hours: number; rate: number; vat: number; details: Map<string, number> };
+  const groups = new Map<string, Group>();
   for (const day of sortedDays) {
+    const d = dayKeyOf(day.date);
+    const iso = d.toISODate();
+    const label = d.toFormat("dd/LL/yyyy");
     for (const l of day.labor) {
       if (l.invoicedHours <= 0) continue;
-      const key = `${l.resourceId ?? `name:${l.name}`}|${l.hourlyRate}|${l.vatRate}`;
-      const entry = labor.get(key) ?? { line: l, hours: 0, dates: [] };
-      entry.hours += l.invoicedHours;
-      const label = dayLabel(day.date);
-      if (!entry.dates.includes(label)) entry.dates.push(label);
-      labor.set(key, entry);
+      const isMachine = l.type === "MACHINE";
+      const key = isMachine
+        ? `machine|${l.resourceId ?? l.name}|${iso}|${l.hourlyRate}|${l.vatRate}`
+        : `labor|${iso}|${l.hourlyRate}|${l.vatRate}`;
+      const group = groups.get(key) ?? {
+        description: isMachine ? `${l.name} op ${label}` : `Werkuren op ${label}`,
+        kind: isMachine ? ("machine" as const) : ("labor" as const),
+        hours: 0,
+        rate: l.hourlyRate,
+        vat: l.vatRate,
+        details: new Map<string, number>(),
+      };
+      group.hours += l.invoicedHours;
+      group.details.set(l.name, (group.details.get(l.name) ?? 0) + l.invoicedHours);
+      groups.set(key, group);
     }
   }
-  for (const { line, hours, dates } of labor.values()) {
-    const what = line.type === "MACHINE" ? `${line.name} – ${params.workTitle}` : `Werkuren ${line.name} – ${params.workTitle}`;
-    addItem(`${what} (${dates.join(", ")})`, hours, "uur", line.hourlyRate, line.vatRate);
+  for (const [key, g] of groups) {
+    addLine(key, g.kind, g.description, g.hours, "uur", g.rate, g.vat, [...g.details].map(([name, hours]) => ({ name, hours })));
   }
 
-  // Extras, grouped per article + description + price + VAT + unit (the
-  // description can be edited per registration; a different text = own line).
+  // Extras over the whole job, per article + description + price + VAT + unit
+  // (an edited description becomes its own line).
   const extras = new Map<string, { extra: RegisteredExtra; quantity: number }>();
   for (const day of sortedDays) {
     for (const e of day.extras) {
-      const key = `${e.priceListItemId ?? ""}|${e.description}|${e.unitPrice}|${e.vatRate}|${e.unit}`;
+      const key = `extra|${e.priceListItemId ?? ""}|${e.description}|${e.unitPrice}|${e.vatRate}|${e.unit}`;
       const entry = extras.get(key) ?? { extra: e, quantity: 0 };
       entry.quantity += e.quantity;
       extras.set(key, entry);
     }
   }
-  for (const { extra, quantity } of extras.values()) {
-    addItem(extra.description, quantity, extra.unit, extra.unitPrice, extra.vatRate);
+  for (const [key, { extra, quantity }] of extras) {
+    addLine(key, "extra", extra.description, quantity, extra.unit, extra.unitPrice, extra.vatRate, []);
   }
 
-  return { items, totalExclVat: totalCents / 100 };
+  // Remarks below their line; remarks whose line no longer exists become notes.
+  const remarks = Object.fromEntries(
+    Object.entries(params.remarks ?? {})
+      .map(([k, v]) => [k, v.trim()] as const)
+      .filter(([, v]) => v !== ""),
+  );
+  const knownKeys = new Set(lines.map((l) => l.key));
+  const notes = [
+    ...Object.entries(remarks)
+      .filter(([k]) => !knownKeys.has(k))
+      .map(([, v]) => v),
+    ...(params.notes ?? []).map((n) => n.trim()).filter(Boolean),
+  ];
+
+  const items: EfInvoiceItem[] = [];
+  for (const line of lines) {
+    line.remark = remarks[line.key];
+    items.push(line.item);
+    if (line.remark) items.push({ type: "text", description: line.remark.slice(0, 500) });
+  }
+  for (const note of notes) items.push({ type: "text", description: note.slice(0, 1000) });
+
+  return { items, lines, notes, totalExclVat: totalCents / 100 };
 }
 
 // ---------------------------------------------------------------------------

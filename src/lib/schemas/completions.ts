@@ -66,6 +66,13 @@ export const completionInputSchema = z
      * and close it. Off for an intermediate day of a multi-day job.
      */
     invoiceNow: z.boolean(),
+    /**
+     * Only with invoiceNow: a remark per invoice line (key from buildJobInvoice),
+     * sent to EF as a text line right below that line.
+     */
+    lineRemarks: z.record(z.string().max(200), z.string().max(500)).default({}),
+    /** Only with invoiceNow: extra note lines at the bottom of the invoice. */
+    invoiceNotes: z.array(z.string().trim().max(1000)).max(20).default([]),
   })
   .refine(
     (c) => c.resources.some((r) => r.registeredHours > 0 || r.invoicedHours > 0),
@@ -131,4 +138,23 @@ export interface InvoiceDto {
   pushedAt: string | null;
   workTitle: string;
   workDate: string;
+}
+
+/** GET /api/invoices/:id — the invoice as sent to EF + the hours it was built from. */
+export interface InvoiceDetailDto extends Omit<InvoiceDto, "workDate"> {
+  /** Exactly the lines sent (or to be sent) to EenvoudigFactureren, incl. text lines. */
+  items: { type: "item" | "text"; description: string; quantity?: number; unit?: string; amount?: number; tax_rate?: number }[];
+  /** Registered days on this invoice, oldest first. */
+  days: {
+    date: string;
+    note: string | null;
+    labor: {
+      name: string;
+      type: "PERSON" | "MACHINE";
+      registeredHours: number;
+      invoicedHours: number;
+      hourlyRate: number;
+    }[];
+    extras: { description: string; quantity: number; unit: string; unitPrice: number }[];
+  }[];
 }

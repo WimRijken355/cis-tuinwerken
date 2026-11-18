@@ -164,9 +164,15 @@ enkel bij facturatie, de (niet-blokkerende) push naar EenvoudigFactureren.
   "taskStates": [{ "id": 14, "done": true }],
   "extraTasks": [{ "checklistItemId": 3, "label": "Snoeien" }, { "label": "Dakgoot leeggemaakt" }],
   "note": "",
-  "invoiceNow": false
+  "invoiceNow": true,
+  "lineRemarks": { "machine|9|2026-12-07|55|21": "incl. transport" },
+  "invoiceNotes": ["Bedankt voor het vertrouwen!"]
 }
 ```
+Factuurregels: per dag "Werkuren op dd/MM/jjjj" (som van de personen, één regel
+per uurtarief), per dag en machine "\<machine\> op dd/MM/jjjj", artikels over de
+job. `lineRemarks` (op de regelsleutel uit `buildJobInvoice`) en `invoiceNotes`
+worden EF-tekstregels (onder de regel resp. onderaan).
 Uren per begonnen kwartier (1,1 → 1,25). Tarief = snapshot van de resource,
 btw = btw op arbeid uit Instellingen. `invoiceNow: true` → alle nog niet
 gefactureerde dagen van de todo op één factuur, resterende geplande blokken
@@ -174,6 +180,12 @@ geannuleerd, todo `DONE`.
 → 201: `{ completed, invoiced: false, nextBlocks }` of
 `{ completed, invoiced: true, invoiceId, totalExclVat, efPush }`.
 409 als de afspraak al geregistreerd, niet `PLANNED` of een losse todo is.
+
+### GET /api/invoices/:id
+Detail: `items` = exact wat naar EenvoudigFactureren ging (incl. tekstregels),
+`days` = per geregistreerde dag de uren per resource (`registeredHours`,
+`invoicedHours`, `hourlyRate`), artikels en notitie — ter info, zo is elke
+"Werkuren op …"-regel samengesteld.
 
 ### GET /api/invoices?status=
 Overzicht (nieuwste eerst, max 200) met `pushStatus`

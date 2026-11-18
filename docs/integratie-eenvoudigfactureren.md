@@ -76,10 +76,13 @@ Bij de registratie met **Nu factureren** (laatste dag van een job; zie
 `src/lib/services/invoices.ts` en `buildJobInvoice` in `src/lib/registration.ts`):
 
 1. De regels worden gebouwd uit álle nog niet gefactureerde dagen van de job:
-   per resource één regel met de opgetelde **gefactureerde** uren —
-   "Werkuren \<naam\> – \<titel\> (\<data\>)" voor personen,
-   "\<machine\> – \<titel\> (\<data\>)" voor machines — en per artikel een
-   regel met de prijslijst-snapshot. Elke regel draagt zijn eigen `tax_rate`.
+   per dag **"Werkuren op dd/MM/jjjj"** met de opgetelde **gefactureerde** uren
+   van alle personen (één regel per uurtarief), per dag en machine
+   "\<machine\> op dd/MM/jjjj", en per artikel een regel met de
+   prijslijst-snapshot. Elke regel draagt zijn eigen `tax_rate`. Opmerkingen
+   per regel en extra opmerkingsregels gaan mee als EF-tekstregels
+   (`type: "text"`). De opsplitsing per persoon gaat niet naar EF; die zie je
+   in de app bij Facturen → Details.
 2. De factuur wordt **eerst lokaal** bewaard (tabel `Invoice`, met de exacte
    `items`-payload als `linesJson`-audittrail en het totaal excl. btw).
 3. Daarna de push: ontbreekt de EF-koppeling van de klant, dan wordt die eerst

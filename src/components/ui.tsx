@@ -67,11 +67,14 @@ export function Modal({
   open,
   onClose,
   children,
+  wide = false,
 }: {
   title: string;
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  /** Wider on desktop (tables); still a full-width bottom sheet on a phone. */
+  wide?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -87,7 +90,9 @@ export function Modal({
       onClick={onClose}
     >
       <div
-        className="max-h-[90dvh] w-full overflow-y-auto rounded-t-xl bg-white p-5 shadow-xl md:max-w-lg md:rounded-xl"
+        className={`max-h-[90dvh] w-full overflow-y-auto rounded-t-xl bg-white p-5 shadow-xl md:rounded-xl ${
+          wide ? "md:max-w-3xl" : "md:max-w-lg"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">

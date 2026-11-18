@@ -10,6 +10,7 @@ import {
   Spinner,
   StatusBadge,
 } from "@/components/ui";
+import { InvoiceDetailDialog } from "@/components/invoice-detail";
 import { apiGet, apiSend } from "@/lib/api-client";
 import type { InvoiceDto } from "@/lib/schemas/completions";
 import { canSendToEf } from "@/lib/services/invoice-sync";
@@ -22,6 +23,8 @@ import { formatDateShort } from "@/lib/time";
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>("");
+  /** Invoice open in the detail dialog. */
+  const [detailId, setDetailId] = useState<number | null>(null);
 
   const { data: invoices, isLoading, error } = useQuery({
     queryKey: ["invoices", filter],
@@ -92,7 +95,7 @@ export default function InvoicesPage() {
 
       {invoices && invoices.length === 0 && (
         <EmptyState>
-          Nog geen facturen. Rond een werk af via &quot;Vandaag&quot; en de factuur
+          Nog geen facturen. Meld een werk klaar via de Dagplanning en de factuur
           verschijnt hier automatisch.
         </EmptyState>
       )}
@@ -100,8 +103,13 @@ export default function InvoicesPage() {
       {invoices && invoices.length > 0 && (
         <ul className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white">
           {invoices.map((inv) => (
-            <li key={inv.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
-              <div className="min-w-0">
+            <li key={inv.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-gray-50">
+              <button
+                type="button"
+                onClick={() => setDetailId(inv.id)}
+                className="min-w-0 flex-1 text-left"
+                title="Details bekijken"
+              >
                 <p className="truncate font-medium">{inv.customerName}</p>
                 <p className="truncate text-sm text-gray-500">
                   {inv.workTitle} · {formatDateShort(inv.workDate)}
@@ -111,7 +119,8 @@ export default function InvoicesPage() {
                     {inv.errorMessage}
                   </p>
                 )}
-              </div>
+                <span className="text-xs text-brand-600">Details ›</span>
+              </button>
               <div className="flex shrink-0 items-center gap-3">
                 <span className="font-medium">€ {inv.totalExclVat.toFixed(2)}</span>
                 <StatusBadge status={inv.pushStatus} />
@@ -135,6 +144,8 @@ export default function InvoicesPage() {
         Bedragen zijn excl. btw. Concepten kijk je na en finaliseer je in
         EenvoudigFactureren zelf.
       </p>
+
+      {detailId !== null && <InvoiceDetailDialog invoiceId={detailId} onClose={() => setDetailId(null)} />}
     </div>
   );
 }

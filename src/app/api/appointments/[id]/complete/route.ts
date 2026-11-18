@@ -107,7 +107,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       // Invoice the whole job: every registered day of this todo not invoiced yet.
       const days = await loadUninvoicedDays(appointment.todoId, tx);
-      const built = buildJobInvoice({ workTitle: appointment.todo.title, days });
+      const built = buildJobInvoice({ days, remarks: input.lineRemarks, notes: input.invoiceNotes });
       const invoice = await tx.invoice.create({
         data: {
           completionId: completion.id,
