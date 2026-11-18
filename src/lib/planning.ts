@@ -218,10 +218,39 @@ export function splitDuration(totalMinutes: number): { hours: number; minutes: n
   return { hours: Math.floor(rounded / 60), minutes: rounded % 60 };
 }
 
+/** Upper bound for a duration typed in the plan dialog (a large multi-day job). */
+export const MAX_PLAN_MINUTES = 999 * 60;
+
 /**
- * Hours + quarter minutes → total minutes, kept between one quarter and
- * `maxMinutes` (one working day by default): 0 u 00 → 15, 8 u 30 → 480.
+ * Hours + quarter minutes → total minutes, at least one quarter and at most
+ * `maxMinutes`: 0 u 00 → 15, 20 u 30 → 1230. Invalid hours count as 0.
  */
-export function joinDuration(hours: number, minutes: number, maxMinutes = WORKDAY_MINUTES): number {
-  return Math.min(Math.max(hours * 60 + minutes, SLOT_MINUTES), maxMinutes);
+export function joinDuration(hours: number, minutes: number, maxMinutes = MAX_PLAN_MINUTES): number {
+  const h = Number.isFinite(hours) && hours > 0 ? Math.floor(hours) : 0;
+  return Math.min(Math.max(h * 60 + minutes, SLOT_MINUTES), maxMinutes);
+}
+
+/**
+ * Splits a planned duration over consecutive working days (Mon–Fri, Europe/
+ * Brussels): every day at the same start time, at most one working day and
+ * never past midnight; weekends are skipped (also when the start date itself
+ * is in a weekend, that first day is kept — the user chose it explicitly).
+ */
+export function splitOverWorkdays(
+  date: string, // yyyy-MM-dd
+  time: string, // HH:mm
+  totalMinutes: number,
+): { startAt: string; durationMinutes: number }[] {
+  const blocks: { startAt: string; durationMinutes: number }[] = [];
+  let day = DateTime.fromISO(`${date}T${time}`, { zone: ZONE });
+  let left = totalMinutes;
+  while (left > 0 && blocks.length < 200) {
+    const minutes = Math.min(left, WORKDAY_MINUTES, minutesUntilMidnight(day.toJSDate()));
+    blocks.push({ startAt: day.toUTC().toISO()!, durationMinutes: minutes });
+    left -= minutes;
+    do {
+      day = day.plus({ days: 1 });
+    } while (day.weekday > 5); // 6 = Saturday, 7 = Sunday
+  }
+  return blocks;
 }

@@ -18,6 +18,7 @@ import {
   roundToQuarter,
   joinDuration,
   splitDuration,
+  splitOverWorkdays,
   plannedMinutes,
   remainingMinutes,
   todoColor,
@@ -212,9 +213,28 @@ describe("duration as hours + quarter minutes", () => {
     expect(splitDuration(100)).toEqual({ hours: 1, minutes: 45 }); // rounded to a quarter
   });
 
-  it("joins hours + minutes, between one quarter and one working day", () => {
+  it("joins hours + minutes (also more than a working day), at least one quarter", () => {
     expect(joinDuration(2, 30)).toBe(150);
     expect(joinDuration(0, 0)).toBe(15);
-    expect(joinDuration(8, 30)).toBe(480);
+    expect(joinDuration(20, 30)).toBe(1230);
+    expect(joinDuration(Number.NaN, 15)).toBe(15);
+  });
+
+  it("splits more than a working day over consecutive weekdays (same start time)", () => {
+    // Thursday 19 Nov 2026, 08:00 Brussels (UTC+1), 20 h → Thu 8 h, Fri 8 h, Mon 4 h.
+    expect(splitOverWorkdays("2026-11-19", "08:00", 20 * 60)).toEqual([
+      { startAt: "2026-11-19T07:00:00.000Z", durationMinutes: 480 },
+      { startAt: "2026-11-20T07:00:00.000Z", durationMinutes: 480 },
+      { startAt: "2026-11-23T07:00:00.000Z", durationMinutes: 240 },
+    ]);
+    expect(splitOverWorkdays("2026-11-19", "08:00", 90)).toEqual([
+      { startAt: "2026-11-19T07:00:00.000Z", durationMinutes: 90 },
+    ]);
+  });
+
+  it("never lets a day run past midnight", () => {
+    const blocks = splitOverWorkdays("2026-11-19", "20:00", 10 * 60);
+    // Every day starts at 20:00 and stops at midnight: 4 h + 4 h + 2 h.
+    expect(blocks.map((b) => b.durationMinutes)).toEqual([240, 240, 120]);
   });
 });

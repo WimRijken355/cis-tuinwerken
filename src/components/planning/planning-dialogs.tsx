@@ -7,7 +7,7 @@ import { DurationInput } from "@/components/duration-input";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { Button, ErrorNote, Field, Modal, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
-import { formatMinutesAsHours, partLabel, roundToQuarter, WORKDAY_MINUTES } from "@/lib/planning";
+import { formatMinutesAsHours, partLabel, roundToQuarter, splitOverWorkdays, WORKDAY_MINUTES } from "@/lib/planning";
 import type { AppointmentDto, AppointmentInput } from "@/lib/schemas/appointments";
 import type { LooseTodoPresetDto } from "@/lib/schemas/loose-todo-presets";
 import type { TodoDto } from "@/lib/schemas/todos";
@@ -155,14 +155,15 @@ export function PlanDialog({
   // Whole quarters only (the smallest planning unit), shown in hours.
   const [duration, setDuration] = useState(roundToQuarter(Math.min(remaining, WORKDAY_MINUTES)));
 
+  // More than a working day is spread over consecutive weekdays (max. 8 u each).
+  const blocks = splitOverWorkdays(date, time || "08:00", duration);
+
   const planMutation = useMutation({
-    mutationFn: () => {
-      const input: AppointmentInput = {
-        todoId: todo.id,
-        startAt: new Date(`${date}T${time}`).toISOString(),
-        durationMinutes: duration,
-      };
-      return apiSend("/api/appointments", "POST", input);
+    mutationFn: async () => {
+      for (const block of blocks) {
+        const input: AppointmentInput = { todoId: todo.id, ...block };
+        await apiSend("/api/appointments", "POST", input);
+      }
     },
     onSuccess: onPlanned,
   });
@@ -190,9 +191,27 @@ export function PlanDialog({
             <TextInput type="time" step={900} value={time} onChange={(e) => setTime(e.target.value)} required />
           </Field>
         </div>
-        <Field label="Duur" hint="Max. één werkdag per blok; de rest blijft in te plannen.">
+        <Field label="Duur">
           <DurationInput value={duration} onChange={setDuration} />
         </Field>
+        {blocks.length > 1 ? (
+          <p className="rounded-md bg-brand-50 px-3 py-2 text-xs text-brand-900">
+            Meer dan één werkdag: wordt verdeeld over {blocks.length} werkdagen (max. 8 u per dag, zelfde startuur,
+            weekend overgeslagen):{" "}
+            {blocks
+              .map(
+                (b) =>
+                  `${new Date(b.startAt).toLocaleDateString("nl-BE", { weekday: "short", day: "numeric", month: "short" })} ${formatMinutesAsHours(b.durationMinutes)}`,
+              )
+              .join(" · ")}
+          </p>
+        ) : (
+          <p className="text-xs text-gray-400">
+            {duration < remaining
+              ? `Daarna blijft er nog ${formatMinutesAsHours(remaining - duration)} in te plannen.`
+              : "Hiermee is de todo volledig ingepland."}
+          </p>
+        )}
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="secondary" type="button" onClick={onClose}>
             Annuleren
