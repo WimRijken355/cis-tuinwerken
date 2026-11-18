@@ -51,8 +51,10 @@ services:
       - "443:443"
     environment:
       APP_DOMAIN: ${APP_DOMAIN}
+      APP_LAN_IP: ${APP_LAN_IP:-}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # CADDYFILE="Caddyfile.internal" in .env = internal test setup (no Let's Encrypt).
+      - ./${CADDYFILE:-Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

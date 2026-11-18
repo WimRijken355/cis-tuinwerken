@@ -85,6 +85,23 @@ curl -s https://app.tuinwerkencis.be/api/health          # {"status":"ok",...}
 8. **PWA installeren op je telefoon:** open de site in Safari/Chrome →
    Delen → "Zet op beginscherm".
 
+### Interne test (nog niet publiek bereikbaar)
+
+Is de server enkel vanuit het interne netwerk bereikbaar, dan kan Let's Encrypt
+geen certificaat uitgeven. Gebruik dan Caddy's eigen CA via `Caddyfile.internal`:
+
+```env
+APP_DOMAIN="cis-tuinwerken.example.be"   # via hosts-bestand naar het LAN-IP
+APP_LAN_IP="192.168.x.y"
+CADDYFILE="Caddyfile.internal"
+APP_URL="https://cis-tuinwerken.example.be"
+```
+
+De app is dan bereikbaar via het domein én via het IP (browser toont eenmalig
+een certificaatwaarschuwing). **Publiek maken:** `CADDYFILE` en `APP_LAN_IP`
+leegmaken, publiek DNS-record + poorten 80/443 open, dan
+`docker compose -f docker-compose.prod.yml up -d caddy`.
+
 ## 2. Een update uitrollen
 
 ```bash

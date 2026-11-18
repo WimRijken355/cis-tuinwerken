@@ -1,5 +1,6 @@
 # Reverse proxy met automatische HTTPS (Let's Encrypt).
 # APP_DOMAIN komt uit .env via docker-compose.prod.yml.
+# Interne test zonder publieke toegang: zie Caddyfile.internal.
 {$APP_DOMAIN} {
 	reverse_proxy app:3000
 	encode gzip

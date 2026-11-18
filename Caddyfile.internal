@@ -1,0 +1,20 @@
+# Internal (LAN) test setup — the server is not reachable from the internet,
+# so Let's Encrypt cannot issue a certificate. Caddy's own internal CA signs a
+# certificate for both the domain (resolved via a hosts file) and the bare IP;
+# browsers show a certificate warning once.
+#
+# Activate in .env:   CADDYFILE="Caddyfile.internal"
+#                     APP_DOMAIN="cis-tuinwerken.example.be"
+#                     APP_LAN_IP="192.168.x.y"
+#
+# default_sni: clients connecting by IP send no SNI; without this Caddy cannot
+# pick a certificate and the TLS handshake fails.
+{
+	default_sni {$APP_LAN_IP}
+}
+
+{$APP_DOMAIN}, {$APP_LAN_IP} {
+	tls internal
+	reverse_proxy app:3000
+	encode gzip
+}
