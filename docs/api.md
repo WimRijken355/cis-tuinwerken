@@ -5,8 +5,8 @@ Alle endpoints geven JSON terug. Fouten hebben altijd de vorm
 (400 validatie · 401 niet aangemeld · 404 niet gevonden · 409 conflict ·
 429 te veel pogingen · 502 fout bij EenvoudigFactureren · 500 onverwacht).
 
-Alle endpoints behalve `/api/auth/login`, `/api/auth/totp/*` en `/api/health`
-vereisen een geldige sessiecookie (`tc_session`). Zonder sessie: 401.
+Alle endpoints behalve `/api/auth/login`, `/api/auth/totp/*`,
+`/api/auth/password-reset/*` en `/api/health` vereisen een geldige sessiecookie (`tc_session`). Zonder sessie: 401.
 
 ## Auth
 
@@ -19,6 +19,28 @@ Respons, afhankelijk van de situatie:
 - `{ "ok": false, "needsTotp": true }` — TOTP-code vereist (→ verify)
 - `{ "ok": false, "needsTotpSetup": true }` — eerste keer: 2FA instellen (→ setup)
 - 401 bij foute login, 429 na 10 foute pogingen binnen 15 min (per IP)
+
+`username` mag ook het e-mailadres zijn (bevat het een `@`, dan wordt op
+`User.email` gezocht, hoofdletterongevoelig).
+
+### POST /api/auth/password-reset/request (publiek)
+`{ "identifier": "wim" }` (gebruikersnaam of e-mail). Antwoordt **altijd**
+hetzelfde (`{ ok, message }`), of het account nu bestaat of niet. Bestaat het
+en is het adres echt (niet `*.invalid`), dan vervallen eerdere open links en
+wordt een nieuwe eenmalige link (60 min geldig) gemaild naar
+`<APP_URL of request-origin>/reset-password?token=…`. 429 na 10 aanvragen per
+15 min (per IP).
+
+### POST /api/auth/password-reset/confirm (publiek)
+`{ "token", "password", "confirmPassword" }` (min. 10 tekens, gelijk). Zet het
+nieuwe wachtwoord en **reset 2FA** (TOTP-geheim, herstelcodes, vertrouwde
+toestellen); de volgende login geeft `needsTotpSetup`. De link is eenmalig.
+400 bij een ongeldige/verlopen/gebruikte link of ongeldige invoer.
+
+### Gebruikers (ADMIN) — GET/POST /api/users · PATCH/DELETE /api/users/:id
+POST `{ username (geen @), email, password, role }` — e-mail verplicht en uniek
+(409 bij dubbel). PATCH `{ role?, email? }` (minstens één). Respons
+`UserDto { id, username, email, role, totpEnabledAt, createdAt }`.
 
 ### POST /api/auth/totp/setup
 Start de 2FA-setup (vereist een pending of volledige sessie).

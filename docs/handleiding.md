@@ -11,7 +11,7 @@ krijgen automatisch een **herinneringsmail** de dag vóór je langskomt.
 
 ## Aanmelden & beveiliging
 
-- Meld aan met je gebruikersnaam en wachtwoord. De **eerste keer** stel je
+- Meld aan met je gebruikersnaam **of** e-mailadres en je wachtwoord. De **eerste keer** stel je
   tweestapsverificatie in: scan de QR-code met een authenticator-app
   (Google of Microsoft Authenticator) en **bewaar de herstelcodes** op papier
   of in een wachtwoordkluis — ze worden maar één keer getoond.
@@ -19,6 +19,14 @@ krijgen automatisch een **herinneringsmail** de dag vóór je langskomt.
   je niet elke keer een code in te tikken.
 - Authenticator kwijt? Log in met een herstelcode, en stel daarna 2FA opnieuw
   in via **Instellingen → Algemeen → Beveiliging**.
+- Wachtwoord vergeten? Tik op het aanmeldscherm op **Wachtwoord vergeten?**,
+  geef je gebruikersnaam of e-mailadres in en open de link in de e-mail (60
+  minuten geldig, één keer bruikbaar). Je kiest een nieuw wachtwoord; daarbij
+  wordt ook je **2FA gereset** (vertrouwde toestellen en herstelcodes
+  vervallen), dus bij de volgende aanmelding scan je opnieuw een QR-code.
+- Elke gebruiker heeft een verplicht e-mailadres (Instellingen → Gebruikers,
+  ✏️ wijzigen). Een rood "Nog geen e-mailadres ingesteld" betekent dat die
+  gebruiker zijn wachtwoord niet zelf kan resetten.
 
 ## Op je telefoon installeren
 

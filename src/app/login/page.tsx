@@ -1,11 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 /**
  * Aanmeldflow in stappen:
- *  1. password      — gebruikersnaam + wachtwoord
+ *  1. password      — gebruikersnaam of e-mailadres + wachtwoord
  *  2. totp          — code uit de authenticator-app (of herstelcode),
  *                     met "vertrouw dit toestel 30 dagen"
  *  3. setup-qr      — eerste keer: QR-code scannen
@@ -117,7 +118,7 @@ export default function LoginPage() {
             className="space-y-4"
           >
             <label className="block">
-              <span className="text-sm font-medium">Gebruikersnaam</span>
+              <span className="text-sm font-medium">Gebruikersnaam of e-mailadres</span>
               <input
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
                 value={username}
@@ -145,6 +146,11 @@ export default function LoginPage() {
             >
               {busy ? "Bezig…" : "Aanmelden"}
             </button>
+            <p className="text-center text-sm">
+              <Link href="/forgot-password" className="text-brand-600 hover:underline">
+                Wachtwoord vergeten?
+              </Link>
+            </p>
           </form>
         )}
 

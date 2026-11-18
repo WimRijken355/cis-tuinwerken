@@ -21,21 +21,24 @@ export async function GET() {
  *
  * User is excluded from the automatic audit trail (src/lib/audit.ts) to
  * avoid logging password hashes/2FA secrets, so this writes its own,
- * redacted AuditLog entry (username + role only).
+ * redacted AuditLog entry (username, e-mail and role only).
  */
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
     const input = createUserSchema.parse(await request.json());
 
-    const existing = await db.user.findUnique({ where: { username: input.username } });
-    if (existing) {
+    if (await db.user.findUnique({ where: { username: input.username } })) {
       return jsonError("Deze gebruikersnaam bestaat al", 409);
+    }
+    if (await db.user.findUnique({ where: { email: input.email } })) {
+      return jsonError("Dit e-mailadres wordt al gebruikt", 409);
     }
 
     const user = await db.user.create({
       data: {
         username: input.username,
+        email: input.email,
         passwordHash: await bcrypt.hash(input.password, 12),
         role: input.role,
       },
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
         recordId: String(user.id),
         action: "CREATE",
         userId: getAuditUserId(),
-        after: { username: user.username, role: user.role },
+        after: { username: user.username, email: user.email, role: user.role },
       },
     });
 

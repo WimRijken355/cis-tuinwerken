@@ -33,6 +33,9 @@ enum Role {
 model User {
   id            Int       @id @default(autoincrement())
   username      String    @unique
+  /// Verplicht, uniek, altijd lowercase opgeslagen. Aanmelden kan met
+  /// gebruikersnaam óf e-mail; wachtwoord-reset-mails gaan hiernaartoe.
+  email         String    @unique
   passwordHash  String // bcrypt
   /// @default(ADMIN) so the existing (first) user stays admin through this
   /// migration; new users always get an explicit role from the create form.
@@ -43,8 +46,24 @@ model User {
   totpEnabledAt DateTime?
   createdAt     DateTime  @default(now())
 
-  recoveryCodes  RecoveryCode[]
-  trustedDevices TrustedDevice[]
+  recoveryCodes       RecoveryCode[]
+  trustedDevices      TrustedDevice[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+/// Eenmalige link "wachtwoord vergeten" (alleen de sha256 van het token wordt
+/// bewaard). Bewust niet in de audittrail (zie AUDITED_MODELS).
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// Eenmalig bruikbare herstelcodes (getoond bij 2FA-setup, alleen gehasht bewaard).

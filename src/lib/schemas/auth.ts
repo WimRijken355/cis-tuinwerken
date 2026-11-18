@@ -3,7 +3,8 @@ import { z } from "zod";
 /** Gedeelde contracten voor de auth-endpoints (server valideert, client typt). */
 
 export const loginSchema = z.object({
-  username: z.string().min(1, "Gebruikersnaam is verplicht"),
+  /** Username or e-mail address (see identifierWhere()). */
+  username: z.string().trim().min(1, "Gebruikersnaam of e-mailadres is verplicht"),
   password: z.string().min(1, "Wachtwoord is verplicht"),
 });
 export type LoginInput = z.infer<typeof loginSchema>;

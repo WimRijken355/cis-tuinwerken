@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, jsonError } from "@/lib/api";
+import { identifierWhere } from "@/lib/auth/password-reset";
 import { allowAttempt, clearAttempts } from "@/lib/auth/rate-limit";
 import { sha256 } from "@/lib/auth/totp";
 import { db } from "@/lib/db";
@@ -8,7 +9,7 @@ import { loginSchema } from "@/lib/schemas/auth";
 import { getSession, TRUSTED_DEVICE_COOKIE } from "@/lib/session";
 
 /**
- * Stap 1 van het aanmelden: gebruikersnaam + wachtwoord.
+ * Stap 1 van het aanmelden: gebruikersnaam of e-mailadres + wachtwoord.
  *
  * Mogelijke uitkomsten:
  * - { ok: true }            → volledig aangemeld (toestel was vertrouwd)
@@ -25,10 +26,10 @@ export async function POST(request: NextRequest) {
 
     const { username, password } = loginSchema.parse(await request.json());
 
-    const user = await db.user.findUnique({ where: { username } });
+    const user = await db.user.findFirst({ where: identifierWhere(username) });
     // Altijd dezelfde generieke fout — verklapt niet of de gebruikersnaam bestaat.
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      return jsonError("Ongeldige gebruikersnaam of wachtwoord", 401);
+      return jsonError("Ongeldige gebruikersnaam/e-mail of wachtwoord", 401);
     }
 
     clearAttempts(`login:${ip}`);

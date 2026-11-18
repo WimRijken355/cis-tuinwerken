@@ -5,12 +5,12 @@ import { useState } from "react";
 import { Button, ErrorNote, Field, Modal, PageHeader, Spinner, TextInput } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/auth-client";
-import type { CreateUserInput, RoleValue, UserDto } from "@/lib/schemas/users";
+import type { CreateUserInput, RoleValue, UpdateUserInput, UserDto } from "@/lib/schemas/users";
 import { formatDateShort } from "@/lib/time";
 
 /**
  * User management (ADMIN-only — see requireAdmin() in src/lib/api.ts).
- * Create users, assign roles, and remove users. The API itself still
+ * Create users (username, e-mail, password, role), change role/e-mail, and remove users. The API itself still
  * enforces ADMIN access, so this page simply shows a clear denial message
  * for a SUPERUSER who navigates here directly.
  */
@@ -40,9 +40,9 @@ export default function UsersPage() {
     },
   });
 
-  const roleMutation = useMutation({
-    mutationFn: ({ id, role }: { id: number; role: RoleValue }) =>
-      apiSend<UserDto>(`/api/users/${id}`, "PATCH", { role }),
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...patch }: { id: number } & UpdateUserInput) =>
+      apiSend<UserDto>(`/api/users/${id}`, "PATCH", patch),
     onSuccess: invalidate,
     onError: (e) => window.alert((e as Error).message),
   });
@@ -69,6 +69,22 @@ export default function UsersPage() {
             <li key={u.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate font-medium">{u.username}</p>
+                <p className={`truncate text-sm ${u.email.endsWith(".invalid") ? "text-red-600" : "text-gray-600"}`}>
+                  {u.email.endsWith(".invalid") ? "⚠ Nog geen e-mailadres ingesteld" : u.email}{" "}
+                  <button
+                    type="button"
+                    className="text-brand-600 hover:underline"
+                    disabled={updateMutation.isPending}
+                    onClick={() => {
+                      const email = window.prompt(`E-mailadres van ${u.username}`, u.email.endsWith(".invalid") ? "" : u.email);
+                      if (email && email.trim() && email.trim().toLowerCase() !== u.email) {
+                        updateMutation.mutate({ id: u.id, email: email.trim() });
+                      }
+                    }}
+                  >
+                    ✏️ wijzigen
+                  </button>
+                </p>
                 <p className="truncate text-sm text-gray-500">
                   Sinds {formatDateShort(u.createdAt)} ·{" "}
                   {u.totpEnabledAt ? "2FA ingesteld" : "2FA nog niet ingesteld"}
@@ -77,9 +93,9 @@ export default function UsersPage() {
               <div className="flex shrink-0 items-center gap-2">
                 <select
                   value={u.role}
-                  disabled={roleMutation.isPending}
+                  disabled={updateMutation.isPending}
                   onChange={(e) =>
-                    roleMutation.mutate({ id: u.id, role: e.target.value as RoleValue })
+                    updateMutation.mutate({ id: u.id, role: e.target.value as RoleValue })
                   }
                   className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm"
                 >
@@ -128,6 +144,7 @@ function NewUserForm({
   error: string | null;
 }) {
   const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<RoleValue>("SUPERUSER");
 
@@ -136,12 +153,15 @@ function NewUserForm({
       className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
-        onSubmit({ username, password, role });
+        onSubmit({ username, email, password, role });
       }}
     >
       {error && <ErrorNote message={error} />}
       <Field label="Gebruikersnaam *">
         <TextInput value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
+      </Field>
+      <Field label="E-mailadres *" hint="Aanmelden kan met gebruikersnaam of e-mail; hierheen gaat ook de link bij 'wachtwoord vergeten'">
+        <TextInput type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="off" />
       </Field>
       <Field label="Wachtwoord *" hint="Minstens 10 tekens">
         <TextInput

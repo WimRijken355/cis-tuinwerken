@@ -14,6 +14,10 @@ const envSchema = z.object({
     .string()
     .min(32, "SESSION_SECRET moet minstens 32 tekens lang zijn"),
 
+  /** Public base URL of the app (e.g. https://planning.example.be), used in
+   *  links in e-mails (password reset). Falls back to the request origin. */
+  APP_URL: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional()),
+
   // E-mail (Fase 3)
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),

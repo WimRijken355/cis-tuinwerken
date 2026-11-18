@@ -19,14 +19,15 @@ async function main() {
   // --- Beheerder -----------------------------------------------------------
   const username = process.env.ADMIN_USERNAME;
   const password = process.env.ADMIN_PASSWORD;
-  if (!username || !password) {
-    throw new Error("ADMIN_USERNAME en ADMIN_PASSWORD moeten in .env staan om te seeden");
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  if (!username || !password || !email) {
+    throw new Error("ADMIN_USERNAME, ADMIN_EMAIL en ADMIN_PASSWORD moeten in .env staan om te seeden");
   }
 
   const existingUser = await db.user.findUnique({ where: { username } });
   if (!existingUser) {
     await db.user.create({
-      data: { username, passwordHash: await bcrypt.hash(password, 12) },
+      data: { username, email, passwordHash: await bcrypt.hash(password, 12) },
     });
     console.log(`✔ Beheerder "${username}" aangemaakt (2FA wordt bij eerste login ingesteld)`);
   } else {

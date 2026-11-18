@@ -11,7 +11,7 @@ import { sessionOptions, type SessionData } from "@/lib/session";
  * zodat fetch-aanroepen een nette JSON-fout krijgen in plaats van een redirect.
  */
 
-const PUBLIC_PATHS = ["/login"];
+const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
