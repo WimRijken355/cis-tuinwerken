@@ -41,6 +41,7 @@ import {
   toggleFocus,
   WORKDAY_MINUTES,
 } from "@/lib/planning";
+import { todoChangedQueryKeys } from "@/lib/query-keys";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { TodoDto } from "@/lib/schemas/todos";
 
@@ -476,9 +477,10 @@ export default function PlanningPage() {
           todoId={editTodoId}
           onClose={() => setEditTodoId(null)}
           onSaved={() => {
+            for (const queryKey of todoChangedQueryKeys(editTodoId)) {
+              void queryClient.invalidateQueries({ queryKey });
+            }
             setEditTodoId(null);
-            invalidate();
-            void queryClient.invalidateQueries({ queryKey: ["todo", editTodoId] });
           }}
         />
       )}

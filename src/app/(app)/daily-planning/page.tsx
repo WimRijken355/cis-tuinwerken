@@ -6,10 +6,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { RescheduleSheet } from "@/components/daily/reschedule-sheet";
 import { ResourceChips, StatusFlags } from "@/components/planning/planning-cards";
+import { TodoEditDialog } from "@/components/planning/planning-dialogs";
 import { EmptyState, ErrorNote, Spinner, StatusBadge } from "@/components/ui";
 import { TodoChecklist } from "@/components/work-pickers";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours, partLabel, todoColor } from "@/lib/planning";
+import { todoChangedQueryKeys } from "@/lib/query-keys";
 import { type AppointmentDto, wazeUrl } from "@/lib/schemas/appointments";
 import type { TodoTaskDto } from "@/lib/schemas/todos";
 import { formatDate, formatTime, isIsoDay, shiftDay, todayBrussels } from "@/lib/time";
@@ -19,7 +21,8 @@ import { formatDate, formatTime, isIsoDay, shiftDay, todayBrussels } from "@/lib
  * (default today, ‹ › to browse; the day lives in the URL so "back" from a
  * registration returns to the same day). Each card opens to show what has to
  * be done (description + checklist, tickable on site) and offers Waze,
- * "Klaarmelden" (registration) and "Verplaatsen".
+ * "Klaarmelden" (registration) and "Verplaatsen"; ✏️ opens the full todo
+ * editor (TodoEditDialog, the same one as on the planning page).
  */
 export default function DailyPlanningPage() {
   return (
@@ -39,6 +42,8 @@ function DailyPlanning() {
 
   const [openId, setOpenId] = useState<number | null>(null);
   const [moving, setMoving] = useState<AppointmentDto | null>(null);
+  /** Todo open in the full editor (same dialog as on the planning page). */
+  const [editTodoId, setEditTodoId] = useState<number | null>(null);
 
   const { data: appointments, isLoading, error } = useQuery({
     queryKey: ["appointments", "day", day],
@@ -161,6 +166,13 @@ function DailyPlanning() {
                       <ResourceChips resources={a.resources} showHours />
                     </div>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setEditTodoId(a.todoId)}
+                    className="mt-3 w-full rounded-md border border-gray-300 py-2.5 text-sm text-gray-700 active:bg-gray-50"
+                  >
+                    ✏️ Todo bewerken (omschrijving, checklist, resources…)
+                  </button>
                 </div>
               )}
 
@@ -177,6 +189,15 @@ function DailyPlanning() {
                 ) : (
                   <span className="flex-1 rounded-md bg-gray-100 py-2.5 text-center text-sm text-gray-400">Geen adres</span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setEditTodoId(a.todoId)}
+                  aria-label="Todo bewerken"
+                  title="Todo bewerken"
+                  className="w-11 shrink-0 rounded-md border border-gray-300 py-2.5 text-sm active:bg-gray-50"
+                >
+                  ✏️
+                </button>
                 {a.status === "PLANNED" && (
                   <button
                     type="button"
@@ -199,6 +220,19 @@ function DailyPlanning() {
           );
         })}
       </ul>
+
+      {editTodoId !== null && (
+        <TodoEditDialog
+          todoId={editTodoId}
+          onClose={() => setEditTodoId(null)}
+          onSaved={() => {
+            for (const queryKey of todoChangedQueryKeys(editTodoId)) {
+              void queryClient.invalidateQueries({ queryKey });
+            }
+            setEditTodoId(null);
+          }}
+        />
+      )}
 
       {moving && (
         <RescheduleSheet

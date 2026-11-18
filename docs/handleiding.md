@@ -31,7 +31,8 @@ dan als een echte app, zonder adresbalk.
    met ‹ › blader je naar de vorige/volgende dag. Tik een afspraak open om te
    zien wat er moet gebeuren (omschrijving + checklist, die je ter plaatse kan
    afvinken). **🧭 Waze** start de navigatie; **Verplaatsen** schuift de
-   afspraak naar een andere dag/uur.
+   afspraak naar een andere dag/uur; met **✏️** pas je de todo zelf aan
+   (omschrijving, tijd, checklist, resources), net als in de Planning.
 2. **Na het werk — ✓ Klaarmelden**, in vier stapjes:
    - *Uren:* per resource **geregistreerd** (echt gewerkt) en **gefactureerd**
      (wat de klant betaalt), voorgesteld op basis van de planning, per begonnen
