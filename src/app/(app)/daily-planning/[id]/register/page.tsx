@@ -11,13 +11,13 @@ import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { Button, ErrorNote, Spinner, TextArea, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours } from "@/lib/planning";
-import { buildJobInvoice, ceilToQuarterHour, searchArticles } from "@/lib/registration";
+import { buildJobInvoice, ceilToQuarterHour, hoursFromTimeRange, searchArticles } from "@/lib/registration";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { PriceListItemDto } from "@/lib/schemas/catalog";
 import type { ChecklistItemDto } from "@/lib/schemas/checklist";
 import type { CompletionInput, RegistrationContextDto } from "@/lib/schemas/completions";
 import type { ResourceDto } from "@/lib/schemas/resources";
-import { formatTime } from "@/lib/time";
+import { formatTime, toBrussels } from "@/lib/time";
 
 /**
  * "Klaarmelden" — registration after the work, built for a PHONE (see CLAUDE.md):
@@ -36,6 +36,9 @@ interface ResourceLine {
   type: "PERSON" | "MACHINE";
   hourlyRate: number;
   planned: boolean;
+  /** "HH:mm", default from the planned block; registeredHours follows these. */
+  fromTime: string;
+  toTime: string;
   registeredHours: number;
   invoicedHours: number;
   /** Invoiced hours follow the registered ones until changed by hand. */
@@ -131,6 +134,10 @@ function RegisterFlow({
   const blockHours = ceilToQuarterHour(context.blockMinutes / 60);
 
   // --- Step 1: resources --------------------------------------------------------
+  // Default "van/tot" per resource comes from the planned block, starting at
+  // the appointment's start time and running for its (capped) proposed hours.
+  const blockStart = formatTime(appointment.startAt);
+  const timeAfter = (hours: number) => toBrussels(appointment.startAt).plus({ hours }).toFormat("HH:mm");
   const [lines, setLines] = useState<ResourceLine[]>(() =>
     context.plannedResources.map((r) => ({
       resourceId: r.resourceId,
@@ -138,6 +145,8 @@ function RegisterFlow({
       type: r.type,
       hourlyRate: r.hourlyRate,
       planned: true,
+      fromTime: blockStart,
+      toTime: timeAfter(r.proposedHours),
       registeredHours: r.proposedHours,
       invoicedHours: r.proposedHours,
       invoicedTouched: false,
@@ -155,8 +164,12 @@ function RegisterFlow({
       ls.map((l) => {
         if (l.resourceId !== resourceId) return l;
         const next = { ...l, ...patch };
-        // Invoiced follows registered until it was changed by hand.
-        if (patch.registeredHours !== undefined && !l.invoicedTouched) next.invoicedHours = patch.registeredHours;
+        // The time range drives the registered hours; invoiced follows those
+        // until changed by hand.
+        if (patch.fromTime !== undefined || patch.toTime !== undefined) {
+          next.registeredHours = hoursFromTimeRange(next.fromTime, next.toTime);
+        }
+        if (next.registeredHours !== l.registeredHours && !l.invoicedTouched) next.invoicedHours = next.registeredHours;
         return next;
       }),
     );
@@ -170,6 +183,8 @@ function RegisterFlow({
         type: resource.type,
         hourlyRate: resource.hourlyRate,
         planned: false,
+        fromTime: blockStart,
+        toTime: timeAfter(blockHours),
         registeredHours: blockHours,
         invoicedHours: blockHours,
         invoicedTouched: false,
@@ -826,12 +841,25 @@ function ResourceHours({
       {line.info && <p className="text-xs text-gray-400">{line.info}</p>}
       <div className="mt-1.5 grid grid-cols-1 gap-1.5 min-[380px]:grid-cols-2">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Geregistreerd</p>
-          <HoursStepper
-            label={`Geregistreerd ${line.name}`}
-            value={line.registeredHours}
-            onChange={(registeredHours) => onChange({ registeredHours })}
-          />
+          <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Gewerkt van – tot</p>
+          <div className="flex items-center gap-1.5">
+            <TextInput
+              type="time"
+              aria-label={`Van ${line.name}`}
+              value={line.fromTime}
+              onChange={(e) => onChange({ fromTime: e.target.value })}
+              className="!w-[6.5rem] text-base"
+            />
+            <span className="text-gray-400">–</span>
+            <TextInput
+              type="time"
+              aria-label={`Tot ${line.name}`}
+              value={line.toTime}
+              onChange={(e) => onChange({ toTime: e.target.value })}
+              className="!w-[6.5rem] text-base"
+            />
+          </div>
+          <p className="mt-0.5 text-xs text-gray-500">= {hoursText(line.registeredHours)} geregistreerd</p>
         </div>
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Gefactureerd</p>

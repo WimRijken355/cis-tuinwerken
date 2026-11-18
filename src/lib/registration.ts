@@ -17,6 +17,19 @@ export function ceilToQuarterHour(hours: number): number {
 }
 
 /**
+ * Hours between two "HH:mm" clock times, per started quarter. Used to let
+ * someone fill in "van/tot" per resource instead of a raw hours count.
+ * A "tot" before or equal to "van" (typo, or a shift over midnight) yields 0
+ * rather than a negative or wrapped value — the UI leaves it to be corrected.
+ */
+export function hoursFromTimeRange(from: string, to: string): number {
+  const [fh, fm] = from.split(":").map(Number);
+  const [th, tm] = to.split(":").map(Number);
+  if (![fh, fm, th, tm].every(Number.isFinite)) return 0;
+  return ceilToQuarterHour((th * 60 + tm - (fh * 60 + fm)) / 60);
+}
+
+/**
  * Proposed hours for a planned resource on today's block: the block length,
  * but never more than what is still open for that resource on the todo
  * (its planned hours minus what was registered on earlier days).

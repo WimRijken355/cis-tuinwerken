@@ -3,6 +3,7 @@ import {
   buildJobInvoice,
   ceilToQuarterHour,
   defaultInvoiceNow,
+  hoursFromTimeRange,
   periodToWindow,
   proposeHours,
   searchArticles,
@@ -22,6 +23,20 @@ describe("ceilToQuarterHour (per begonnen kwartier)", () => {
     expect(ceilToQuarterHour(0)).toBe(0);
     expect(ceilToQuarterHour(Number.NaN)).toBe(0);
     expect(ceilToQuarterHour(0.1 + 0.2 + 0.95)).toBe(1.25); // 1.2500000000000002
+  });
+});
+
+describe("hoursFromTimeRange", () => {
+  it("computes hours between two clock times, per started quarter", () => {
+    expect(hoursFromTimeRange("08:00", "12:00")).toBe(4);
+    expect(hoursFromTimeRange("08:00", "12:10")).toBe(4.25);
+    expect(hoursFromTimeRange("08:15", "16:00")).toBe(7.75);
+  });
+
+  it("yields 0 when 'tot' is not after 'van', or on invalid input", () => {
+    expect(hoursFromTimeRange("12:00", "12:00")).toBe(0);
+    expect(hoursFromTimeRange("14:00", "08:00")).toBe(0);
+    expect(hoursFromTimeRange("", "12:00")).toBe(0);
   });
 });
 
