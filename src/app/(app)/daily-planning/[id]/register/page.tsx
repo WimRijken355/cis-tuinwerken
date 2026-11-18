@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { HoursStepper } from "@/components/hours-stepper";
+import { VatTotals } from "@/components/vat-totals";
+import { vatSummary } from "@/lib/invoice-content";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { Button, ErrorNote, Spinner, TextArea, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
@@ -63,6 +65,7 @@ interface CompleteResult {
   nextBlocks?: number;
   invoiceId?: number;
   totalExclVat?: number;
+  totalInclVat?: number;
   efPush?: { ok: boolean; skipped?: boolean; efInvoiceId?: number; error?: string };
 }
 
@@ -684,9 +687,8 @@ function RegisterFlow({
                       💬 {n}
                     </li>
                   ))}
-                  <li className="flex justify-between pt-2 font-semibold">
-                    <span>Totaal excl. btw</span>
-                    <span>{euro.format(preview.totalExclVat)}</span>
+                  <li className="pt-2">
+                    <VatTotals summary={vatSummary(preview.items)} />
                   </li>
                 </ul>
               )}
@@ -947,7 +949,10 @@ function ResultAndFollowUp({
         <p className="mt-1 text-sm text-gray-600">{appointment.customerName}</p>
         {result.invoiced ? (
           <>
-            <p className="text-sm text-gray-600">{euro.format(result.totalExclVat ?? 0)} excl. btw</p>
+            <p className="text-sm text-gray-600">
+              {euro.format(result.totalExclVat ?? 0)} excl. btw ·{" "}
+              <strong>{euro.format(result.totalInclVat ?? 0)} incl. btw</strong>
+            </p>
             {result.efPush?.skipped ? (
               <p className="mt-2 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700">
                 De factuur is lokaal bewaard (synchronisatie staat uit, of demoklant).

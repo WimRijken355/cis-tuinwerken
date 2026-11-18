@@ -48,6 +48,12 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - Meerdaagse job: elke dag een `Completion`; `invoiceNow` (standaard aan bij het laatste blok, `defaultInvoiceNow`) zet álle nog niet gefactureerde dagen op één factuur (`Completion.invoiceId`, `buildJobInvoice`: per dag **"Werkuren op dd/MM/jjjj"** = som van de personen, één regel per uurtarief; machines apart per dag; artikels over de job; de opsplitsing per persoon zit enkel in `lines[].details` en gaat **niet** naar EF; opmerking per regel (`lineRemarks`, op regelsleutel) en `invoiceNotes` worden EF-tekstregels), annuleert resterende blokken en sluit de todo. Zonder factuur en zonder volgend blok komt de todo terug in "In te plannen" (`needsPlanning`).
 - Checklist bij registratie: geplande taken afvinken + extra uitgevoerde taken (`TodoTask.unplanned`). Laatste stap: nieuwe todo met voorkeursperiode (`preferredFrom/To` → `windowStart/End`, label via `windowLabel()`).
 
+## Facturen
+
+- `Invoice.contentJson` = bewerkbare opbouw `{ lines: [{ item, remark? }], notes: [] }` (`src/lib/invoice-content.ts`); `Invoice.linesJson` (de EF-payload) wordt er **altijd** uit gegenereerd met `itemsFromContent()`. Oudere facturen zonder contentJson: `contentFromItems()` (heuristiek).
+- Aanpassen in Facturen → Details → ✏️ Aanpassen enkel zolang `canEditInvoice()` (geen `efInvoiceId`, status NOT_SYNCED/FAILED); `PATCH /api/invoices/:id` vervangt de hele inhoud, herberekent het totaal en zet `editedAt`. De registraties (uren per resource) blijven ongewijzigd.
+- Totaal incl. btw: `vatSummary()` (btw per tarief op het totaal van dat tarief, in centen) — getoond in de facturenlijst, het detail en de laatste stap van het klaarmelden. EF maakt de officiële berekening.
+
 ## Planning
 
 - Pagina `/planning` (FullCalendar v7, weekraster 06:00–24:00). Pure regels in `src/lib/planning.ts` (getest in `planning.test.ts`).

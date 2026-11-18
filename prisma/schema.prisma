@@ -448,6 +448,12 @@ model Invoice {
   /// Exacte items-payload zoals naar EF gestuurd — audittrail + basis voor retry.
   linesJson    Json
   totalExclVat Decimal           @db.Decimal(10, 2)
+  /// Editable structure of the invoice: { lines: [{ item, remark? }], notes: [] }.
+  /// linesJson (the EF payload) is generated from it. NULL for invoices made
+  /// before v0.24.0 (then derived from linesJson).
+  contentJson  Json?
+  /// Set when the invoice was edited by hand after the registration.
+  editedAt     DateTime?
   errorMessage String?
   createdAt    DateTime          @default(now())
   pushedAt     DateTime?

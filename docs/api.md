@@ -187,6 +187,19 @@ Detail: `items` = exact wat naar EenvoudigFactureren ging (incl. tekstregels),
 `invoicedHours`, `hourlyRate`), artikels en notitie — ter info, zo is elke
 "Werkuren op …"-regel samengesteld.
 
+### PATCH /api/invoices/:id
+Factuur aanpassen zolang ze niet in EenvoudigFactureren staat (geen
+`efInvoiceId`, status `NOT_SYNCED` of `FAILED`; anders 409). Body = de hele
+inhoud:
+```json
+{ "lines": [{ "item": { "description": "Werkuren op 07/12/2026", "quantity": 7.5,
+                        "unit": "uur", "amount": 45, "tax_rate": 21 },
+               "remark": "incl. snoeiwerk" }],
+  "notes": ["Bedankt!"] }
+```
+De EF-regels (`linesJson`) en het totaal worden opnieuw berekend; `editedAt`
+wordt gezet. De geregistreerde uren zelf blijven ongewijzigd.
+
 ### GET /api/invoices?status=
 Overzicht (nieuwste eerst, max 200) met `pushStatus`
 (`PENDING`/`CONCEPT_CREATED`/`FAILED`), `totalExclVat`, `workTitle`, `workDate`.

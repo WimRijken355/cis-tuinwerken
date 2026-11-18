@@ -20,6 +20,8 @@ import { formatDateShort } from "@/lib/time";
  * Overzicht van de automatisch aangemaakte facturen + hun pushstatus naar
  * EenvoudigFactureren. Finaliseren/versturen gebeurt bewust in EF zelf.
  */
+const euro = new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" });
+
 export default function InvoicesPage() {
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<string>("");
@@ -122,7 +124,10 @@ export default function InvoicesPage() {
                 <span className="text-xs text-brand-600">Details ›</span>
               </button>
               <div className="flex shrink-0 items-center gap-3">
-                <span className="font-medium">€ {inv.totalExclVat.toFixed(2)}</span>
+                <span className="text-right">
+                  <span className="block font-medium tabular-nums">{euro.format(inv.totalInclVat)}</span>
+                  <span className="block text-xs text-gray-500 tabular-nums">{euro.format(inv.totalExclVat)} excl. btw</span>
+                </span>
                 <StatusBadge status={inv.pushStatus} />
                 {canSendToEf({ efInvoiceId: inv.efInvoiceId ?? null, pushStatus: inv.pushStatus }, syncEnabled, inv.customerIsDemo)
                   .allowed && (
@@ -141,7 +146,7 @@ export default function InvoicesPage() {
       )}
 
       <p className="mt-3 text-xs text-gray-400">
-        Bedragen zijn excl. btw. Concepten kijk je na en finaliseer je in
+        Bovenaan het totaal incl. btw, eronder excl. btw. Concepten kijk je na en finaliseer je in
         EenvoudigFactureren zelf.
       </p>
 

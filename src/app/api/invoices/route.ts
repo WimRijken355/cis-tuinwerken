@@ -2,6 +2,8 @@ import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import type { Prisma } from "@/generated/prisma/client";
+import type { EfInvoiceItem } from "@/lib/ef/types";
+import { vatSummary } from "@/lib/invoice-content";
 
 /** GET /api/invoices?status= — overzicht met pushstatus naar EenvoudigFactureren. */
 export async function GET(request: NextRequest) {
@@ -35,6 +37,7 @@ export async function GET(request: NextRequest) {
         efInvoiceId: inv.efInvoiceId,
         pushStatus: inv.pushStatus,
         totalExclVat: Number(inv.totalExclVat),
+        totalInclVat: vatSummary(inv.linesJson as unknown as EfInvoiceItem[]).inclVat,
         errorMessage: inv.errorMessage,
         createdAt: inv.createdAt.toISOString(),
         pushedAt: inv.pushedAt?.toISOString() ?? null,

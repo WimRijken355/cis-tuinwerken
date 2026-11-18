@@ -1,0 +1,118 @@
+import { describe, expect, it } from "vitest";
+import {
+  canEditInvoice,
+  contentFromBuilt,
+  contentFromItems,
+  invoiceContentSchema,
+  itemsFromContent,
+  totalOfContent,
+  type InvoiceContent,
+  vatSummary,
+} from "./invoice-content";
+
+const werkuren = { description: "Werkuren op 07/12/2026", quantity: 15.5, unit: "uur", amount: 45, tax_rate: 21 };
+const mini = { description: "Minigraver op 07/12/2026", quantity: 6, unit: "uur", amount: 55, tax_rate: 21 };
+
+describe("itemsFromContent / totalOfContent", () => {
+  const content: InvoiceContent = {
+    lines: [{ item: werkuren }, { item: mini, remark: "incl. transport" }],
+    notes: ["Bedankt!", "  "],
+  };
+
+  it("puts a remark right below its line and notes at the bottom", () => {
+    expect(itemsFromContent(content)).toEqual([
+      { type: "item", ...werkuren },
+      { type: "item", ...mini },
+      { type: "text", description: "incl. transport" },
+      { type: "text", description: "Bedankt!" },
+    ]);
+  });
+
+  it("computes the total in cents", () => {
+    expect(totalOfContent(content)).toBe(15.5 * 45 + 6 * 55);
+    expect(totalOfContent({ lines: [{ item: { ...mini, quantity: 3, amount: 35.1 } }], notes: [] })).toBe(105.3);
+  });
+});
+
+describe("contentFromItems (invoices from before contentJson)", () => {
+  it("reads a text line right after an item as its remark, others as notes", () => {
+    const content = contentFromItems([
+      { type: "item", ...werkuren },
+      { type: "item", ...mini },
+      { type: "text", description: "incl. transport" },
+      { type: "text", description: "Bedankt!" },
+    ]);
+    expect(content.lines[1].remark).toBe("incl. transport");
+    expect(content.notes).toEqual(["Bedankt!"]);
+  });
+
+  it("round-trips to the same EF lines", () => {
+    const items = [
+      { type: "item" as const, ...werkuren },
+      { type: "text" as const, description: "op zaterdag" },
+      { type: "item" as const, ...mini },
+    ];
+    expect(itemsFromContent(contentFromItems(items))).toEqual(items);
+  });
+});
+
+describe("canEditInvoice", () => {
+  it("only while the invoice is not in EenvoudigFactureren", () => {
+    expect(canEditInvoice({ efInvoiceId: null, pushStatus: "NOT_SYNCED" })).toBe(true);
+    expect(canEditInvoice({ efInvoiceId: null, pushStatus: "FAILED" })).toBe(true);
+    expect(canEditInvoice({ efInvoiceId: 12, pushStatus: "CONCEPT_CREATED" })).toBe(false);
+    expect(canEditInvoice({ efInvoiceId: null, pushStatus: "PENDING" })).toBe(false); // push in progress
+  });
+});
+
+describe("invoiceContentSchema", () => {
+  it("rounds quantity and price, drops empty remarks and notes", () => {
+    const parsed = invoiceContentSchema.parse({
+      lines: [{ item: { ...werkuren, quantity: "2.345", amount: "45.678" }, remark: " " }],
+      notes: ["", "Bedankt"],
+    });
+    expect(parsed.lines[0]).toEqual({ item: { ...werkuren, quantity: 2.35, amount: 45.68 }, remark: undefined });
+    expect(parsed.notes).toEqual(["Bedankt"]);
+  });
+
+  it("rejects an empty invoice, 0 quantity, negative price, long units and odd VAT", () => {
+    expect(() => invoiceContentSchema.parse({ lines: [] })).toThrow();
+    expect(() => invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, quantity: 0 } }] })).toThrow();
+    expect(() => invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, amount: -1 } }] })).toThrow();
+    expect(() => invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, unit: "kubieke meter" } }] })).toThrow();
+    expect(() => invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, tax_rate: 15 } }] })).toThrow();
+  });
+});
+
+describe("contentFromBuilt", () => {
+  it("keeps the remark with its line, so EF gets the same lines back", () => {
+    const content = contentFromBuilt({
+      lines: [{ item: { type: "item", ...mini }, remark: "incl. transport" }, { item: { type: "item", ...werkuren } }],
+      notes: ["Bedankt!"],
+    });
+    expect(content).toEqual({
+      lines: [{ item: mini, remark: "incl. transport" }, { item: werkuren }],
+      notes: ["Bedankt!"],
+    });
+  });
+});
+
+describe("vatSummary (totaal incl. btw)", () => {
+  it("computes VAT per rate on the total of that rate, ignoring text lines", () => {
+    const summary = vatSummary([
+      { type: "item", quantity: 15.5, amount: 45, tax_rate: 21 },
+      { type: "text" },
+      { type: "item", quantity: 6, amount: 55, tax_rate: 21 },
+      { type: "item", quantity: 10, amount: 12.35, tax_rate: 6 },
+    ]);
+    expect(summary.perRate).toEqual([
+      { rate: 21, base: 1027.5, vat: 215.78 },
+      { rate: 6, base: 123.5, vat: 7.41 },
+    ]);
+    expect(summary).toMatchObject({ exclVat: 1151, vat: 223.19, inclVat: 1374.19 });
+  });
+
+  it("is zero for an empty list", () => {
+    expect(vatSummary([])).toEqual({ exclVat: 0, perRate: [], vat: 0, inclVat: 0 });
+  });
+});

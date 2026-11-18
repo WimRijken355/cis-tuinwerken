@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
+import { contentFromBuilt, vatSummary } from "@/lib/invoice-content";
 import { buildJobInvoice } from "@/lib/registration";
 import { completionInputSchema } from "@/lib/schemas/completions";
 import { syncTodoStatus } from "@/lib/services/appointments";
@@ -114,6 +115,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
           customerId: customer.id,
           pushStatus: "PENDING",
           linesJson: built.items as unknown as object,
+          // Editable structure (lines + remarks, notes) while not yet in EF.
+          contentJson: contentFromBuilt(built) as unknown as object,
           totalExclVat: built.totalExclVat,
         },
       });
@@ -130,7 +133,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         where: { id: appointment.todoId },
         data: { status: "DONE", completedAt: new Date() },
       });
-      return { invoice: { id: invoice.id, totalExclVat: built.totalExclVat } };
+      return {
+        invoice: { id: invoice.id, totalExclVat: built.totalExclVat, totalInclVat: vatSummary(built.items).inclVat },
+      };
     });
 
     if (!result.invoice) {
@@ -154,6 +159,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         invoiced: true,
         invoiceId: result.invoice.id,
         totalExclVat: result.invoice.totalExclVat,
+        totalInclVat: result.invoice.totalInclVat,
         efPush,
       },
       { status: 201 },

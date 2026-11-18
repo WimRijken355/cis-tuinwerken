@@ -134,7 +134,12 @@ toepassing zijn. Op de klantfiche vink je ze af zodra ze gedaan zijn
 
 **Facturen** toont alles wat de app heeft aangemaakt. Tik een factuur aan voor
 de details: exact wat naar EenvoudigFactureren ging, en per dag de uren per
-resource (geregistreerd en gefactureerd) waaruit "Werkuren op …" is opgebouwd.
+resource (geregistreerd en gefactureerd) waaruit "Werkuren op …" is opgebouwd,
+en het totaal excl. en incl. btw. Zolang de factuur nog niet in
+EenvoudigFactureren staat ("Niet gesynchroniseerd" of "Push mislukt"), kan je
+ze daar met **✏️ Aanpassen** wijzigen: aantallen, prijzen en omschrijvingen,
+een opmerking per regel, opmerkingsregels, en artikels toevoegen of regels
+verwijderen.
 De status per factuur:
 - **Concept in EF** — staat klaar in EenvoudigFactureren om na te kijken
 - **Push mislukt** — tik ↻ Opnieuw (de foutoorzaak staat erbij)

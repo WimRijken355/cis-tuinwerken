@@ -133,6 +133,8 @@ export interface InvoiceDto {
   /** Invoice of a demo customer: never sent to EF. */
   customerIsDemo?: boolean;
   totalExclVat: number;
+  /** Computed from the EF lines (VAT per rate), for display. */
+  totalInclVat: number;
   errorMessage: string | null;
   createdAt: string;
   pushedAt: string | null;
@@ -144,6 +146,12 @@ export interface InvoiceDto {
 export interface InvoiceDetailDto extends Omit<InvoiceDto, "workDate"> {
   /** Exactly the lines sent (or to be sent) to EenvoudigFactureren, incl. text lines. */
   items: { type: "item" | "text"; description: string; quantity?: number; unit?: string; amount?: number; tax_rate?: number }[];
+  /** Editable structure (lines with remark, notes) — see src/lib/invoice-content.ts. */
+  content: import("../invoice-content").InvoiceContent;
+  /** Not in EF yet → can still be edited (canEditInvoice). */
+  editable: boolean;
+  /** Set when edited by hand after the registration. */
+  editedAt: string | null;
   /** Registered days on this invoice, oldest first. */
   days: {
     date: string;
