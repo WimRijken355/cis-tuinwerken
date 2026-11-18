@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { Button, ErrorNote, Modal, Spinner, StatusBadge, TextInput } from "@/components/ui";
+import { Fragment, useMemo, useState } from "react";
+import { Button, ErrorNote, Modal, Spinner, StatusBadge } from "@/components/ui";
 import { VatTotals } from "@/components/vat-totals";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { itemsFromContent, vatSummary, type InvoiceContent } from "@/lib/invoice-content";
+import { parseDecimal } from "@/lib/number";
 import { searchArticles } from "@/lib/registration";
 import type { PriceListItemDto } from "@/lib/schemas/catalog";
 import type { InvoiceDetailDto } from "@/lib/schemas/completions";
@@ -13,7 +14,7 @@ import { formatDate, formatDateShort } from "@/lib/time";
 
 const euro = new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" });
 const hours = (h: number) => `${String(h).replace(".", ",")} u`;
-const num = (v: string) => Number(v.replace(",", "."));
+const num = parseDecimal;
 const show = (n: number) => String(n).replace(".", ",");
 
 /**
@@ -230,6 +231,10 @@ interface EditLine {
 
 let nextKey = 1;
 
+/** Compact input that fills its table cell. */
+const cellInput =
+  "w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none";
+
 /**
  * Edits an invoice that is not in EenvoudigFactureren yet: description,
  * quantity and price per line, a remark per line, note lines, and adding /
@@ -295,138 +300,199 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
       </p>
       {saveMutation.error && <ErrorNote message={(saveMutation.error as Error).message} />}
 
-      <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200">
-        {lines.map((l) => {
-          const total = num(l.quantity) * num(l.amount);
-          return (
-            <li key={l.key} className="space-y-1.5 p-3">
-              <div className="flex gap-2">
-                <TextInput
-                  aria-label="Omschrijving"
-                  value={l.description}
-                  maxLength={500}
-                  onChange={(e) => update(l.key, { description: e.target.value })}
-                />
-                <button
-                  type="button"
-                  aria-label="Regel verwijderen"
-                  title="Regel verwijderen"
-                  onClick={() => setLines((list) => list.filter((x) => x.key !== l.key))}
-                  className="shrink-0 rounded-md px-2 text-red-500 hover:bg-red-50"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="flex flex-wrap items-end gap-2">
-                <label className="block">
-                  <span className="text-[11px] uppercase tracking-wide text-gray-500">Aantal ({l.unit})</span>
-                  <TextInput
-                    inputMode="decimal"
-                    value={l.quantity}
-                    onChange={(e) => update(l.key, { quantity: e.target.value })}
-                    className="!w-24"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-[11px] uppercase tracking-wide text-gray-500">Prijs (€, excl. btw)</span>
-                  <TextInput
-                    inputMode="decimal"
-                    value={l.amount}
-                    onChange={(e) => update(l.key, { amount: e.target.value })}
-                    className="!w-28"
-                  />
-                </label>
-                <span className="pb-2 text-gray-500">{l.tax_rate}% btw</span>
-                <span className="ml-auto pb-2 font-medium tabular-nums">
-                  {Number.isFinite(total) ? euro.format(total) : "–"}
-                </span>
-              </div>
-              {l.remarkOpen ? (
-                <TextInput
-                  aria-label="Opmerking bij deze regel"
-                  placeholder="Opmerking bij deze regel (leeg = geen)…"
-                  value={l.remark}
-                  maxLength={500}
-                  onChange={(e) => update(l.key, { remark: e.target.value })}
-                />
-              ) : (
-                <button type="button" className="text-xs text-brand-600" onClick={() => update(l.key, { remarkOpen: true })}>
-                  + opmerking bij deze regel
-                </button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      <div className="overflow-x-auto rounded-lg border border-gray-200">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+            <tr>
+              <th className="px-2 py-2">Omschrijving</th>
+              <th className="w-24 px-2 py-2 text-right">Aantal</th>
+              <th className="w-16 px-2 py-2">Eenheid</th>
+              <th className="w-28 px-2 py-2 text-right">Prijs</th>
+              <th className="w-14 px-2 py-2 text-right">Btw</th>
+              <th className="w-28 px-2 py-2 text-right">Totaal</th>
+              <th className="w-10 px-1 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {lines.map((l) => {
+              const total = num(l.quantity) * num(l.amount);
+              return (
+                <Fragment key={l.key}>
+                  <tr className="border-t border-gray-100 align-top">
+                    <td className="px-2 pb-1 pt-2">
+                      <input
+                        aria-label="Omschrijving"
+                        value={l.description}
+                        maxLength={500}
+                        onChange={(e) => update(l.key, { description: e.target.value })}
+                        className={cellInput}
+                      />
+                      {!l.remarkOpen && (
+                        <button
+                          type="button"
+                          className="mt-0.5 text-xs text-brand-600 hover:underline"
+                          onClick={() => update(l.key, { remarkOpen: true })}
+                        >
+                          + opmerking
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-2 pb-1 pt-2">
+                      <input
+                        aria-label="Aantal"
+                        inputMode="decimal"
+                        value={l.quantity}
+                        onChange={(e) => update(l.key, { quantity: e.target.value })}
+                        className={`${cellInput} text-right tabular-nums`}
+                      />
+                    </td>
+                    <td className="px-2 pb-1 pt-3.5 text-gray-600">{l.unit}</td>
+                    <td className="px-2 pb-1 pt-2">
+                      <input
+                        aria-label="Prijs excl. btw"
+                        inputMode="decimal"
+                        value={l.amount}
+                        onChange={(e) => update(l.key, { amount: e.target.value })}
+                        className={`${cellInput} text-right tabular-nums`}
+                      />
+                    </td>
+                    <td className="px-2 pb-1 pt-3.5 text-right tabular-nums text-gray-600">{l.tax_rate}%</td>
+                    <td className="px-2 pb-1 pt-3.5 text-right font-medium tabular-nums">
+                      {Number.isFinite(total) ? euro.format(total) : "–"}
+                    </td>
+                    <td className="px-1 pb-1 pt-2 text-center">
+                      <button
+                        type="button"
+                        aria-label="Regel verwijderen"
+                        title="Regel verwijderen"
+                        onClick={() => setLines((list) => list.filter((x) => x.key !== l.key))}
+                        className="rounded px-1.5 py-1 text-red-500 hover:bg-red-50"
+                      >
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                  {l.remarkOpen && (
+                    <tr>
+                      <td colSpan={6} className="px-2 pb-2">
+                        <div className="flex items-center gap-1.5 pl-3">
+                          <span className="text-gray-400">↳ 💬</span>
+                          <input
+                            aria-label="Opmerking bij deze regel"
+                            placeholder="Opmerking bij deze regel (komt eronder op de factuur)…"
+                            value={l.remark}
+                            maxLength={500}
+                            onChange={(e) => update(l.key, { remark: e.target.value })}
+                            className={`${cellInput} italic`}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-1 pb-2 text-center">
+                        <button
+                          type="button"
+                          aria-label="Opmerking verwijderen"
+                          title="Opmerking verwijderen"
+                          onClick={() => update(l.key, { remark: "", remarkOpen: false })}
+                          className="rounded px-1.5 py-1 text-gray-400 hover:bg-gray-100"
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
 
-      <section className="rounded-lg border border-dashed border-gray-300 p-3">
-        <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">Artikel toevoegen</p>
-        <TextInput
-          type="search"
-          placeholder="Zoek in de artikels…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        {search && (
-          <ul className="mt-1 divide-y divide-gray-100">
-            {results.results.map((p) => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  className="flex w-full justify-between gap-2 py-2 text-left hover:bg-gray-50"
-                  onClick={() => {
-                    setLines((list) => [
-                      ...list,
-                      {
-                        key: nextKey++,
-                        description: p.name,
-                        quantity: "1",
-                        unit: p.unit,
-                        amount: show(p.unitPrice),
-                        tax_rate: p.vatRate,
-                        remark: "",
-                        remarkOpen: false,
-                      },
-                    ]);
-                    setSearch("");
-                  }}
-                >
-                  <span className="truncate">{p.name}</span>
-                  <span className="shrink-0 text-xs text-gray-500">
-                    {euro.format(p.unitPrice)}/{p.unit} · {p.vatRate}%
-                  </span>
-                </button>
-              </li>
+            {notes.map((n, i) => (
+              <tr key={`note-${i}`} className="border-t border-gray-100 bg-gray-50/60">
+                <td colSpan={6} className="px-2 py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-400">💬</span>
+                    <input
+                      aria-label="Opmerkingsregel"
+                      value={n}
+                      maxLength={1000}
+                      placeholder="Opmerkingsregel op de factuur…"
+                      onChange={(e) => setNotes((list) => list.map((x, j) => (j === i ? e.target.value : x)))}
+                      className={`${cellInput} italic`}
+                    />
+                  </div>
+                </td>
+                <td className="px-1 py-1.5 text-center">
+                  <button
+                    type="button"
+                    aria-label="Opmerkingsregel verwijderen"
+                    onClick={() => setNotes((list) => list.filter((_, j) => j !== i))}
+                    className="rounded px-1.5 py-1 text-red-500 hover:bg-red-50"
+                  >
+                    ✕
+                  </button>
+                </td>
+              </tr>
             ))}
-            {results.results.length === 0 && <li className="py-2 text-gray-500">Geen artikels gevonden.</li>}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <p className="text-xs font-medium uppercase tracking-wide text-gray-500">Opmerkingsregels op de factuur</p>
-        {notes.map((n, i) => (
-          <div key={i} className="mt-1.5 flex gap-2">
-            <TextInput
-              value={n}
-              maxLength={1000}
-              placeholder="Opmerking…"
-              onChange={(e) => setNotes((list) => list.map((x, j) => (j === i ? e.target.value : x)))}
-            />
-            <button
-              type="button"
-              aria-label="Opmerkingsregel verwijderen"
-              onClick={() => setNotes((list) => list.filter((_, j) => j !== i))}
-              className="shrink-0 rounded-md px-2 text-red-500 hover:bg-red-50"
-            >
-              ✕
-            </button>
-          </div>
-        ))}
-        <button type="button" onClick={() => setNotes((list) => [...list, ""])} className="mt-1.5 text-sm text-brand-600">
-          + Opmerkingsregel toevoegen
-        </button>
-      </section>
+          </tbody>
+          <tfoot>
+            <tr className="border-t border-gray-200">
+              <td colSpan={7} className="px-2 py-2">
+                <div className="flex flex-wrap items-start gap-3">
+                  <div className="min-w-60 flex-1">
+                    <input
+                      type="search"
+                      aria-label="Artikel toevoegen"
+                      placeholder="＋ Artikel toevoegen — zoek in de artikels…"
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      className={cellInput}
+                    />
+                    {search && (
+                      <ul className="mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-gray-200 bg-white">
+                        {results.results.map((p) => (
+                          <li key={p.id}>
+                            <button
+                              type="button"
+                              className="flex w-full justify-between gap-2 px-3 py-2 text-left hover:bg-gray-50"
+                              onClick={() => {
+                                setLines((list) => [
+                                  ...list,
+                                  {
+                                    key: nextKey++,
+                                    description: p.name,
+                                    quantity: "1",
+                                    unit: p.unit,
+                                    amount: show(p.unitPrice),
+                                    tax_rate: p.vatRate,
+                                    remark: "",
+                                    remarkOpen: false,
+                                  },
+                                ]);
+                                setSearch("");
+                              }}
+                            >
+                              <span className="truncate">{p.name}</span>
+                              <span className="shrink-0 text-xs text-gray-500">
+                                {euro.format(p.unitPrice)}/{p.unit} · {p.vatRate}%
+                              </span>
+                            </button>
+                          </li>
+                        ))}
+                        {results.results.length === 0 && <li className="px-3 py-2 text-gray-500">Geen artikels gevonden.</li>}
+                      </ul>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setNotes((list) => [...list, ""])}
+                    className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    ＋ Opmerkingsregel
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
       <div className="ml-auto max-w-xs">
         <VatTotals summary={vatSummary(itemsFromContent(content))} />
