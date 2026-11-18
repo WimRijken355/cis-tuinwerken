@@ -34,9 +34,12 @@ export interface EfStockItem {
   type?: "single" | "list" | "combined" | "combined_fixed";
   price?: number | null;
   tax_category?: number | null;
+  /** VAT exemption code, only meaningful together with tax_category 0. */
+  tax_category_special_status?: string | null;
   /** Configurable VAT rate code when the account uses dynamic VAT rates. */
   tax_code?: string | null;
-  tax_included?: boolean | null;
+  /** Documented as boolean, but the live API returns "yes"/"no". */
+  tax_included?: boolean | "yes" | "no" | null;
   unit?: string | null;
   active?: "yes" | "no" | null;
 }

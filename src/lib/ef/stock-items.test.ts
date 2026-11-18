@@ -3,7 +3,9 @@ import { mapEfTaxCategory, mapStockItemToProduct, planStockItemImport } from "./
 
 describe("mapEfTaxCategory", () => {
   it("maps EF VAT categories to percentages", () => {
-    expect(mapEfTaxCategory({ tax_category: 0 })).toBe(0);
+    // 0 = no fixed rate on the item → standard 21%, unless an exemption code is set.
+    expect(mapEfTaxCategory({ tax_category: 0, tax_category_special_status: "" })).toBe(21);
+    expect(mapEfTaxCategory({ tax_category: 0, tax_category_special_status: "K" })).toBe(0);
     expect(mapEfTaxCategory({ tax_category: 1 })).toBe(21);
     expect(mapEfTaxCategory({ tax_category: 2 })).toBe(12);
     expect(mapEfTaxCategory({ tax_category: 3 })).toBe(6);
@@ -24,7 +26,7 @@ describe("mapStockItemToProduct", () => {
       description: "  Afvoer groenafval ",
       price: 121,
       tax_category: 1,
-      tax_included: true,
+      tax_included: "yes",
       unit: "kubieke meter",
       active: "no",
     });
@@ -36,6 +38,18 @@ describe("mapStockItemToProduct", () => {
       vatRate: 21,
       active: false,
     });
+  });
+
+  it('treats tax_included "no" (as the live API returns it) as excl. VAT', () => {
+    const product = mapStockItemToProduct({
+      stockitem_id: 1,
+      description: "Frees",
+      price: 100,
+      tax_category: 3,
+      tax_included: "no",
+      unit: "",
+    });
+    expect(product).toMatchObject({ unitPrice: 100, vatRate: 6, unit: "stuk" });
   });
 
   it("falls back to code, 'stuk' and price 0", () => {

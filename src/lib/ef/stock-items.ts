@@ -12,20 +12,26 @@ const SUPPORTED_VAT_RATES = [0, 6, 12, 21] as const;
 /**
  * EF's `tax_category` (0-3) → VAT percentage.
  *
- * ASSUMPTION: the EF API docs list the enum (0,1,2,3) but not its meaning.
- * We follow the order of EF's Belgian VAT rates in its UI: 1 = standard rate
- * (21%, also EF's default category for clients), 2 = 12%, 3 = 6%, 0 = 0%/exempt.
+ * The EF API docs list the enum (0,1,2,3) but not its meaning. Verified
+ * against real invoice lines of this account (Nov 2026):
+ * - 1 → 21% and 3 → 6% (plants) consistently;
+ * - 0 means "no fixed rate on the item" (the document/client decides) — on
+ *   invoices it mostly became 21%, so we default to 21%. Only when EF sets a
+ *   VAT exemption code (`tax_category_special_status`) do we use 0%.
+ * - 2 → 12% is an assumption (not used by this account).
  * If `tax_code` holds a plain percentage (accounts with dynamic VAT rates),
  * that wins. Unknown values fall back to 21%.
  */
-export function mapEfTaxCategory(item: Pick<EfStockItem, "tax_category" | "tax_code">): number {
+export function mapEfTaxCategory(
+  item: Pick<EfStockItem, "tax_category" | "tax_code" | "tax_category_special_status">,
+): number {
   const fromCode = Number(item.tax_code?.replace("%", "").replace(",", ".").trim());
   if (item.tax_code && (SUPPORTED_VAT_RATES as readonly number[]).includes(fromCode)) {
     return fromCode;
   }
   switch (item.tax_category) {
     case 0:
-      return 0;
+      return item.tax_category_special_status?.trim() ? 0 : 21;
     case 2:
       return 12;
     case 3:
@@ -33,6 +39,11 @@ export function mapEfTaxCategory(item: Pick<EfStockItem, "tax_category" | "tax_c
     default:
       return 21;
   }
+}
+
+/** EF returns "yes"/"no" for tax_included even though the docs say boolean. */
+function isTaxIncluded(value: EfStockItem["tax_included"]): boolean {
+  return value === true || value === "yes";
 }
 
 export interface ImportedProduct {
@@ -48,7 +59,7 @@ export interface ImportedProduct {
 export function mapStockItemToProduct(item: EfStockItem): ImportedProduct {
   const vatRate = mapEfTaxCategory(item);
   const rawPrice = item.price ?? 0;
-  const priceExcl = item.tax_included ? rawPrice / (1 + vatRate / 100) : rawPrice;
+  const priceExcl = isTaxIncluded(item.tax_included) ? rawPrice / (1 + vatRate / 100) : rawPrice;
   const name = item.description?.trim() || item.code?.trim() || `Artikel ${item.stockitem_id}`;
   return {
     efStockItemId: item.stockitem_id,

@@ -174,8 +174,11 @@ Beheerd via de pagina **Artikels** (`/products`).
 Haalt alle artikels (`GET /stockitems`) uit EenvoudigFactureren op en zet ze in
 de prijslijst. Al gekoppeld → overslaan; zelfde naam → enkel koppelen (lokale
 data blijft leidend); anders aanmaken. Prijzen incl. btw worden omgerekend naar
-excl. btw, eenheden afgekapt op 10 tekens. Btw-mapping `tax_category`: 1 → 21%,
-2 → 12%, 3 → 6%, 0 → 0% (aanname, niet gedocumenteerd door EF). Antwoord:
+excl. btw, eenheden afgekapt op 10 tekens (leeg → "stuk"). Btw-mapping
+`tax_category` (niet gedocumenteerd door EF, geverifieerd tegen echte
+factuurlijnen): 1 → 21%, 3 → 6%, 0 → geen vast tarief → 21% (0% enkel bij een
+vrijstellingscode), 2 → 12% (aanname). Let op: EF geeft `tax_included` terug als
+"yes"/"no", niet als boolean. Antwoord:
 `{ totalInEf, created, linked, skipped }`.
 
 ## Instellingen & jobs
