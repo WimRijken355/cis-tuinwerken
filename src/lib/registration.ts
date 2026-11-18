@@ -83,7 +83,7 @@ const dayLabel = (d: Date | string) =>
  * - one line per resource (same resource, rate and VAT summed over the days),
  *   "Werkuren <naam> – <titel> (19/11, 20/11)" for people,
  *   "<machine> – <titel> (…)" for machines; quantity = invoiced hours;
- * - extras (artikels) summed per article/price/VAT/unit;
+ * - extras (artikels) summed per article/description/price/VAT/unit;
  * - lines with 0 invoiced hours / quantity are left out.
  * EF limits enforced: quantity max 2 decimals, unit max 10 chars, VAT 0/6/12/21;
  * money in cents (no float drift in the total).
@@ -122,11 +122,12 @@ export function buildJobInvoice(params: { workTitle: string; days: RegisteredDay
     addItem(`${what} (${dates.join(", ")})`, hours, "uur", line.hourlyRate, line.vatRate);
   }
 
-  // Extras, grouped per article + price + VAT + unit.
+  // Extras, grouped per article + description + price + VAT + unit (the
+  // description can be edited per registration; a different text = own line).
   const extras = new Map<string, { extra: RegisteredExtra; quantity: number }>();
   for (const day of sortedDays) {
     for (const e of day.extras) {
-      const key = `${e.priceListItemId ?? e.description}|${e.unitPrice}|${e.vatRate}|${e.unit}`;
+      const key = `${e.priceListItemId ?? ""}|${e.description}|${e.unitPrice}|${e.vatRate}|${e.unit}`;
       const entry = extras.get(key) ?? { extra: e, quantity: 0 };
       entry.quantity += e.quantity;
       extras.set(key, entry);

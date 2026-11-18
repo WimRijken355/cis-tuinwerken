@@ -136,3 +136,21 @@ describe("searchArticles", () => {
     expect(searchArticles(items, "", new Set(), 2).results).toHaveLength(2);
   });
 });
+
+describe("buildJobInvoice with edited article descriptions", () => {
+  it("keeps an edited description as its own line instead of merging it away", () => {
+    const base = { priceListItemId: 7, unit: "m²", unitPrice: 9, vatRate: 21 };
+    const built = buildJobInvoice({
+      workTitle: "X",
+      days: [
+        { date: "2026-11-19T07:00:00Z", labor: [], extras: [{ ...base, description: "Graszoden", quantity: 10 }] },
+        { date: "2026-11-20T07:00:00Z", labor: [], extras: [{ ...base, description: "Graszoden schaduwmengsel", quantity: 5 }] },
+        { date: "2026-11-21T07:00:00Z", labor: [], extras: [{ ...base, description: "Graszoden", quantity: 2 }] },
+      ],
+    });
+    expect(built.items.map((i) => [i.description, i.quantity])).toEqual([
+      ["Graszoden", 12],
+      ["Graszoden schaduwmengsel", 5],
+    ]);
+  });
+});

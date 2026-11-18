@@ -46,6 +46,9 @@ interface ResourceLine {
 
 interface ExtraLine {
   priceListItemId: number;
+  /** Name in the price list (to show/restore when the description is edited). */
+  originalName: string;
+  /** Text on the invoice; editable per registration. */
   description: string;
   /** As typed (comma allowed); both editable on site. */
   quantity: string;
@@ -191,6 +194,7 @@ function RegisterFlow({
       ...list,
       {
         priceListItemId: p.id,
+        originalName: p.name,
         description: p.name,
         quantity: "1",
         unit: p.unit,
@@ -232,7 +236,13 @@ function RegisterFlow({
       })),
       extras: extras
         .filter((e) => parseNum(e.quantity) > 0 && parseNum(e.unitPrice) >= 0)
-        .map((e) => ({ ...e, quantity: parseNum(e.quantity), unitPrice: parseNum(e.unitPrice) })),
+        .map((e) => ({
+          ...e,
+          // An emptied description falls back to the article name.
+          description: e.description.trim() || e.originalName,
+          quantity: parseNum(e.quantity),
+          unitPrice: parseNum(e.unitPrice),
+        })),
     }),
     [appointment.startAt, activeLines, extras, context.laborVatRate],
   );
@@ -383,15 +393,38 @@ function RegisterFlow({
                   return (
                     <li key={x.priceListItemId} className="py-2">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium leading-snug">{x.description}</p>
+                        <label className="block min-w-0 flex-1">
+                          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                            Omschrijving (op de factuur)
+                          </span>
+                          <TextInput
+                            aria-label={`Omschrijving ${x.originalName}`}
+                            value={x.description}
+                            maxLength={200}
+                            onChange={(e) => updateArticle(x.priceListItemId, { description: e.target.value })}
+                            className="text-base"
+                          />
+                        </label>
                         <button
                           type="button"
                           onClick={() => setExtras((list) => list.filter((y) => y.priceListItemId !== x.priceListItemId))}
-                          className="shrink-0 text-xs text-red-500"
+                          className="mt-5 shrink-0 rounded-md px-2 py-1 text-xs text-red-500 active:bg-red-50"
                         >
                           verwijderen
                         </button>
                       </div>
+                      {x.description.trim() !== x.originalName && (
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          Artikel: {x.originalName} ·{" "}
+                          <button
+                            type="button"
+                            className="text-brand-600"
+                            onClick={() => updateArticle(x.priceListItemId, { description: x.originalName })}
+                          >
+                            ↩ origineel
+                          </button>
+                        </p>
+                      )}
                       <div className="mt-1.5 flex flex-wrap items-end gap-2">
                         <label className="block">
                           <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
