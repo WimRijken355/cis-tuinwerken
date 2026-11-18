@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   applyPlanningFlags,
+  blockEmphasis,
+  toggleFocus,
   EMPTY_PLANNING_FILTER,
   groupByCity,
   isFilterActive,
@@ -174,5 +176,20 @@ describe("groupByCity", () => {
       ["Westerlo", [1, 4]],
       [NO_CITY_LABEL, [2, 5]],
     ]);
+  });
+});
+
+describe("focus on one todo (sidebar ↔ grid)", () => {
+  it("toggles: same todo clears, another takes over", () => {
+    expect(toggleFocus(null, 4)).toBe(4);
+    expect(toggleFocus(4, 4)).toBeNull();
+    expect(toggleFocus(4, 9)).toBe(9);
+  });
+
+  it("highlights the focused todo's blocks and fades the rest", () => {
+    expect(blockEmphasis({ todoId: 4, focusTodoId: 4, matchesFilter: false })).toEqual({ highlighted: true, opacity: 1 });
+    expect(blockEmphasis({ todoId: 5, focusTodoId: 4, matchesFilter: true })).toEqual({ highlighted: false, opacity: 0.55 });
+    expect(blockEmphasis({ todoId: 5, focusTodoId: 4, matchesFilter: false })).toEqual({ highlighted: false, opacity: 0.25 });
+    expect(blockEmphasis({ todoId: 5, focusTodoId: null, matchesFilter: true })).toEqual({ highlighted: false, opacity: 1 });
   });
 });

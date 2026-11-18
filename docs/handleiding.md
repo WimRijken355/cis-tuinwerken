@@ -63,8 +63,13 @@ Had je al klanten in EenvoudigFactureren? Importeer ze in één keer via
 3. Verslepen in de kalender = verplaatsen; de **boven- of onderrand** trekken =
    vroeger/later beginnen of stoppen. Maak je een blok korter, dan komt de
    tijd er links weer bij.
-4. Klik een blok aan voor de details en de schakelaars **✓ Bevestigd** (effen
-   kleur) en **⏳ Reservatie** (gearceerd, stippellijn — voorlopig).
+4. **Aanduiden**: klik een todo in de lijst of een blok in de kalender aan. De
+   todo licht dan op beide plaatsen geel op (de rest wordt vager), zodat je
+   meteen ziet wat er nog verder in te plannen is. Nogmaals klikken, Escape of
+   een klik op een leeg vak heft dat op. Op het aangeduide kaartje staan
+   **📅 Inplannen…** en **→ Naar ingepland blok**; in een aangeduid blok de knop
+   **Details…** (of dubbelklik) met de schakelaars **✓ Bevestigd** (effen kleur)
+   en **⏳ Reservatie** (gearceerd, stippellijn — voorlopig).
 5. **Nieuwe todo vanuit de planning**: selecteer een leeg vak in de kalender.
    Kies een klant (met checklist en resources), of maak een **losse todo**
    zoals vakantie of een doktersafspraak (grijs; wordt nooit gefactureerd).

@@ -1,6 +1,7 @@
 "use client";
 
 import FullCalendar, {
+  type DateClickInfo,
   type DateSelectInfo,
   type DropInfo,
   type EventClickInfo,
@@ -22,12 +23,14 @@ import { PlanningFilters } from "@/components/planning/planning-filters";
 import { EmptyState, ErrorNote, Spinner } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import {
+  blockEmphasis,
   EMPTY_PLANNING_FILTER,
   groupByCity,
   isFilterActive,
   matchesPlanningFilter,
   NO_CITY_LABEL,
   type PlanningFilter,
+  toggleFocus,
   WORKDAY_MINUTES,
 } from "@/lib/planning";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
@@ -40,7 +43,10 @@ import type { TodoDto } from "@/lib/schemas/todos";
  * - grid 06:00–24:00: drag blocks to move them, drag the top or bottom edge
  *   to change start/end (and so the planned hours); select an empty range to
  *   create a new todo (for a customer, or a "losse todo") right there
- * - click a block for details and the bevestigd / reservatie switches
+ * - click a todo in the sidebar or a block in the grid to *focus* that todo:
+ *   its sidebar card and all its blocks are highlighted (the rest fades).
+ *   Details/plan dialogs open via explicit buttons (or a double click on a
+ *   block), never on a plain click. Escape or a click on an empty slot clears.
  */
 export default function PlanningPage() {
   const queryClient = useQueryClient();
@@ -51,6 +57,9 @@ export default function PlanningPage() {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<PlanningFilter>(EMPTY_PLANNING_FILTER);
   const [groupPerCity, setGroupPerCity] = useState(false);
+  /** The todo selected in the sidebar or via one of its blocks (null = none). */
+  const [focusTodoId, setFocusTodoId] = useState<number | null>(null);
+  const calendarApiRef = useRef<{ gotoDate: (date: Date | string) => void } | null>(null);
 
   const { data: todos, isLoading: todosLoading } = useQuery({
     queryKey: ["todos", "plannable"],
@@ -91,9 +100,9 @@ export default function PlanningPage() {
       a === NO_CITY_LABEL ? 1 : b === NO_CITY_LABEL ? -1 : a.localeCompare(b, "nl-BE"),
     );
   }, [todos, appointments]);
-  const isDimmed = (a: AppointmentDto) =>
-    filterActive &&
-    !matchesPlanningFilter(
+  const matchesFilter = (a: AppointmentDto) =>
+    !filterActive ||
+    matchesPlanningFilter(
       {
         title: a.todoTitle,
         customerName: a.customerName,
@@ -103,6 +112,39 @@ export default function PlanningPage() {
       filter,
     );
   const selected = selectedId !== null ? (byId.get(String(selectedId)) ?? null) : null;
+
+  // The focused todo, wherever it is: in the sidebar list (maybe hidden by the
+  // filter), or fully planned and only visible as blocks in the grid.
+  const focusedTodo = focusTodoId !== null ? (todos ?? []).find((t) => t.id === focusTodoId) : undefined;
+  const focusedHiddenByFilter = focusedTodo !== undefined && !visibleTodos.some((t) => t.id === focusTodoId);
+  const focusedBlock =
+    focusTodoId !== null && !focusedTodo ? (appointments ?? []).find((a) => a.todoId === focusTodoId) : undefined;
+
+  // Bring the highlighted sidebar card into view.
+  useEffect(() => {
+    if (focusTodoId === null) return;
+    sidebarRef.current
+      ?.querySelector(`[data-todo-id="${focusTodoId}"]`)
+      ?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+  }, [focusTodoId, groupPerCity]);
+
+  // Escape clears the focus (while no dialog is open; dialogs handle their own Escape).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !planTodo && !selected && !newBlock) setFocusTodoId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [planTodo, selected, newBlock]);
+
+  /** Jumps the grid to the first (non-cancelled) block of a todo. */
+  async function goToFirstBlock(todoId: number) {
+    const todo = await apiGet<{ appointments: { startAt: string; status: string }[] }>(`/api/todos/${todoId}`);
+    const first = todo.appointments
+      .filter((a) => a.status !== "CANCELLED")
+      .sort((a, b) => a.startAt.localeCompare(b.startAt))[0];
+    if (first) calendarApiRef.current?.gotoDate(first.startAt);
+  }
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["appointments"] });
@@ -158,7 +200,20 @@ export default function PlanningPage() {
   }
 
   function onEventClick(arg: EventClickInfo) {
-    setSelectedId(Number(arg.event.id));
+    const id = Number(arg.event.id);
+    // The "Details…" button inside a highlighted block opens the dialog...
+    if ((arg.jsEvent.target as HTMLElement | null)?.closest('[data-action="details"]')) {
+      setSelectedId(id);
+      return;
+    }
+    // ...a plain click only (de)selects the todo of this block.
+    const block = byId.get(arg.event.id);
+    if (block) setFocusTodoId((current) => toggleFocus(current, block.todoId));
+  }
+
+  /** A click on an empty slot clears the focus. */
+  function onDateClick(_info: DateClickInfo) {
+    setFocusTodoId(null);
   }
 
   function onSelect(info: DateSelectInfo) {
@@ -174,8 +229,8 @@ export default function PlanningPage() {
       <aside className="flex shrink-0 flex-col md:w-72">
         <h2 className="mb-1 font-semibold text-brand-900">In te plannen</h2>
         <p className="mb-2 hidden text-xs text-gray-500 md:block">
-          Sleep een todo naar de planning (max. 8 u per blok — de rest blijft hier staan). Selecteer een leeg vak om
-          een nieuwe todo te maken.
+          Klik om aan te duiden, sleep naar de planning om in te plannen (max. 8 u per blok — de rest blijft hier
+          staan). Selecteer een leeg vak om een nieuwe todo te maken.
         </p>
         <PlanningFilters
           filter={filter}
@@ -188,14 +243,48 @@ export default function PlanningPage() {
         />
         {todosLoading && <Spinner />}
         {todos && todos.length === 0 && <EmptyState>Niets meer in te plannen.</EmptyState>}
-        {todos && todos.length > 0 && visibleTodos.length === 0 && (
+        {todos && todos.length > 0 && visibleTodos.length === 0 && !focusedTodo && (
           <p className="px-1 py-2 text-sm text-gray-500">Geen todo&apos;s voor deze filter.</p>
+        )}
+        {focusedBlock && (
+          <div className="mb-2 rounded-lg border-2 border-yellow-400 bg-yellow-50 p-2.5 text-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-yellow-800">Geselecteerd</p>
+            <p className="truncate font-medium">{focusedBlock.todoTitle}</p>
+            <p className="truncate text-xs text-gray-600">
+              {focusedBlock.customerName || "Losse todo"}
+              {focusedBlock.customerCity && ` · ${focusedBlock.customerCity}`}
+            </p>
+            <p className="mt-1 text-xs text-gray-600">✓ Volledig ingepland — niets meer in te plannen.</p>
+            <button
+              type="button"
+              className="mt-1 text-xs text-brand-600 hover:underline"
+              onClick={() => setFocusTodoId(null)}
+            >
+              Selectie wissen
+            </button>
+          </div>
         )}
         {/* Container stays mounted: the Draggable is attached to it once. */}
         <div
           ref={sidebarRef}
           className="flex gap-2 overflow-x-auto md:min-h-0 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-visible md:pr-1"
         >
+          {focusedTodo && focusedHiddenByFilter && (
+            <section className="flex gap-2 md:flex-col">
+              <h3 className="hidden px-1 pt-1 text-xs font-semibold uppercase tracking-wide text-yellow-800 md:block">
+                Geselecteerd (valt buiten de filter)
+              </h3>
+              <div className="shrink-0 md:shrink">
+                <SidebarTodoCard
+                  todo={focusedTodo}
+                  focused
+                  onFocus={() => setFocusTodoId(null)}
+                  onPlan={() => setPlanTodo(focusedTodo)}
+                  onGoToBlock={() => void goToFirstBlock(focusedTodo.id)}
+                />
+              </div>
+            </section>
+          )}
           {(groupPerCity ? groupByCity(visibleTodos, (t) => t.customerCity ?? null) : [{ city: "", items: visibleTodos }]).map(
             (group) => (
               <section key={group.city || "all"} className="flex gap-2 md:flex-col">
@@ -207,7 +296,13 @@ export default function PlanningPage() {
                 )}
                 {group.items.map((t) => (
                   <div key={t.id} className="shrink-0 md:shrink">
-                    <SidebarTodoCard todo={t} onClick={() => setPlanTodo(t)} />
+                    <SidebarTodoCard
+                      todo={t}
+                      focused={t.id === focusTodoId}
+                      onFocus={() => setFocusTodoId((current) => toggleFocus(current, t.id))}
+                      onPlan={() => setPlanTodo(t)}
+                      onGoToBlock={() => void goToFirstBlock(t.id)}
+                    />
                   </div>
                 ))}
               </section>
@@ -239,8 +334,13 @@ export default function PlanningPage() {
             droppable
             selectable
             selectMirror
+            // A new todo needs a real drag; a plain click on an empty slot only clears the focus.
+            selectMinDistance={8}
             headerToolbar={{ left: "prev,next today", center: "title", right: "" }}
-            datesSet={(info) => setRange({ from: info.start.toISOString(), to: info.end.toISOString() })}
+            datesSet={(info) => {
+              calendarApiRef.current = info.view.calendar;
+              setRange({ from: info.start.toISOString(), to: info.end.toISOString() });
+            }}
             events={appointments?.map((a) => ({
               id: String(a.id),
               title: a.isLoose ? a.todoTitle : `${a.customerName} — ${a.todoTitle}`,
@@ -254,16 +354,23 @@ export default function PlanningPage() {
             }))}
             eventContent={(arg) => {
               const a = byId.get(arg.event.id);
-              return a ? (
-                <PlanningEventContent appointment={a} timeText={arg.timeText} dimmed={isDimmed(a)} />
-              ) : (
-                true
+              if (!a) return true;
+              const emphasis = blockEmphasis({ todoId: a.todoId, focusTodoId, matchesFilter: matchesFilter(a) });
+              return (
+                <PlanningEventContent
+                  appointment={a}
+                  timeText={arg.timeText}
+                  opacity={emphasis.opacity}
+                  highlighted={emphasis.highlighted}
+                  onDetails={() => setSelectedId(a.id)}
+                />
               );
             }}
             drop={onDrop}
             eventDrop={onEventDrop}
             eventResize={onEventResize}
             eventClick={onEventClick}
+            dateClick={onDateClick}
             select={onSelect}
           />
         </div>

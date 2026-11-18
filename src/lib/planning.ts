@@ -177,3 +177,28 @@ export function groupByCity<T>(items: T[], cityOf: (item: T) => string | null): 
     )
     .map(([city, list]) => ({ city, items: list }));
 }
+
+// ---------------------------------------------------------------------------
+// Focus: one todo selected in the sidebar or in the grid
+// ---------------------------------------------------------------------------
+
+/** Clicking the focused todo again clears the focus; another todo takes it over. */
+export function toggleFocus(current: number | null, clicked: number): number | null {
+  return current === clicked ? null : clicked;
+}
+
+/**
+ * How a grid block is shown, given the focused todo and the sidebar filter:
+ * blocks of the focused todo are highlighted, other blocks fade a bit while a
+ * todo is focused, and blocks that do not match the filter fade strongly.
+ */
+export function blockEmphasis(input: {
+  todoId: number;
+  focusTodoId: number | null;
+  matchesFilter: boolean;
+}): { highlighted: boolean; opacity: number } {
+  const highlighted = input.focusTodoId !== null && input.todoId === input.focusTodoId;
+  if (highlighted) return { highlighted, opacity: 1 };
+  if (!input.matchesFilter) return { highlighted, opacity: 0.25 };
+  return { highlighted, opacity: input.focusTodoId !== null ? 0.55 : 1 };
+}

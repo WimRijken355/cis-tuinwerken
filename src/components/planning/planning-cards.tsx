@@ -87,12 +87,18 @@ export function ResourceChips({
 export function PlanningEventContent({
   appointment: a,
   timeText,
-  dimmed = false,
+  opacity = 1,
+  highlighted = false,
+  onDetails,
 }: {
   appointment: AppointmentDto;
   timeText: string;
-  /** Does not match the active sidebar filter: shown faded. */
-  dimmed?: boolean;
+  /** < 1 when another todo is focused or the block does not match the filter (blockEmphasis). */
+  opacity?: number;
+  /** Block of the focused todo: yellow outline + "Details" button. */
+  highlighted?: boolean;
+  /** Opens the details dialog (also on double click). */
+  onDetails?: () => void;
 }) {
   const color = todoColor(a.todoId, a.isLoose);
   const style = blockStyle(color, {
@@ -106,7 +112,12 @@ export function PlanningEventContent({
   return (
     <div
       className="flex h-full w-full flex-col gap-0.5 overflow-hidden rounded px-1 py-0.5 text-[11px] leading-tight transition-opacity"
-      style={{ ...style, opacity: dimmed ? 0.25 : 1 }}
+      style={{
+        ...style,
+        opacity,
+        boxShadow: highlighted ? "0 0 0 3px #facc15, 0 2px 8px rgba(0,0,0,0.25)" : undefined,
+      }}
+      onDoubleClick={onDetails}
     >
       <div className="flex items-center gap-1">
         <span className="font-semibold tabular-nums">{timeText}</span>
@@ -136,28 +147,63 @@ export function PlanningEventContent({
         <StatusFlags confirmed={a.confirmed} reservation={a.reservation} />
       </div>
       <ResourceChips resources={a.resources} onDark={onDark} />
+      {highlighted && onDetails && (
+        <button
+          type="button"
+          data-action="details"
+          className="mt-auto self-start rounded bg-white/95 px-1.5 py-0.5 text-[10px] font-semibold text-gray-800 shadow hover:bg-white"
+        >
+          Details…
+        </button>
+      )}
     </div>
   );
 }
 
 /** A todo in the "in te plannen" sidebar (draggable onto the grid). */
-export function SidebarTodoCard({ todo, onClick }: { todo: TodoDto; onClick: () => void }) {
+export function SidebarTodoCard({
+  todo,
+  focused = false,
+  onFocus,
+  onPlan,
+  onGoToBlock,
+}: {
+  todo: TodoDto;
+  /** Highlighted because it is selected here or one of its blocks in the grid. */
+  focused?: boolean;
+  /** Click: select / deselect (no dialog). */
+  onFocus: () => void;
+  /** Opens the date/time dialog (alternative to dragging, e.g. on mobile). */
+  onPlan: () => void;
+  /** Jumps the grid to the first planned block of this todo. */
+  onGoToBlock?: () => void;
+}) {
   const color = todoColor(todo.id, todo.customerId === null);
   const remaining = todo.remainingMinutes ?? Math.round(todo.estimatedHours * 60);
   const planned = todo.plannedMinutes ?? 0;
   const blocks = todo.appointmentCount ?? 0;
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={focused}
+      onClick={onFocus}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onFocus();
+        }
+      }}
       data-todo-id={todo.id}
       data-remaining={remaining}
       data-title={todo.customerId === null ? todo.title : `${todo.customerName} — ${todo.title}`}
       data-color={color}
-      className="todo-draggable w-60 cursor-grab rounded-lg border border-gray-200 bg-white p-2.5 text-left shadow-sm hover:border-brand-500 active:cursor-grabbing md:w-full"
+      className={`todo-draggable w-60 cursor-grab rounded-lg border bg-white p-2.5 text-left shadow-sm active:cursor-grabbing md:w-full ${
+        focused ? "border-yellow-400 ring-2 ring-yellow-400" : "border-gray-200 hover:border-brand-500"
+      }`}
       style={{ borderLeft: `5px solid ${color}` }}
-      title="Sleep naar de planning (of klik om een datum te kiezen)"
+      title="Klik om aan te duiden · sleep naar de planning om in te plannen"
     >
       <p className="truncate text-sm font-medium">{todo.title}</p>
       <p className="truncate text-xs text-gray-500">
@@ -183,6 +229,32 @@ export function SidebarTodoCard({ todo, onClick }: { todo: TodoDto; onClick: () 
           <ResourceChips resources={todo.resources ?? []} showHours />
         </div>
       )}
-    </button>
+      {focused && (
+        <div className="mt-2 flex flex-wrap gap-1.5 border-t border-gray-100 pt-2">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPlan();
+            }}
+            className="rounded bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-700"
+          >
+            📅 Inplannen…
+          </button>
+          {blocks > 0 && onGoToBlock && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onGoToBlock();
+              }}
+              className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+            >
+              → Naar ingepland blok
+            </button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
