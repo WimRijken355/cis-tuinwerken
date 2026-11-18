@@ -188,3 +188,16 @@ export function formatHours(hours: number): string {
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
+
+/** Display order of the metrics (also the order of bars within a resource). */
+export const METRIC_ORDER: HoursMetric[] = ["planned", "registered", "invoiced"];
+
+/**
+ * Multi-select of metrics: toggles one, keeps the fixed display order and
+ * never leaves the selection empty (the last one cannot be switched off).
+ */
+export function toggleMetric(selected: HoursMetric[], metric: HoursMetric): HoursMetric[] {
+  const next = selected.includes(metric) ? selected.filter((m) => m !== metric) : [...selected, metric];
+  if (next.length === 0) return selected;
+  return METRIC_ORDER.filter((m) => next.includes(m));
+}

@@ -9,6 +9,7 @@ import {
   resourceColor,
   SERIES_COLORS,
   shiftPeriod,
+  toggleMetric,
   totalsPerResource,
 } from "./dashboard";
 
@@ -110,5 +111,14 @@ describe("period titles", () => {
   it("are Dutch: month capitalised, months in a week title lowercase", () => {
     expect(periodRange("month", "2026-11-18").title).toBe("November 2026");
     expect(periodRange("week", "2026-11-18").title).toBe("Week 47 · 16 nov – 22 nov 2026");
+  });
+});
+
+describe("toggleMetric", () => {
+  it("adds and removes metrics in the fixed order, never leaving none", () => {
+    expect(toggleMetric(["registered"], "planned")).toEqual(["planned", "registered"]);
+    expect(toggleMetric(["planned", "registered"], "planned")).toEqual(["registered"]);
+    expect(toggleMetric(["registered"], "registered")).toEqual(["registered"]);
+    expect(toggleMetric(["invoiced", "planned"], "registered")).toEqual(["planned", "registered", "invoiced"]);
   });
 });

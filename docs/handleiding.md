@@ -172,7 +172,12 @@ EenvoudigFactureren zelf — zo hou je de controle.
 ## Dashboard
 
 Via **Dashboard** (in het menu op de computer) zie je per resource hoeveel uren
-er **gepland**, **geregistreerd** (echt gewerkt) of **gefactureerd** zijn:
+er **gepland**, **geregistreerd** (echt gewerkt) of **gefactureerd** zijn. Je kan
+meerdere soorten tegelijk aanvinken (bv. gepland én geregistreerd): elke resource
+houdt haar kleur, de soort zie je aan de arcering (gepland = schuine streepjes,
+geregistreerd = vol), en bij **Gestapeld** staat per dag een stapel per soort.
+
+
 
 - Kies **Week** (per dag), **Maand** (per week) of **Jaar** (per maand) en blader
   met ‹ › of spring terug naar **Vandaag**.

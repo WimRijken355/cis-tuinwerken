@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import type { DashboardHoursResponse } from "@/app/api/dashboard/hours/route";
-import { type ChartSeries, HoursChart } from "@/components/dashboard/hours-chart";
+import { type ChartSeries, HoursChart, MetricSwatch } from "@/components/dashboard/hours-chart";
 import { ErrorNote, PageHeader, Spinner } from "@/components/ui";
 import { apiGet } from "@/lib/api-client";
 import {
@@ -12,19 +12,22 @@ import {
   formatHours,
   type HoursMetric,
   METRIC_LABELS,
+  METRIC_ORDER,
   METRIC_SHORT_LABELS,
   periodBuckets,
   periodRange,
   resourceColor,
   shiftPeriod,
+  toggleMetric,
   totalsPerResource,
 } from "@/lib/dashboard";
 import { todayBrussels } from "@/lib/time";
 
 /**
  * Dashboard: hours per resource per period (week → days, month → weeks,
- * year → months) for planned, registered or invoiced hours. Resources can be
- * switched on/off; bars side by side or stacked. Pure logic in src/lib/dashboard.ts.
+ * year → months) for planned, registered and/or invoiced hours (several at
+ * once). Resources can be switched on/off; bars side by side or stacked.
+ * Pure logic in src/lib/dashboard.ts.
  */
 
 const PERIODS: { value: DashboardPeriod; label: string }[] = [
@@ -32,8 +35,14 @@ const PERIODS: { value: DashboardPeriod; label: string }[] = [
   { value: "month", label: "Maand" },
   { value: "year", label: "Jaar" },
 ];
-const METRICS: HoursMetric[] = ["planned", "registered", "invoiced"];
 const HIDDEN_KEY = "dashboard.hiddenResources";
+
+const METRIC_NOTES: Record<HoursMetric, string> = {
+  planned:
+    "Gepland = niet-geannuleerde blokken; per resource telt de bloklengte, begrensd door de uren die voor die resource op de todo voorzien zijn.",
+  registered: "Geregistreerd = de echt gewerkte uren bij het klaarmelden, op de dag van het blok.",
+  invoiced: "Gefactureerd = de uren die bij het klaarmelden naar de factuur gingen, op de dag van het blok.",
+};
 
 function Segmented<T extends string>({
   value,
@@ -64,7 +73,7 @@ function Segmented<T extends string>({
 }
 
 export default function DashboardPage() {
-  const [metric, setMetric] = useState<HoursMetric>("planned");
+  const [metrics, setMetrics] = useState<HoursMetric[]>(["planned"]);
   const [period, setPeriod] = useState<DashboardPeriod>("month");
   const [anchor, setAnchor] = useState(todayBrussels());
   const [mode, setMode] = useState<"grouped" | "stacked">("grouped");
@@ -94,28 +103,43 @@ export default function DashboardPage() {
 
   const range = periodRange(period, anchor);
   const buckets = useMemo(() => periodBuckets(period, anchor), [period, anchor]);
-  const loose = metric === "planned" && includeLoose ? "1" : "0";
 
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["dashboard-hours", metric, range.from, range.to, loose],
-    queryFn: () =>
-      apiGet<DashboardHoursResponse>(
-        `/api/dashboard/hours?metric=${metric}&from=${range.from}&to=${range.to}&loose=${loose}`,
-      ),
-    placeholderData: (prev) => prev,
+  const results = useQueries({
+    queries: metrics.map((metric) => {
+      const loose = metric === "planned" && includeLoose ? "1" : "0";
+      return {
+        queryKey: ["dashboard-hours", metric, range.from, range.to, loose],
+        queryFn: () =>
+          apiGet<DashboardHoursResponse>(
+            `/api/dashboard/hours?metric=${metric}&from=${range.from}&to=${range.to}&loose=${loose}`,
+          ),
+        placeholderData: (prev: DashboardHoursResponse | undefined) => prev,
+      };
+    }),
   });
+  const byMetric = Object.fromEntries(metrics.map((m, i) => [m, results[i]?.data])) as Partial<
+    Record<HoursMetric, DashboardHoursResponse>
+  >;
+  const error = results.find((r) => r.error)?.error;
+  const loaded = metrics.every((m) => byMetric[m]);
 
-  const allIds = (data?.resources ?? []).map((r) => r.id);
-  const withHours = new Set((data?.entries ?? []).map((e) => e.resourceId));
+  const resources = results.find((r) => r.data)?.data?.resources ?? [];
+  const allIds = resources.map((r) => r.id);
+  const withHours = new Set(metrics.flatMap((m) => (byMetric[m]?.entries ?? []).map((e) => e.resourceId)));
   // Chips: active resources + any (inactive) resource that has hours in this period.
-  const chipResources = (data?.resources ?? []).filter((r) => r.active || withHours.has(r.id));
+  const chipResources = resources.filter((r) => r.active || withHours.has(r.id));
   const series: ChartSeries[] = chipResources
     .filter((r) => !hidden.has(r.id))
     .map((r) => ({ id: r.id, name: r.name, color: resourceColor(r.id, allIds) }));
   const seriesIds = series.map((s) => s.id);
-  const cells = bucketHours(data?.entries ?? [], buckets, seriesIds);
-  const totals = totalsPerResource(cells, seriesIds);
-  const grandTotal = seriesIds.reduce((sum, id) => sum + totals[id], 0);
+  const cells = Object.fromEntries(
+    metrics.map((m) => [m, bucketHours(byMetric[m]?.entries ?? [], buckets, seriesIds)]),
+  ) as Record<HoursMetric, Record<string, Record<number, number>>>;
+  const totals = Object.fromEntries(metrics.map((m) => [m, totalsPerResource(cells[m], seriesIds)])) as Record<
+    HoursMetric,
+    Record<number, number>
+  >;
+  const grandTotal = (m: HoursMetric) => seriesIds.reduce((sum, id) => sum + totals[m][id], 0);
 
   return (
     <div className="p-4 md:p-8">
@@ -123,12 +147,24 @@ export default function DashboardPage() {
 
       {/* filters: one row above the chart */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Segmented
-          label="Soort uren"
-          value={metric}
-          onChange={setMetric}
-          options={METRICS.map((m) => ({ value: m, label: METRIC_SHORT_LABELS[m] }))}
-        />
+        <div role="group" aria-label="Soort uren (meerdere mogelijk)" className="inline-flex gap-1 rounded-md border border-gray-300 bg-white p-0.5 text-sm">
+          {METRIC_ORDER.map((m) => {
+            const on = metrics.includes(m);
+            return (
+              <button
+                key={m}
+                type="button"
+                aria-pressed={on}
+                onClick={() => setMetrics((prev) => toggleMetric(prev, m))}
+                title={on && metrics.length === 1 ? "Minstens één soort blijft aan" : undefined}
+                className={`flex items-center gap-1.5 rounded px-3 py-1.5 ${on ? "bg-brand-600 text-white" : "text-gray-700 hover:bg-gray-50"}`}
+              >
+                <span aria-hidden>{on ? "☑" : "☐"}</span>
+                {METRIC_SHORT_LABELS[m]}
+              </button>
+            );
+          })}
+        </div>
         <Segmented label="Periode" value={period} onChange={setPeriod} options={PERIODS} />
         <div className="flex items-center gap-1">
           <button
@@ -165,7 +201,7 @@ export default function DashboardPage() {
             { value: "stacked", label: "Gestapeld" },
           ]}
         />
-        {metric === "planned" && (
+        {metrics.includes("planned") && (
           <label className="flex items-center gap-2 text-sm text-gray-700">
             <input type="checkbox" checked={includeLoose} onChange={(e) => setIncludeLoose(e.target.checked)} />
             Losse todo&apos;s meetellen
@@ -174,9 +210,10 @@ export default function DashboardPage() {
       </div>
 
       {/* resource toggles = legend */}
-      <div className="mb-3 flex flex-wrap gap-2" aria-label="Resources tonen">
+      <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Resources tonen">
         {chipResources.map((r) => {
           const on = !hidden.has(r.id);
+          const color = resourceColor(r.id, allIds);
           return (
             <button
               key={r.id}
@@ -190,35 +227,50 @@ export default function DashboardPage() {
             >
               <span
                 className="inline-block h-3 w-3 rounded-sm"
-                style={{ background: on ? resourceColor(r.id, allIds) : "transparent", border: `2px solid ${resourceColor(r.id, allIds)}` }}
+                style={{ background: on ? color : "transparent", border: `2px solid ${color}` }}
               />
               {r.name}
               {r.type === "MACHINE" && <span className="text-xs text-gray-400">machine</span>}
             </button>
           );
         })}
+        {metrics.length > 1 && (
+          <span className="ml-2 flex flex-wrap items-center gap-3 text-xs text-gray-600" aria-label="Legende soort uren">
+            {metrics.map((m) => (
+              <span key={m} className="flex items-center gap-1">
+                <MetricSwatch metric={m} />
+                {METRIC_SHORT_LABELS[m]}
+              </span>
+            ))}
+          </span>
+        )}
       </div>
 
       {error && <ErrorNote message={(error as Error).message} />}
-      {isLoading && !data && <Spinner />}
+      {!loaded && !error && <Spinner />}
 
-      {data && (
+      {loaded && (
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
             <h2 className="font-semibold">
-              {METRIC_LABELS[metric]} per resource{" "}
+              {metrics.length === 1 ? METRIC_LABELS[metrics[0]] : metrics.map((m) => METRIC_SHORT_LABELS[m]).join(" · ")}{" "}
               <span className="font-normal text-gray-500">
-                · per {period === "week" ? "dag" : period === "month" ? "week" : "maand"}
+                per resource · per {period === "week" ? "dag" : period === "month" ? "week" : "maand"}
               </span>
             </h2>
-            <p className="text-sm text-gray-600">
-              Totaal: <span className="font-medium tabular-nums text-gray-900">{formatHours(grandTotal)}</span>
+            <p className="flex flex-wrap gap-4 text-sm text-gray-600">
+              {metrics.map((m) => (
+                <span key={m}>
+                  {metrics.length > 1 ? METRIC_SHORT_LABELS[m] : "Totaal"}:{" "}
+                  <span className="font-medium tabular-nums text-gray-900">{formatHours(grandTotal(m))}</span>
+                </span>
+              ))}
             </p>
           </div>
           {series.length === 0 ? (
             <p className="py-10 text-center text-sm text-gray-500">Zet minstens één resource aan.</p>
           ) : (
-            <HoursChart buckets={buckets} series={series} cells={cells} mode={mode} />
+            <HoursChart buckets={buckets} series={series} metrics={metrics} cells={cells} mode={mode} />
           )}
 
           {series.length > 0 && (
@@ -227,6 +279,7 @@ export default function DashboardPage() {
                 <thead className="text-left text-xs text-gray-500">
                   <tr className="border-b border-gray-200">
                     <th className="py-1.5 pr-3 font-medium">Resource</th>
+                    {metrics.length > 1 && <th className="py-1.5 pr-3 font-medium">Soort</th>}
                     {buckets.map((b) => (
                       <th key={b.key} className="px-2 py-1.5 text-right font-medium">
                         {b.label}
@@ -236,31 +289,43 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="tabular-nums">
-                  {series.map((s) => (
-                    <tr key={s.id} className="border-b border-gray-100">
-                      <td className="whitespace-nowrap py-1.5 pr-3">
-                        <span className="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />
-                        {s.name}
-                      </td>
-                      {buckets.map((b) => (
-                        <td key={b.key} className="px-2 py-1.5 text-right text-gray-700">
-                          {cells[b.key][s.id] ? cells[b.key][s.id].toLocaleString("nl-BE") : "–"}
+                  {series.flatMap((s) =>
+                    metrics.map((m, mi) => (
+                      <tr
+                        key={`${s.id}-${m}`}
+                        className={mi === metrics.length - 1 ? "border-b border-gray-200" : "border-b border-gray-50"}
+                      >
+                        <td className="whitespace-nowrap py-1.5 pr-3">
+                          {mi === 0 && (
+                            <>
+                              <span className="mr-2 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />
+                              {s.name}
+                            </>
+                          )}
                         </td>
-                      ))}
-                      <td className="py-1.5 pl-3 text-right font-medium">{formatHours(totals[s.id])}</td>
-                    </tr>
-                  ))}
+                        {metrics.length > 1 && (
+                          <td className="whitespace-nowrap py-1.5 pr-3 text-gray-600">
+                            <MetricSwatch metric={m} color={s.color} /> {METRIC_SHORT_LABELS[m]}
+                          </td>
+                        )}
+                        {buckets.map((b) => (
+                          <td key={b.key} className="px-2 py-1.5 text-right text-gray-700">
+                            {cells[m][b.key][s.id] ? cells[m][b.key][s.id].toLocaleString("nl-BE") : "–"}
+                          </td>
+                        ))}
+                        <td className="py-1.5 pl-3 text-right font-medium">{formatHours(totals[m][s.id])}</td>
+                      </tr>
+                    )),
+                  )}
                 </tbody>
               </table>
             </div>
           )}
-          <p className="mt-3 text-xs text-gray-400">
-            {metric === "planned"
-              ? "Gepland = niet-geannuleerde blokken. Per resource telt de bloklengte, begrensd door de uren die voor die resource op de todo voorzien zijn."
-              : metric === "registered"
-                ? "Geregistreerd = de echt gewerkte uren bij het klaarmelden, op de dag van het blok."
-                : "Gefactureerd = de uren die bij het klaarmelden naar de factuur gingen, op de dag van het blok."}
-          </p>
+          <div className="mt-3 space-y-0.5 text-xs text-gray-400">
+            {metrics.map((m) => (
+              <p key={m}>{METRIC_NOTES[m]}</p>
+            ))}
+          </div>
         </div>
       )}
     </div>
