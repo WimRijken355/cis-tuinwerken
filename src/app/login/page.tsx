@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { START_PATH } from "@/components/nav-items";
 
 /**
  * Aanmeldflow in stappen:
@@ -29,9 +30,9 @@ async function postJson(url: string, body?: unknown) {
   return data;
 }
 
-/** Na aanmelden: telefoon → Vandaag, desktop → Planning. */
+/** After logging in: always the Dagplanning (START_PATH). */
 function goToApp(router: ReturnType<typeof useRouter>) {
-  router.replace(window.innerWidth < 768 ? "/daily-planning" : "/planning");
+  router.replace(START_PATH);
   router.refresh();
 }
 

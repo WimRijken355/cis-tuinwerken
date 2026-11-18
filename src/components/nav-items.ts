@@ -15,6 +15,9 @@ export interface NavItem {
   adminOnly?: boolean;
 }
 
+/** Page opened at startup ("/") and after logging in — on every device. */
+export const START_PATH = "/daily-planning";
+
 /** Main menu items (top level). */
 export const MAIN_ITEMS: NavItem[] = [
   // Mostly used on a phone (see CLAUDE.md): one day at a time, ‹ › to browse.

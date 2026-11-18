@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { isActivePath, isSettingsPath, MAIN_ITEMS, SETTINGS_ITEMS, visibleItems } from "./nav-items";
+import { isActivePath, isSettingsPath, MAIN_ITEMS, SETTINGS_ITEMS, START_PATH, visibleItems } from "./nav-items";
 
 describe("navigation items", () => {
+  it("opens the Dagplanning at startup, and that is a main menu item", () => {
+    expect(START_PATH).toBe("/daily-planning");
+    expect(MAIN_ITEMS.some((i) => i.href === START_PATH)).toBe(true);
+  });
+
   it("groups artikels, resources, checklist, losse todo's and gebruikers under Instellingen", () => {
     expect(SETTINGS_ITEMS.map((i) => i.href)).toEqual([
       "/settings",

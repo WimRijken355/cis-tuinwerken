@@ -1,24 +1,10 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { redirect } from "next/navigation";
+import { START_PATH } from "@/components/nav-items";
 
 /**
- * Startpagina = alleen een wegwijzer:
- * smal scherm (telefoon) → /daily-planning, breed scherm (desktop) → /planning.
- * Alle schermen blijven op elk toestel bereikbaar via de navigatie.
+ * Start page = only a signpost: always opens the Dagplanning (START_PATH),
+ * on phone and desktop alike. Other screens are reachable via the navigation.
  */
 export default function Home() {
-  const router = useRouter();
-
-  useEffect(() => {
-    const target = window.innerWidth < 768 ? "/daily-planning" : "/planning";
-    router.replace(target);
-  }, [router]);
-
-  return (
-    <main className="flex min-h-dvh items-center justify-center text-sm text-gray-500">
-      Laden…
-    </main>
-  );
+  redirect(START_PATH);
 }
