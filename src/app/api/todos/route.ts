@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { todoInputSchema } from "@/lib/schemas/todos";
+import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-resources";
+import { todoInputSchema, todoResourcesInclude, toTodoResourceDtos } from "@/lib/schemas/todos";
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
@@ -31,6 +32,7 @@ export async function GET(request: NextRequest) {
       include: {
         customer: { select: { name: true } },
         recurringWindow: { select: { label: true } },
+        ...todoResourcesInclude,
       },
       orderBy: plannable
         ? [{ windowStart: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }]
@@ -43,6 +45,7 @@ export async function GET(request: NextRequest) {
         estimatedHours: Number(t.estimatedHours),
         customerName: t.customer.name,
         windowLabel: t.recurringWindow?.label ?? null,
+        resources: toTodoResourceDtos(t.resources),
         customer: undefined,
         recurringWindow: undefined,
       })),
@@ -52,21 +55,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** POST /api/todos — nieuwe todo voor een klant. */
+/** POST /api/todos — new todo for a customer, optionally with planned resources. */
 export async function POST(request: NextRequest) {
   try {
     await requireUser();
-    const input = todoInputSchema.parse(await request.json());
+    const { resources, ...input } = todoInputSchema.parse(await request.json());
+    await assertResourcesExist(resources);
 
-    const todo = await db.todo.create({
-      data: input,
-      include: { customer: { select: { name: true } } },
+    const created = await db.todo.create({ data: input });
+    await replaceTodoResources(created.id, resources);
+    const todo = await db.todo.findUniqueOrThrow({
+      where: { id: created.id },
+      include: { customer: { select: { name: true } }, ...todoResourcesInclude },
     });
     return NextResponse.json(
       {
         ...todo,
         estimatedHours: Number(todo.estimatedHours),
         customerName: todo.customer.name,
+        resources: toTodoResourceDtos(todo.resources),
         customer: undefined,
       },
       { status: 201 },

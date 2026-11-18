@@ -140,6 +140,7 @@ model Todo {
   customer        Customer         @relation(fields: [customerId], references: [id])
   recurringWindow RecurringWindow? @relation(fields: [recurringWindowId], references: [id], onDelete: SetNull)
   appointments    Appointment[]
+  resources       TodoResource[]
 
   @@unique([recurringWindowId, occurrenceYear])
   @@index([customerId])
@@ -252,12 +253,37 @@ model LaborEntry {
   @@index([completionId])
 }
 
-/// Vaste medewerkers als picklist voor de mobiele registratieflow.
-model Worker {
-  id         Int     @id @default(autoincrement())
+enum ResourceType {
+  PERSON
+  MACHINE
+}
+
+/// Resources that are planned and invoiced: people (regular workers) and
+/// machines. Configured on the "Resources" page. PERSON resources are also
+/// the picklist of the mobile registration flow (formerly the Worker model).
+model Resource {
+  id         Int          @id @default(autoincrement())
   name       String
-  hourlyRate Decimal @db.Decimal(8, 2)
-  active     Boolean @default(true)
+  type       ResourceType @default(PERSON)
+  hourlyRate Decimal      @db.Decimal(8, 2)
+  active     Boolean      @default(true)
+
+  todoResources TodoResource[]
+}
+
+/// Resource requirement of a todo: which resource is needed and for how many
+/// hours. Independent of Todo.estimatedHours (the sum need not match).
+model TodoResource {
+  id         Int     @id @default(autoincrement())
+  todoId     Int
+  resourceId Int
+  hours      Decimal @db.Decimal(5, 2)
+
+  todo     Todo     @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  resource Resource @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+
+  @@unique([todoId, resourceId])
+  @@index([resourceId])
 }
 
 /// Configureerbare prijslijst: machinegebruik, afvoer groenafval, ...

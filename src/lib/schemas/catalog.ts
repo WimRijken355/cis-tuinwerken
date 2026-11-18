@@ -2,21 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@/generated/prisma/client";
 import { paginationQuerySchema, type Paginated } from "../pagination";
 
-/** Contracten voor medewerkers en de prijslijst. */
-
-export const workerInputSchema = z.object({
-  name: z.string().trim().min(1, "Naam is verplicht").max(100),
-  hourlyRate: z.coerce.number().min(0).max(1000),
-  active: z.boolean().default(true),
-});
-export type WorkerInput = z.infer<typeof workerInputSchema>;
-
-export interface WorkerDto {
-  id: number;
-  name: string;
-  hourlyRate: number;
-  active: boolean;
-}
+/** Contracts for the price list ("Artikels"). Resources live in ./resources.ts. */
 
 export const priceListItemInputSchema = z.object({
   name: z.string().trim().min(1, "Naam is verplicht").max(200),

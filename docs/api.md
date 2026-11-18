@@ -90,11 +90,17 @@ Maakt of synchroniseert deze klant in EenvoudigFactureren.
 
 ### POST /api/todos
 ```json
-{ "customerId": 7, "title": "Haag scheren", "estimatedHours": 3.5, "description": "" }
+{ "customerId": 7, "title": "Haag scheren", "estimatedHours": 3.5, "description": "",
+  "resources": [{ "resourceId": 2, "hours": 3.5 }, { "resourceId": 5, "hours": 1 }] }
 ```
+`estimatedHours` is de totale tijd; `resources` (optioneel) zijn de in te plannen
+personen/machines met elk hun eigen uren. De som hoeft niet gelijk te zijn aan het
+totaal. Elke resource max. één keer per todo. Todo-antwoorden bevatten
+`resources: [{ resourceId, name, type, hours }]`.
 
 ### GET /api/todos/:id — detail incl. afspraken
-### PATCH /api/todos/:id — `title`, `description`, `estimatedHours`, `status`
+### PATCH /api/todos/:id — `title`, `description`, `estimatedHours`, `resources`, `status`
+`resources` vervangt (indien meegegeven) de volledige set; `[]` = geen resources.
 `status: "DONE"` zet `completedAt`; `"OPEN"` wist het weer.
 ### DELETE /api/todos/:id
 409 zodra er afspraken aan hangen — dan annuleren i.p.v. verwijderen.
@@ -163,8 +169,13 @@ Mislukte EF-push opnieuw proberen. 409 zodra er al een `efInvoiceId` is
 
 ## Catalogus
 
-### GET/POST /api/workers · PATCH/DELETE /api/workers/:id
-Vaste medewerkers `{ name, hourlyRate, active }`. Verwijderen is veilig:
+### GET/POST /api/resources · PATCH/DELETE /api/resources/:id
+Resources `{ name, type (PERSON|MACHINE), hourlyRate, active }` — beheerd via de
+pagina **Resources** (`/resources`). Zonder `page`: platte array van actieve
+resources (`?type=PERSON` = picklist van de registratieflow,
+`?includeInactive=1` ook inactieve). Mét `page`: gepagineerd
+`{ items, total, page, pageSize }` met filters `name`, `type` en `status`.
+Verwijderen geeft 409 zolang een todo de resource nog inplant. Verder veilig:
 geregistreerde uren zijn snapshots.
 
 ### GET/POST /api/price-list · PATCH/DELETE /api/price-list/:id

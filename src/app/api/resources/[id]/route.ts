@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { workerInputSchema } from "@/lib/schemas/catalog";
+import { resourceUpdateSchema } from "@/lib/schemas/resources";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
   const id = Number((await params).id);
@@ -9,7 +9,7 @@ async function parseId(params: Promise<{ id: string }>): Promise<number> {
   return id;
 }
 
-/** PATCH /api/workers/:id — naam/tarief/actief aanpassen. */
+/** PATCH /api/resources/:id — name, type, rate or active flag. */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -17,17 +17,18 @@ export async function PATCH(
   try {
     await requireUser();
     const id = await parseId(params);
-    const input = workerInputSchema.partial().parse(await request.json());
-    const worker = await db.worker.update({ where: { id }, data: input });
-    return NextResponse.json({ ...worker, hourlyRate: Number(worker.hourlyRate) });
+    const input = resourceUpdateSchema.parse(await request.json());
+    const resource = await db.resource.update({ where: { id }, data: input });
+    return NextResponse.json({ ...resource, hourlyRate: Number(resource.hourlyRate) });
   } catch (error) {
     return handleApiError(error);
   }
 }
 
 /**
- * DELETE /api/workers/:id — veilig: geregistreerde uren zijn snapshots
- * (naam + tarief staan in LaborEntry zelf), dus historiek blijft intact.
+ * DELETE /api/resources/:id — registered hours are snapshots (name + rate in
+ * LaborEntry), so history stays intact. Refused while todos still plan this
+ * resource; deactivating is the way to go then.
  */
 export async function DELETE(
   _request: NextRequest,
@@ -36,7 +37,14 @@ export async function DELETE(
   try {
     await requireUser();
     const id = await parseId(params);
-    await db.worker.delete({ where: { id } });
+    const usage = await db.todoResource.count({ where: { resourceId: id } });
+    if (usage > 0) {
+      throw new ApiError(
+        `Deze resource is nog ingepland bij ${usage} todo('s). Deactiveer hem in plaats van hem te verwijderen.`,
+        409,
+      );
+    }
+    await db.resource.delete({ where: { id } });
     return NextResponse.json({ deleted: true });
   } catch (error) {
     return handleApiError(error);

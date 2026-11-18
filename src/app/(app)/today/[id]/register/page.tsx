@@ -7,7 +7,8 @@ import { useState } from "react";
 import { Button, ErrorNote, Spinner, TextInput } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
-import type { PriceListItemDto, WorkerDto } from "@/lib/schemas/catalog";
+import type { PriceListItemDto } from "@/lib/schemas/catalog";
+import type { ResourceDto } from "@/lib/schemas/resources";
 import type { CompletionInput } from "@/lib/schemas/completions";
 import { formatTime } from "@/lib/time";
 
@@ -52,8 +53,9 @@ export default function RegisterPage() {
     queryFn: () => apiGet<AppointmentDto>(`/api/appointments/${id}`),
   });
   const { data: workers } = useQuery({
-    queryKey: ["workers"],
-    queryFn: () => apiGet<WorkerDto[]>("/api/workers"),
+    queryKey: ["resources", "PERSON"],
+    // Only people are registered as worked hours here; machines are not (yet).
+    queryFn: () => apiGet<ResourceDto[]>("/api/resources?type=PERSON"),
   });
   const { data: priceList } = useQuery({
     queryKey: ["price-list"],

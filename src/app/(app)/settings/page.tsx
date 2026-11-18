@@ -49,7 +49,7 @@ export default function SettingsPage() {
         <div className="space-y-6">
           <RatesSection settings={settings} />
           <ProductsLinkSection />
-          <WorkersSection />
+          <ResourcesLinkSection />
           <ReminderSection settings={settings} />
           <EfImportSection efConfigured={settings.efConfigured} />
           <SecuritySection />
@@ -76,6 +76,22 @@ function ProductsLinkSection() {
       </p>
       <Link href="/products" className="mt-2 inline-block text-sm text-brand-600 hover:underline">
         Artikels beheren →
+      </Link>
+    </section>
+  );
+}
+
+/** Pointer to the Resources page (people + machines); same reason as ProductsLinkSection. */
+function ResourcesLinkSection() {
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <h2 className="font-semibold">Resources</h2>
+      <p className="mt-1 text-sm text-gray-600">
+        Medewerkers en machines die je inplant en aanrekent staan nu op een
+        aparte pagina.
+      </p>
+      <Link href="/resources" className="mt-2 inline-block text-sm text-brand-600 hover:underline">
+        Resources beheren →
       </Link>
     </section>
   );
@@ -146,95 +162,6 @@ function RatesSection({ settings }: { settings: SettingsResponse }) {
           <ErrorNote message={(saveMutation.error as Error).message} />
         </div>
       )}
-    </section>
-  );
-}
-
-interface WorkerItem {
-  id: number;
-  name: string;
-  hourlyRate: number;
-  active: boolean;
-}
-
-/** Regular workers (picklist in the registration flow). */
-function WorkersSection() {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState("");
-  const [rate, setRate] = useState("");
-
-  const { data: workers } = useQuery({
-    queryKey: ["workers", "all"],
-    queryFn: () => apiGet<WorkerItem[]>("/api/workers?includeInactive=1"),
-  });
-
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["workers"] });
-
-  const addMutation = useMutation({
-    mutationFn: () =>
-      apiSend("/api/workers", "POST", { name, hourlyRate: Number(rate.replace(",", ".")) }),
-    onSuccess: () => {
-      setName("");
-      setRate("");
-      invalidate();
-    },
-  });
-
-  const toggleMutation = useMutation({
-    mutationFn: (worker: WorkerItem) =>
-      apiSend(`/api/workers/${worker.id}`, "PATCH", { active: !worker.active }),
-    onSuccess: invalidate,
-  });
-
-  return (
-    <section className="rounded-lg border border-gray-200 bg-white p-4">
-      <h2 className="font-semibold">Medewerkers</h2>
-      <p className="mt-1 text-sm text-gray-600">
-        Werkmensen die je geregeld meeneemt. Hun uurtarief wordt bij elke
-        registratie vastgeklikt, dus oude facturen veranderen nooit mee.
-      </p>
-      <ul className="mt-3 divide-y divide-gray-100">
-        {workers?.map((w) => (
-          <li key={w.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-            <span className={w.active ? "" : "text-gray-400 line-through"}>
-              {w.name} — € {w.hourlyRate.toFixed(2)}/uur
-            </span>
-            <button
-              type="button"
-              className="text-xs text-brand-600 hover:underline"
-              onClick={() => toggleMutation.mutate(w)}
-            >
-              {w.active ? "Deactiveren" : "Activeren"}
-            </button>
-          </li>
-        ))}
-      </ul>
-      {addMutation.error && (
-        <div className="mt-2">
-          <ErrorNote message={(addMutation.error as Error).message} />
-        </div>
-      )}
-      <form
-        className="mt-3 flex flex-wrap items-end gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          addMutation.mutate();
-        }}
-      >
-        <div className="min-w-40 flex-1">
-          <Field label="Naam">
-            <TextInput value={name} onChange={(e) => setName(e.target.value)} required />
-          </Field>
-        </div>
-        <div className="w-28">
-          <Field label="€/uur">
-            <TextInput inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} required />
-          </Field>
-        </div>
-        <Button type="submit" disabled={addMutation.isPending}>
-          + Toevoegen
-        </Button>
-      </form>
     </section>
   );
 }

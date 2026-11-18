@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { todoUpdateSchema } from "@/lib/schemas/todos";
+import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-resources";
+import { todoResourcesInclude, todoUpdateSchema, toTodoResourceDtos } from "@/lib/schemas/todos";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
   const id = Number((await params).id);
@@ -22,6 +23,7 @@ export async function GET(
       include: {
         customer: { select: { name: true } },
         appointments: { orderBy: { startAt: "desc" } },
+        ...todoResourcesInclude,
       },
     });
     if (!todo) throw new ApiError("Todo niet gevonden", 404);
@@ -29,6 +31,7 @@ export async function GET(
       ...todo,
       estimatedHours: Number(todo.estimatedHours),
       customerName: todo.customer.name,
+      resources: toTodoResourceDtos(todo.resources),
       customer: undefined,
     });
   } catch (error) {
@@ -36,7 +39,7 @@ export async function GET(
   }
 }
 
-/** PATCH /api/todos/:id — titel/omschrijving/uren/status aanpassen. */
+/** PATCH /api/todos/:id — title/description/hours/status; `resources` replaces the planned set. */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -44,9 +47,10 @@ export async function PATCH(
   try {
     await requireUser();
     const id = await parseId(params);
-    const input = todoUpdateSchema.parse(await request.json());
+    const { resources, ...input } = todoUpdateSchema.parse(await request.json());
+    if (resources) await assertResourcesExist(resources);
 
-    const todo = await db.todo.update({
+    await db.todo.update({
       where: { id },
       data: {
         ...input,
@@ -54,7 +58,13 @@ export async function PATCH(
         ...(input.status === "OPEN" ? { completedAt: null } : {}),
       },
     });
-    return NextResponse.json({ ...todo, estimatedHours: Number(todo.estimatedHours) });
+    if (resources) await replaceTodoResources(id, resources);
+    const todo = await db.todo.findUniqueOrThrow({ where: { id }, include: todoResourcesInclude });
+    return NextResponse.json({
+      ...todo,
+      estimatedHours: Number(todo.estimatedHours),
+      resources: toTodoResourceDtos(todo.resources),
+    });
   } catch (error) {
     return handleApiError(error);
   }

@@ -93,7 +93,7 @@ EenvoudigFactureren zelf — zo hou je de controle.
 |---|---|
 | Tarieven | je eigen uurtarief, btw op arbeid (21% of 6%), betaaltermijn |
 | Artikels | link naar de aparte pagina **Artikels** (menu, of via Instellingen op gsm): de extra's die je kan aanrekenen (naam, eenheid, prijs, btw) + import uit EenvoudigFactureren |
-| Medewerkers | vaste werkmensen + hun uurtarief (picklist bij het registreren) |
+| Resources | link naar de aparte pagina **Resources** (menu, of via Instellingen op gsm): personen en machines + hun uurtarief. Personen zijn de picklist bij het registreren; bij een todo kies je welke resources nodig zijn en hoeveel uren elk |
 | Herinneringsmail | verzenduur en de teksten (met {{naam}}, {{datum}}, {{uur}}, {{werk}}) |
 | EF-import | bestaande klanten uit EenvoudigFactureren binnenhalen |
 | Beveiliging | vertrouwde toestellen bekijken/intrekken, 2FA opnieuw instellen |

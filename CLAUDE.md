@@ -4,7 +4,7 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 
 ## Taal- en naamgevingsconventie
 
-- **Folders en bestandsnamen: Engels.** Alle routes, componenten, modules, etc. hebben Engelse namen. De route-folders onder `src/app/(app)/` zijn dit: `invoices`, `customers`, `settings`, `today` (incl. `today/[id]/register`), `upcoming-days`, `planning`, `products` (menu "Artikels"). Nieuwe folders/bestanden volgen dezelfde regel.
+- **Folders en bestandsnamen: Engels.** Alle routes, componenten, modules, etc. hebben Engelse namen. De route-folders onder `src/app/(app)/` zijn dit: `invoices`, `customers`, `settings`, `today` (incl. `today/[id]/register`), `upcoming-days`, `planning`, `products` (menu "Artikels"), `resources` (menu "Resources": personen + machines, model `Resource`, vroeger `Worker`). Nieuwe folders/bestanden volgen dezelfde regel.
 - **UI-teksten: Nederlands.** Alle captions, labels, veldnamen, knoppen, foutmeldingen en andere tekst die de gebruiker ziet, zijn in het Nederlands. Code (variabelen, functies, types, comments) blijft Engels.
 - Technische documentatie inline in de code moet ook altijd in het Engels
 

@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { customerInputSchema } from "@/lib/schemas/customers";
+import { todoResourcesInclude, toTodoResourceDtos } from "@/lib/schemas/todos";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
   const id = Number((await params).id);
@@ -25,7 +26,7 @@ export async function GET(
       include: {
         todos: {
           orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-          include: { recurringWindow: { select: { label: true } } },
+          include: { recurringWindow: { select: { label: true } }, ...todoResourcesInclude },
         },
         recurringTemplates: {
           include: { windows: { orderBy: { sortOrder: "asc" } } },
@@ -41,6 +42,7 @@ export async function GET(
         ...t,
         estimatedHours: Number(t.estimatedHours),
         windowLabel: t.recurringWindow?.label ?? null,
+        resources: toTodoResourceDtos(t.resources),
         recurringWindow: undefined,
       })),
       recurringTemplates: customer.recurringTemplates.map((rt) => ({

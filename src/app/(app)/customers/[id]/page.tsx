@@ -6,16 +6,15 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { CustomerForm } from "@/components/customer-form";
 import { RecurringSection } from "@/components/recurring-section";
+import { TodoForm, TodoResourceSummary, type TodoFormValues } from "@/components/todo-form";
 import {
   Button,
   EmptyState,
   ErrorNote,
-  Field,
   Modal,
   PageHeader,
   Spinner,
   StatusBadge,
-  TextInput,
 } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatAddress, type CustomerDto, type CustomerInput } from "@/lib/schemas/customers";
@@ -184,23 +183,29 @@ function TodoSection({
   customer: { id: number; todos: TodoDto[] };
   onChanged: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [hours, setHours] = useState("2");
   const [formError, setFormError] = useState<string | null>(null);
+  // Bumped after a successful create to remount (= reset) the form.
+  const [formKey, setFormKey] = useState(0);
+  const [editing, setEditing] = useState<TodoDto | null>(null);
 
   const addMutation = useMutation({
-    mutationFn: () =>
-      apiSend("/api/todos", "POST", {
-        customerId: customer.id,
-        title,
-        estimatedHours: Number(hours.replace(",", ".")),
-      }),
+    mutationFn: (values: TodoFormValues) =>
+      apiSend("/api/todos", "POST", { customerId: customer.id, ...values }),
     onSuccess: () => {
-      setTitle("");
       setFormError(null);
+      setFormKey((k) => k + 1);
       onChanged();
     },
     onError: (e) => setFormError((e as Error).message),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: ({ todoId, values }: { todoId: number; values: TodoFormValues }) =>
+      apiSend(`/api/todos/${todoId}`, "PATCH", values),
+    onSuccess: () => {
+      setEditing(null);
+      onChanged();
+    },
   });
 
   const patchTodo = useMutation({
@@ -222,38 +227,13 @@ function TodoSection({
     <section className="space-y-4">
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <h2 className="mb-3 font-semibold">Nieuwe todo</h2>
-        {formError && <ErrorNote message={formError} />}
-        <form
-          className="mt-2 flex flex-wrap items-end gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            addMutation.mutate();
-          }}
-        >
-          <div className="min-w-48 flex-1">
-            <Field label="Wat moet er gebeuren?">
-              <TextInput
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="bv. Gazon aanleggen achtertuin"
-                required
-              />
-            </Field>
-          </div>
-          <div className="w-28">
-            <Field label="Geschat (uren)">
-              <TextInput
-                value={hours}
-                onChange={(e) => setHours(e.target.value)}
-                inputMode="decimal"
-                required
-              />
-            </Field>
-          </div>
-          <Button type="submit" disabled={addMutation.isPending}>
-            Toevoegen
-          </Button>
-        </form>
+        <TodoForm
+          key={formKey}
+          submitLabel="Toevoegen"
+          busy={addMutation.isPending}
+          error={formError}
+          onSubmit={(values) => addMutation.mutate(values)}
+        />
       </div>
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -263,7 +243,7 @@ function TodoSection({
         ) : (
           <ul className="divide-y divide-gray-100">
             {open.map((t) => (
-              <li key={t.id} className="flex items-center justify-between gap-3 py-2">
+              <li key={t.id} className="flex items-start justify-between gap-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate font-medium">{t.title}</p>
                   <p className="text-sm text-gray-500">
@@ -274,9 +254,19 @@ function TodoSection({
                       </span>
                     )}
                   </p>
+                  <div className="mt-1">
+                    <TodoResourceSummary resources={t.resources} />
+                  </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <StatusBadge status={t.status} />
+                  <button
+                    type="button"
+                    className="text-xs text-brand-600 hover:underline"
+                    onClick={() => setEditing(t)}
+                  >
+                    Bewerken
+                  </button>
                   {t.status === "OPEN" && (
                     <button
                       type="button"
@@ -320,6 +310,24 @@ function TodoSection({
           </ul>
         </details>
       )}
+
+      <Modal title="Todo bewerken" open={editing !== null} onClose={() => setEditing(null)}>
+        {editing && (
+          <TodoForm
+            key={editing.id}
+            initial={{
+              title: editing.title,
+              estimatedHours: editing.estimatedHours,
+              resources: editing.resources ?? [],
+            }}
+            submitLabel="Bewaren"
+            busy={editMutation.isPending}
+            error={editMutation.error ? (editMutation.error as Error).message : null}
+            onSubmit={(values) => editMutation.mutate({ todoId: editing.id, values })}
+            onCancel={() => setEditing(null)}
+          />
+        )}
+      </Modal>
     </section>
   );
 }

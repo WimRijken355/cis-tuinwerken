@@ -28,7 +28,8 @@ const TABLE_LABELS: Record<string, string> = {
   Appointment: "Afspraak",
   Completion: "Registratie",
   LaborEntry: "Uren",
-  Worker: "Medewerker",
+  Resource: "Resource",
+  TodoResource: "Todo-resource",
   PriceListItem: "Artikel",
   ExtraCharge: "Extra",
   Invoice: "Factuur",
@@ -44,7 +45,12 @@ const ACTION_LABELS: Record<string, { label: string; cls: string }> = {
 const EMPTY_FILTERS = { table: "", action: "", user: "", recordId: "", from: "", to: "" };
 type Filters = typeof EMPTY_FILTERS;
 
-const tableLabel = (name: string) => TABLE_LABELS[name] ?? name;
+/** Tables that no longer exist but still appear in older audit rows (display only, not filterable). */
+const LEGACY_TABLE_LABELS: Record<string, string> = {
+  Worker: "Medewerker (oud)",
+};
+
+const tableLabel = (name: string) => TABLE_LABELS[name] ?? LEGACY_TABLE_LABELS[name] ?? name;
 
 export default function AuditLogPage() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
