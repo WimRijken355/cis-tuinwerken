@@ -1,3 +1,5 @@
+import { AppLogoFull } from "./app-logo";
+
 /**
  * Centered card with the app logo, shared by the public auth pages
  * (login, forgot password, reset password). Phone-first.
@@ -7,9 +9,10 @@ export function AuthCard({ children }: { children: React.ReactNode }) {
     <main className="flex min-h-dvh items-center justify-center p-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-md">
         <div className="mb-6 text-center">
-          <div className="text-3xl">🌿</div>
-          <h1 className="mt-1 text-xl font-bold text-brand-700">Tuinwerken Cis</h1>
-          <p className="text-sm text-gray-500">Planning &amp; facturatie</p>
+          <h1>
+            <AppLogoFull className="mx-auto h-40 w-auto" />
+          </h1>
+          <p className="mt-2 text-sm text-gray-500">Planning &amp; facturatie</p>
         </div>
         {children}
       </div>

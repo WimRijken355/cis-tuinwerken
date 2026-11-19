@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useCurrentUser } from "@/lib/auth-client";
 import { APP_VERSION } from "@/lib/version";
+import { AppLogoMark } from "./app-logo";
 import {
   isActivePath,
   isSettingsPath,
@@ -46,7 +47,7 @@ export function SidebarNav() {
   return (
     <aside className="hidden w-56 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
       <div className="flex items-center gap-2 px-4 py-5">
-        <span className="text-2xl">🌿</span>
+        <AppLogoMark className="h-8 w-auto" />
         <span className="font-bold text-brand-700">Tuinwerken Cis</span>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-2">

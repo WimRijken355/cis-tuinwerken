@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { AppLogoFull } from "@/components/app-logo";
 import { START_PATH } from "@/components/nav-items";
 
 /**
@@ -99,9 +100,10 @@ export default function LoginPage() {
     <main className="flex min-h-dvh items-center justify-center p-4">
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-md">
         <div className="mb-6 text-center">
-          <div className="text-3xl">🌿</div>
-          <h1 className="mt-1 text-xl font-bold text-brand-700">Tuinwerken Cis</h1>
-          <p className="text-sm text-gray-500">Planning &amp; facturatie</p>
+          <h1>
+            <AppLogoFull className="mx-auto h-40 w-auto" />
+          </h1>
+          <p className="mt-2 text-sm text-gray-500">Planning &amp; facturatie</p>
         </div>
 
         {error && (
