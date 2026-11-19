@@ -5,7 +5,7 @@ import { contentFromBuilt, vatSummary } from "@/lib/invoice-content";
 import { buildJobInvoice } from "@/lib/registration";
 import { completionInputSchema } from "@/lib/schemas/completions";
 import { syncTodoStatus } from "@/lib/services/appointments";
-import { initialSyncAction } from "@/lib/services/invoice-sync";
+import { initialSyncAction, syncSkipMessage } from "@/lib/services/invoice-sync";
 import { markInvoiceNotSynced, pushInvoiceToEf } from "@/lib/services/invoices";
 import { loadUninvoicedDays } from "@/lib/services/registration";
 import { getSettings } from "@/lib/services/settings";
@@ -144,11 +144,15 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ completed: true, invoiced: false, nextBlocks }, { status: 201 });
     }
 
-    // Step 2: push to EF (never blocking the registration), unless sync is
-    // switched off in Settings or this is a demo customer.
+    // Step 2: push to EF (never blocking the registration), unless sync or
+    // automatic sync is switched off in Settings, or this is a demo customer.
     const efPush =
-      initialSyncAction(settings.efInvoiceSyncEnabled, customer.isDemo) === "skip"
-        ? await markInvoiceNotSynced(result.invoice.id).then(() => ({ ok: false, skipped: true }))
+      initialSyncAction(settings.efInvoiceSyncEnabled, customer.isDemo, settings.efInvoiceAutoSync) === "skip"
+        ? await markInvoiceNotSynced(result.invoice.id).then(() => ({
+            ok: false,
+            skipped: true,
+            message: syncSkipMessage(settings.efInvoiceSyncEnabled, customer.isDemo, settings.efInvoiceAutoSync),
+          }))
         : await pushInvoiceToEf(result.invoice.id).then((push) =>
             push.ok ? { ok: true, efInvoiceId: push.efInvoiceId } : { ok: false, error: push.error },
           );

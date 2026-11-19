@@ -14,9 +14,21 @@ export const SYNC_EXCLUDED_MESSAGE =
 export const SYNC_DISABLED_MESSAGE =
   "Synchronisatie van facturen naar EenvoudigFactureren staat uit (Instellingen → Algemeen).";
 
-/** What to do with a freshly registered invoice (demo customers are never pushed). */
-export function initialSyncAction(syncEnabled: boolean, isDemoCustomer = false): "push" | "skip" {
-  return syncEnabled && !isDemoCustomer ? "push" : "skip";
+/**
+ * What to do with a freshly registered invoice: pushed immediately only when
+ * sync is on AND "automatisch synchroniseren" is on (demo customers never).
+ * Otherwise it stays NOT_SYNCED and is sent manually from Facturen.
+ */
+export function initialSyncAction(syncEnabled: boolean, isDemoCustomer = false, autoSync = true): "push" | "skip" {
+  return syncEnabled && autoSync && !isDemoCustomer ? "push" : "skip";
+}
+
+/** Why a new invoice was not pushed (shown after registering). */
+export function syncSkipMessage(syncEnabled: boolean, isDemoCustomer: boolean, autoSync: boolean): string {
+  if (isDemoCustomer) return "Demoklant: de factuur blijft enkel in deze app.";
+  if (!syncEnabled) return "Synchronisatie naar EenvoudigFactureren staat uit: de factuur blijft enkel in deze app.";
+  if (!autoSync) return "De factuur staat klaar in Facturen; verstuur ze van daaruit naar EenvoudigFactureren.";
+  return "";
 }
 
 /**

@@ -153,9 +153,16 @@ verwijderen.
 De status per factuur:
 - **Concept in EF** — staat klaar in EenvoudigFactureren om na te kijken
 - **Push mislukt** — tik ↻ Opnieuw (de foutoorzaak staat erbij)
-- **Niet gesynchroniseerd** — gemaakt terwijl de synchronisatie uit stond
-  (Instellingen → Algemeen → *Facturen synchroniseren naar EenvoudigFactureren*).
-  Zet je de schakelaar weer aan, dan stuur je ze met **→ Naar EF** alsnog door.
+- **Niet gesynchroniseerd** — nog niet naar EenvoudigFactureren gestuurd. Verstuur
+  ze met **→ Naar EF** in de lijst, of met **→ Naar EenvoudigFactureren sturen** in
+  het factuurvenster.
+
+In **Instellingen → Algemeen** staan twee schakelaars:
+- *Facturen synchroniseren naar EenvoudigFactureren* — staat die uit, dan gaat
+  er nooit een factuur naar EenvoudigFactureren (ook niet met de knoppen).
+- *Facturen automatisch synchroniseren* — staat die aan, dan gaat een nieuwe
+  factuur bij het klaarmelden meteen als concept naar EenvoudigFactureren. Staat
+  ze uit, dan blijft de factuur klaarstaan in **Facturen** en verstuur je ze zelf.
 
 **Meerdere facturen tegelijk versturen**: filter op status *Niet
 gesynchroniseerd*, vink het vakje bovenaan de lijst aan (dat selecteert alle

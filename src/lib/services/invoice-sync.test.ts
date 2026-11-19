@@ -4,12 +4,26 @@ import {
   canSendToEf,
   DEMO_CUSTOMER_MESSAGE,
   initialSyncAction,
+  syncSkipMessage,
   selectInvoicesToSync,
   SYNC_DISABLED_MESSAGE,
   SYNC_EXCLUDED_MESSAGE,
 } from "./invoice-sync";
 
 describe("initialSyncAction", () => {
+  it("pushes immediately only when sync AND automatic sync are on", () => {
+    expect(initialSyncAction(true, false, true)).toBe("push");
+    expect(initialSyncAction(true, false, false)).toBe("skip");
+    expect(initialSyncAction(false, false, true)).toBe("skip");
+    expect(initialSyncAction(true, true, true)).toBe("skip");
+  });
+
+  it("explains why a new invoice was not pushed", () => {
+    expect(syncSkipMessage(true, false, false)).toMatch(/Facturen/);
+    expect(syncSkipMessage(false, false, false)).toMatch(/staat uit/);
+    expect(syncSkipMessage(true, true, true)).toMatch(/Demoklant/);
+  });
+
   it("pushes a new invoice only when sync is on", () => {
     expect(initialSyncAction(true)).toBe("push");
     expect(initialSyncAction(false)).toBe("skip");
@@ -43,6 +57,8 @@ describe("efInvoiceSyncEnabled setting", () => {
   it("can be switched on its own without touching other settings", () => {
     expect(settingsUpdateSchema.parse({ efInvoiceSyncEnabled: false })).toEqual({ efInvoiceSyncEnabled: false });
     expect(() => settingsUpdateSchema.parse({ efInvoiceSyncEnabled: "nee" })).toThrow();
+    // Partial update of only the automatic-sync switch leaves the master switch alone.
+    expect(settingsUpdateSchema.parse({ efInvoiceAutoSync: false })).toEqual({ efInvoiceAutoSync: false });
   });
 });
 

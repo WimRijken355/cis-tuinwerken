@@ -16,8 +16,10 @@ export const settingsSchema = z.object({
   reminderEmailSubject: z.string().min(1).max(200),
   /** Placeholders: {{naam}} {{datum}} {{uur}} {{werk}} */
   reminderEmailBody: z.string().min(1).max(5000),
-  /** Push invoices to EenvoudigFactureren as concept on registration (default on). */
+  /** Master switch: may invoices go to EenvoudigFactureren at all (default on). Off = never synced. */
   efInvoiceSyncEnabled: z.boolean(),
+  /** Push a new invoice immediately on registration (default on). Off = send manually from Facturen. Only effective while efInvoiceSyncEnabled is on. */
+  efInvoiceAutoSync: z.boolean(),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;

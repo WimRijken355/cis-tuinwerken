@@ -10,6 +10,7 @@ import { parseDecimal } from "@/lib/number";
 import { searchArticles } from "@/lib/registration";
 import type { PriceListItemDto } from "@/lib/schemas/catalog";
 import type { InvoiceDetailDto } from "@/lib/schemas/completions";
+import { canSendToEf } from "@/lib/services/invoice-sync";
 import { formatDate, formatDateShort } from "@/lib/time";
 
 const euro = new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" });
@@ -50,6 +51,53 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: { invoiceId: number;
   );
 }
 
+/**
+ * "Naar EenvoudigFactureren sturen" for this invoice (same rules and endpoint
+ * as the button in the invoices list); disabled with the reason when it may
+ * not be sent. Hidden once the invoice is in EF.
+ */
+function SendToEfButton({ invoice: inv }: { invoice: InvoiceDetailDto }) {
+  const queryClient = useQueryClient();
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => apiGet<{ efInvoiceSyncEnabled: boolean }>("/api/settings"),
+  });
+  const sendMutation = useMutation({
+    mutationFn: () => apiSend(`/api/invoices/${inv.id}/retry-push`, "POST"),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["invoice", inv.id] });
+      void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+  });
+  if (inv.efInvoiceId || !settings) return null;
+  const check = canSendToEf(
+    { efInvoiceId: inv.efInvoiceId, pushStatus: inv.pushStatus, syncExcluded: inv.syncExcluded },
+    settings.efInvoiceSyncEnabled,
+    inv.customerIsDemo,
+  );
+  return (
+    <>
+      <Button
+        onClick={() => sendMutation.mutate()}
+        disabled={!check.allowed || sendMutation.isPending}
+        title={check.allowed ? "Als concept naar EenvoudigFactureren sturen" : check.reason}
+      >
+        {sendMutation.isPending
+          ? "Bezig met versturen…"
+          : inv.pushStatus === "FAILED"
+            ? "↻ Opnieuw naar EF sturen"
+            : "→ Naar EenvoudigFactureren sturen"}
+      </Button>
+      {sendMutation.error && (
+        <div className="w-full">
+          <ErrorNote message={(sendMutation.error as Error).message} />
+        </div>
+      )}
+      {!check.allowed && <p className="w-full text-right text-xs text-gray-500">{check.reason}</p>}
+    </>
+  );
+}
+
 function InvoiceDetail({ invoice: inv, onEdit }: { invoice: InvoiceDetailDto; onEdit: () => void }) {
   // Total invoiced/registered hours per resource over all days of this invoice.
   const perResource = new Map<string, { type: string; registered: number; invoiced: number }>();
@@ -68,11 +116,14 @@ function InvoiceDetail({ invoice: inv, onEdit }: { invoice: InvoiceDetailDto; on
         <span>{inv.workTitle}</span>·<span>aangemaakt {formatDateShort(inv.createdAt)}</span>
         <StatusBadge status={inv.pushStatus} />
         {inv.efInvoiceId && <span className="text-xs text-gray-400">EF #{inv.efInvoiceId}</span>}
-        {inv.editable && (
-          <Button variant="secondary" className="ml-auto" onClick={onEdit}>
-            ✏️ Aanpassen
-          </Button>
-        )}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          {inv.editable && (
+            <Button variant="secondary" onClick={onEdit}>
+              ✏️ Aanpassen
+            </Button>
+          )}
+          <SendToEfButton invoice={inv} />
+        </div>
       </div>
       {inv.errorMessage && <ErrorNote message={inv.errorMessage} />}
       {inv.editedAt && (

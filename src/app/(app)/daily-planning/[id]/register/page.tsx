@@ -69,7 +69,7 @@ interface CompleteResult {
   invoiceId?: number;
   totalExclVat?: number;
   totalInclVat?: number;
-  efPush?: { ok: boolean; skipped?: boolean; efInvoiceId?: number; error?: string };
+  efPush?: { ok: boolean; skipped?: boolean; message?: string; efInvoiceId?: number; error?: string };
 }
 
 const euro = new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" });
@@ -983,7 +983,7 @@ function ResultAndFollowUp({
             </p>
             {result.efPush?.skipped ? (
               <p className="mt-2 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-700">
-                De factuur is lokaal bewaard (synchronisatie staat uit, of demoklant).
+                {result.efPush.message || "De factuur is lokaal bewaard."}
               </p>
             ) : result.efPush?.ok ? (
               <p className="mt-2 rounded-md bg-green-50 px-3 py-2 text-sm text-green-800">

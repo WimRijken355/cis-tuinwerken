@@ -63,13 +63,19 @@ export default function SettingsPage() {
   );
 }
 
-/** On/off switch for pushing invoices to EenvoudigFactureren; saved immediately. */
+/**
+ * Two switches, saved immediately: the master switch (may invoices go to
+ * EenvoudigFactureren at all) and "automatisch" (push a new invoice right
+ * away on registration, or leave it for a manual send from Facturen).
+ */
 function EfInvoiceSyncSection({ settings }: { settings: SettingsResponse }) {
   const queryClient = useQueryClient();
   const enabled = settings.efInvoiceSyncEnabled;
+  const autoSync = settings.efInvoiceAutoSync;
 
   const saveMutation = useMutation({
-    mutationFn: (next: boolean) => apiSend("/api/settings", "PUT", { efInvoiceSyncEnabled: next }),
+    mutationFn: (patch: Partial<Pick<Settings, "efInvoiceSyncEnabled" | "efInvoiceAutoSync">>) =>
+      apiSend("/api/settings", "PUT", patch),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["settings"] });
       void queryClient.invalidateQueries({ queryKey: ["invoices"] });
@@ -83,15 +89,33 @@ function EfInvoiceSyncSection({ settings }: { settings: SettingsResponse }) {
           <h2 className="font-semibold">Facturen synchroniseren naar EenvoudigFactureren</h2>
           <p className="mt-1 text-sm text-gray-600">
             {enabled
-              ? "Aan: na elke registratie komt er automatisch een conceptfactuur in EenvoudigFactureren."
-              : "Uit: facturen blijven enkel in deze app (status \"Niet gesynchroniseerd\"). Zet je dit later weer aan, dan kan je ze via Facturen alsnog doorsturen."}
+              ? "Aan: facturen kunnen naar EenvoudigFactureren (als concept)."
+              : "Uit: facturen gaan nooit naar EenvoudigFactureren en blijven enkel in deze app (status \"Niet gesynchroniseerd\"). Zet je dit later weer aan, dan kan je ze via Facturen alsnog doorsturen."}
           </p>
         </div>
         <Toggle
           checked={enabled}
           label="Facturen synchroniseren naar EenvoudigFactureren"
           disabled={saveMutation.isPending}
-          onChange={(next) => saveMutation.mutate(next)}
+          onChange={(next) => saveMutation.mutate({ efInvoiceSyncEnabled: next })}
+        />
+      </div>
+      <div className={`mt-4 flex items-start justify-between gap-4 border-t border-gray-100 pt-4 ${enabled ? "" : "opacity-50"}`}>
+        <div>
+          <h3 className="font-medium">Facturen automatisch synchroniseren</h3>
+          <p className="mt-1 text-sm text-gray-600">
+            {!enabled
+              ? "Werkt enkel als synchroniseren hierboven aan staat."
+              : autoSync
+                ? "Aan: bij het klaarmelden gaat een nieuwe factuur meteen als concept naar EenvoudigFactureren."
+                : "Uit: nieuwe facturen blijven klaarstaan in Facturen; daar verstuur je ze zelf (per factuur of een selectie)."}
+          </p>
+        </div>
+        <Toggle
+          checked={enabled && autoSync}
+          label="Facturen automatisch synchroniseren"
+          disabled={!enabled || saveMutation.isPending}
+          onChange={(next) => saveMutation.mutate({ efInvoiceAutoSync: next })}
         />
       </div>
       {enabled && !settings.efConfigured && (

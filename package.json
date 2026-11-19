@@ -1,6 +1,6 @@
 {
   "name": "tuinwerken-cis",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "private": true,
   "description": "Planningsapp voor Tuinwerken Cis: todo's per klant, weekplanning, herinneringsmails, urenregistratie en automatische conceptfacturen in EenvoudigFactureren.",
   "scripts": {
