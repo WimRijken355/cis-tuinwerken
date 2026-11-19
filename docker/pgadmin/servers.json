@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Tuinwerken (dev)",
+      "Group": "Tuinwerken Cis",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "tuinwerken",
+      "Username": "tuinwerken",
+      "SSLMode": "prefer",
+      "PasswordExecCommand": "echo tuinwerken_dev"
+    }
+  }
+}

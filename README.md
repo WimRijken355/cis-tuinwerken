@@ -55,6 +55,7 @@ bewaar de getoonde herstelcodes op een veilige plek.
 | `npm run db:migrate` | Schemawijzigingen doorvoeren (Prisma Migrate) |
 | `npm run db:seed` | Basisgegevens laden (idempotent) |
 | `npm run db:studio` | Prisma Studio: database bekijken in de browser |
+| `npm run db:admin` | pgAdmin starten op http://localhost:5050 (geen login, server "Tuinwerken (dev)" staat klaar) |
 
 ## Projectstatus
 

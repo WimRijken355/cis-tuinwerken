@@ -2,6 +2,7 @@
 # De app zelf start je met `npm run dev`.
 #
 # Starten:  docker compose up -d postgres
+# pgAdmin:  docker compose up -d pgadmin   → http://localhost:5050
 # Stoppen:  docker compose down        (data blijft bewaard in het volume)
 
 services:
@@ -24,5 +25,29 @@ services:
       timeout: 3s
       retries: 10
 
+  # Web-UI voor de dev-database. Draait in "desktop mode": geen login, en de
+  # server "Tuinwerken (dev)" staat al klaar (docker/pgadmin/servers.json).
+  # Alleen voor lokaal gebruik — nooit zo in productie zetten.
+  pgadmin:
+    image: dpage/pgadmin4:9.8
+    container_name: tuinwerken-pgadmin-dev
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dev@tuinwerken.be
+      PGADMIN_DEFAULT_PASSWORD: tuinwerken_dev
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+      # Lets servers.json supply the DB password via PasswordExecCommand.
+      PGADMIN_CONFIG_ENABLE_SERVER_PASS_EXEC_CMD: "True"
+    ports:
+      - "127.0.0.1:5050:80"
+    volumes:
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - pgadmin:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   pgdata:
+  pgadmin:
