@@ -35,6 +35,10 @@ services:
       POSTGRES_USER: tuinwerken
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: tuinwerken
+    ports:
+      # Loopback only: reachable from the server itself (and thus through an
+      # SSH tunnel, see `npm run db:tunnel`), never from the network.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

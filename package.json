@@ -1,6 +1,6 @@
 {
   "name": "tuinwerken-cis",
-  "version": "0.40.2",
+  "version": "0.41.0",
   "private": true,
   "description": "Planningsapp voor Tuinwerken Cis: todo's per klant, weekplanning, herinneringsmails, urenregistratie en automatische conceptfacturen in EenvoudigFactureren.",
   "scripts": {
@@ -16,6 +16,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "db:admin": "docker compose up -d pgadmin",
+    "db:tunnel": "ssh -N -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -L 127.0.0.1:15432:127.0.0.1:5432 root@172.20.20.91",
     "demo:on": "tsx --env-file=.env scripts/demo-data.ts on",
     "demo:off": "tsx --env-file=.env scripts/demo-data.ts off",
     "demo:status": "tsx --env-file=.env scripts/demo-data.ts status"

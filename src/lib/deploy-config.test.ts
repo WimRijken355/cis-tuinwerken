@@ -34,6 +34,24 @@ describe("deployment config", () => {
     expect(script).toContain("git status --porcelain --untracked-files=no");
   });
 
+  it("production Postgres is published on loopback only (reachable via SSH tunnel, never the network)", () => {
+    const compose = read("docker-compose.prod.yml");
+    expect(compose).toContain('- "127.0.0.1:5432:5432"');
+    // Any other 5432 mapping (e.g. "5432:5432" or "0.0.0.0:5432:…") would expose the DB.
+    const mappings = compose.match(/^\s*-\s*"[^"]*:5432"\s*$/gm) ?? [];
+    expect(mappings).toHaveLength(1);
+  });
+
+  it("db:tunnel forwards a local loopback port to the server Postgres, matching pgAdmin's tunnel server", () => {
+    const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
+    expect(pkg.scripts["db:tunnel"]).toContain("-L 127.0.0.1:15432:127.0.0.1:5432");
+    const servers = JSON.parse(read("docker/pgadmin/servers.json")) as {
+      Servers: Record<string, { Host: string; Port: number }>;
+    };
+    const tunnel = Object.values(servers.Servers).find((s) => s.Port === 15432);
+    expect(tunnel?.Host).toBe("host.docker.internal");
+  });
+
   it("compose lets .env choose the Caddyfile and passes APP_LAN_IP to Caddy", () => {
     const compose = read("docker-compose.prod.yml");
     expect(compose).toContain("./${CADDYFILE:-Caddyfile}:/etc/caddy/Caddyfile:ro");

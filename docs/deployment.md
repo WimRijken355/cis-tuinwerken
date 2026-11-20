@@ -124,6 +124,24 @@ docker compose -f docker-compose.prod.yml up -d --build app
 Migraties draaien automatisch mee bij het opstarten. De database en Caddy
 blijven gewoon doorlopen.
 
+## Database op de server bekijken (pgAdmin via SSH-tunnel)
+
+Postgres op de server luistert enkel op `127.0.0.1:5432` (niet bereikbaar
+vanaf het netwerk). Kijken doe je met je lokale pgAdmin via een SSH-tunnel:
+
+1. `npm run db:tunnel` (laat het venster openstaan; Ctrl+C sluit de tunnel).
+   Vereist SSH-toegang met sleutel tot de server.
+2. `npm run db:admin` → http://localhost:5050 → server
+   **"Tuinwerken (server, via tunnel)"**. Wachtwoord = `POSTGRES_PASSWORD` uit
+   `/opt/cis-tuinwerken/.env` op de server.
+
+Let op: dit is de **productiedatabase** — wijzigingen via pgAdmin gaan niet
+via de app en komen dus niet in de audittrail.
+
+`servers.json` wordt enkel ingelezen bij de eerste start van pgAdmin. Zie je de
+serververmelding niet, importeer dan `docker/pgadmin/servers.json` via
+Tools → Import/Export Servers (of verwijder het `pgadmin`-volume).
+
 ## 3. Backups
 
 - De `postgres-backup`-container maakt **elke nacht** een `pg_dump` en bewaart

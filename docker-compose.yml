@@ -41,6 +41,10 @@ services:
       PGADMIN_CONFIG_ENABLE_SERVER_PASS_EXEC_CMD: "True"
     ports:
       - "127.0.0.1:5050:80"
+    # Reach the SSH tunnel to the server database (npm run db:tunnel) on the
+    # host; Docker Desktop provides this name already, Linux needs the mapping.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
       - pgadmin:/var/lib/pgadmin

@@ -9,6 +9,16 @@
       "Username": "tuinwerken",
       "SSLMode": "prefer",
       "PasswordExecCommand": "echo tuinwerken_dev"
+    },
+    "2": {
+      "Name": "Tuinwerken (server, via tunnel)",
+      "Group": "Tuinwerken Cis",
+      "Host": "host.docker.internal",
+      "Port": 15432,
+      "MaintenanceDB": "tuinwerken",
+      "Username": "tuinwerken",
+      "SSLMode": "disable",
+      "Comment": "Start eerst de tunnel: npm run db:tunnel. Wachtwoord = POSTGRES_PASSWORD in /opt/cis-tuinwerken/.env op de server."
     }
   }
 }
