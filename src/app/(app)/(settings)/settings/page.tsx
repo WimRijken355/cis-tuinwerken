@@ -160,18 +160,17 @@ function RatesSection({ settings }: { settings: SettingsResponse }) {
     <section className="rounded-lg border border-gray-200 bg-white p-4">
       <h2 className="font-semibold">Tarieven</h2>
       <form
-        className="mt-3 flex flex-wrap items-end gap-3"
+        className="mt-3 space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
           saveMutation.mutate();
         }}
       >
-        <div className="w-40">
+        {/* Aligned on top: a hint that wraps (btw) must not push its field down. */}
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-3">
           <Field label="Eigen uurtarief (€)" hint="Excl. btw">
             <TextInput inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} />
           </Field>
-        </div>
-        <div className="w-40">
           <Field label="Btw op arbeid" hint="6% kan bij woningen ouder dan 10 jaar">
             <select
               value={vat}
@@ -182,16 +181,16 @@ function RatesSection({ settings }: { settings: SettingsResponse }) {
               <option value="6">6%</option>
             </select>
           </Field>
-        </div>
-        <div className="w-40">
           <Field label="Betaaltermijn (dagen)">
             <TextInput inputMode="numeric" value={daysDue} onChange={(e) => setDaysDue(e.target.value)} />
           </Field>
         </div>
-        <Button type="submit" disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? "Bezig…" : "Bewaren"}
-        </Button>
-        {saved && <span className="pb-2 text-sm text-green-700">✓</span>}
+        <div className="flex items-center gap-2">
+          <Button type="submit" disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? "Bezig…" : "Bewaren"}
+          </Button>
+          {saved && <span className="text-sm text-green-700">✓ Bewaard</span>}
+        </div>
       </form>
       {saveMutation.error && (
         <div className="mt-2">
@@ -224,21 +223,23 @@ function PlanningSection({ settings }: { settings: SettingsResponse }) {
     <section className="rounded-lg border border-gray-200 bg-white p-4">
       <h2 className="font-semibold">Planning</h2>
       <form
-        className="mt-3 flex flex-wrap items-end gap-3"
+        className="mt-3 space-y-3"
         onSubmit={(e) => {
           e.preventDefault();
           saveMutation.mutate();
         }}
       >
-        <div className="w-56">
+        <div className="grid grid-cols-1 items-start gap-3 sm:grid-cols-3">
           <Field label="Max. uren per ingepland blok" hint="Langere todo's worden over meerdere dagen verdeeld">
             <TextInput inputMode="decimal" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} />
           </Field>
         </div>
-        <Button type="submit" disabled={saveMutation.isPending}>
-          {saveMutation.isPending ? "Bezig…" : "Bewaren"}
-        </Button>
-        {saved && <span className="pb-2 text-sm text-green-700">✓</span>}
+        <div className="flex items-center gap-2">
+          <Button type="submit" disabled={saveMutation.isPending}>
+            {saveMutation.isPending ? "Bezig…" : "Bewaren"}
+          </Button>
+          {saved && <span className="text-sm text-green-700">✓ Bewaard</span>}
+        </div>
       </form>
       {saveMutation.error && (
         <div className="mt-2">
