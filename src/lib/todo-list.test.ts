@@ -5,6 +5,7 @@ import {
   isTodoFilterActive,
   matchesTodoFilter,
   matchesTodoState,
+  todoInvoiceState,
   todoStatusActions,
   type TodoListFilter,
 } from "./todo-list";
@@ -103,3 +104,35 @@ describe("todoStatusActions", () => {
     expect(todoStatusActions("DONE", []).canReopen).toBe(false);
   });
 });
+
+describe("todoInvoiceState", () => {
+  const inv = (pushStatus: string, over: { efInvoiceId?: number | null; syncExcluded?: boolean } = {}) => ({
+    invoice: { pushStatus, efInvoiceId: over.efInvoiceId ?? null, syncExcluded: over.syncExcluded ?? false },
+  });
+  it("nothing registered / registered without invoice / partly invoiced", () => {
+    expect(todoInvoiceState([])).toBe("none");
+    expect(todoInvoiceState([{ invoice: null }])).toBe("uninvoiced");
+    expect(todoInvoiceState([{ invoice: null }, inv("NOT_SYNCED")])).toBe("partly");
+  });
+  it("state of the invoice: in EF, not synced, failed, excluded", () => {
+    expect(todoInvoiceState([inv("CONCEPT_CREATED", { efInvoiceId: 5 })])).toBe("in_ef");
+    expect(todoInvoiceState([inv("NOT_SYNCED")])).toBe("not_synced");
+    expect(todoInvoiceState([inv("FAILED")])).toBe("failed");
+    expect(todoInvoiceState([inv("NOT_SYNCED", { syncExcluded: true })])).toBe("excluded");
+  });
+  it("with several invoices the one needing attention wins", () => {
+    expect(todoInvoiceState([inv("CONCEPT_CREATED", { efInvoiceId: 5 }), inv("FAILED")])).toBe("failed");
+  });
+});
+
+describe("invoice filter", () => {
+  it("filters on (not) invoiced and in EF", () => {
+    expect(matchesTodoFilter(todo({ invoiceState: "uninvoiced" }), f({ state: "", invoice: "uninvoiced" }))).toBe(true);
+    expect(matchesTodoFilter(todo({ invoiceState: "partly" }), f({ state: "", invoice: "uninvoiced" }))).toBe(true);
+    expect(matchesTodoFilter(todo({ invoiceState: "failed" }), f({ state: "", invoice: "not_in_ef" }))).toBe(true);
+    expect(matchesTodoFilter(todo({ invoiceState: "in_ef" }), f({ state: "", invoice: "not_in_ef" }))).toBe(false);
+    expect(matchesTodoFilter(todo(), f({ state: "", invoice: "in_ef" }))).toBe(false);
+    expect(isTodoFilterActive(f({ invoice: "in_ef" }))).toBe(true);
+  });
+});
+

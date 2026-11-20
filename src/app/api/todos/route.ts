@@ -14,6 +14,7 @@ import {
 import type { Prisma } from "@/generated/prisma/client";
 import { periodToWindow, windowLabel } from "@/lib/registration";
 import { needsPlanning } from "@/lib/planning";
+import { todoInvoiceState } from "@/lib/todo-list";
 import { loadPlanningMeta } from "@/lib/services/appointments";
 
 /**
@@ -53,6 +54,20 @@ export async function GET(request: NextRequest) {
     });
 
     const meta = await loadPlanningMeta(todos.map((t) => t.id));
+    // Invoice state per todo, from its registered days (Todo's overview).
+    const completions = await db.completion.findMany({
+      where: { appointment: { todoId: { in: todos.map((t) => t.id) } } },
+      select: {
+        appointment: { select: { todoId: true } },
+        includedInInvoice: { select: { pushStatus: true, efInvoiceId: true, syncExcluded: true } },
+      },
+    });
+    const daysByTodo = new Map<number, { invoice: (typeof completions)[number]["includedInInvoice"] }[]>();
+    for (const c of completions) {
+      const list = daysByTodo.get(c.appointment.todoId) ?? [];
+      list.push({ invoice: c.includedInInvoice });
+      daysByTodo.set(c.appointment.todoId, list);
+    }
     const withMeta = todos.map((t) => ({ todo: t, meta: meta.get(t.id) }));
     const visible = plannable ? withMeta.filter(({ meta: m }) => (m ? needsPlanning(m) : true)) : withMeta;
 
@@ -67,6 +82,7 @@ export async function GET(request: NextRequest) {
         plannedMinutes: m?.plannedMinutes ?? 0,
         remainingMinutes: m?.remainingMinutes ?? 0,
         appointmentCount: m?.parts.size ?? 0,
+        invoiceState: todoInvoiceState(daysByTodo.get(t.id) ?? []),
         // Recurring work: its window label; otherwise the preferred period ("apr 2027").
         windowLabel: t.recurringWindow?.label ?? windowLabel(t.windowStart, t.windowEnd),
         resources: toTodoResourceDtos(t.resources),

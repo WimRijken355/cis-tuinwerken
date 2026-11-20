@@ -128,7 +128,10 @@ vanzelf een nieuwe herinnering. In de afspraak zie je of de mail verstuurd is
 Via het menu **Todo's** zie je alle todo's samen: van alle klanten plus de
 losse todo's (📌). Standaard staat de filter op **open werk** (in te plannen +
 ingepland). Bovenaan filter je op status (bv. "Afgewerkt" = klaar + geannuleerd),
-op tekst (titel, klant, gemeente), op soort (klant of losse todo) en op resource.
+op tekst (titel, klant, gemeente), op soort (klant of losse todo), op resource
+en op factuur. De kolom **Factuur** toont of het geregistreerde werk al
+gefactureerd is en of die factuur in EenvoudigFactureren staat ("Niet
+gefactureerd", "Factuur niet in EF", "Factuur in EF ✓", …).
 
 - **+ Nieuwe todo**: maak een todo aan voor een klant of een losse todo. Hij
   komt in "In te plannen"; inplannen doe je daarna in de Planning.

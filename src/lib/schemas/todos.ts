@@ -128,7 +128,26 @@ export interface TodoDto {
   plannedMinutes?: number;
   remainingMinutes?: number;
   appointmentCount?: number;
+  /** Invoice state of the registered work (GET /api/todos, todoInvoiceState()). */
+  invoiceState?: TodoInvoiceState;
 }
+
+/**
+ * Invoice state of a todo, derived from its registered days:
+ * none = nothing registered; uninvoiced = registered, no invoice; partly =
+ * some days invoiced, others not; then the state of its invoice(s):
+ * in_ef (concept in EenvoudigFactureren), not_synced, failed, pending,
+ * excluded ("niet versturen").
+ */
+export type TodoInvoiceState =
+  | "none"
+  | "uninvoiced"
+  | "partly"
+  | "in_ef"
+  | "not_synced"
+  | "failed"
+  | "pending"
+  | "excluded";
 
 /** One registered day of a todo (GET /api/todos/:id → registrations). */
 export interface TodoRegistrationDto {

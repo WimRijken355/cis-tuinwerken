@@ -17,7 +17,10 @@ import {
   DEFAULT_TODO_FILTER,
   filterTodos,
   isTodoFilterActive,
+  TODO_INVOICE_BADGES,
+  TODO_INVOICE_FILTER_OPTIONS,
   TODO_KIND_OPTIONS,
+  type TodoInvoiceFilter,
   TODO_STATE_OPTIONS,
   type TodoKindFilter,
   type TodoListFilter,
@@ -120,6 +123,19 @@ export default function TodosPage() {
             ))}
           </select>
         </FilterField>
+        <FilterField label="Factuur" className="w-full sm:w-52">
+          <select
+            value={filter.invoice}
+            onChange={(e) => updateFilter({ invoice: e.target.value as TodoInvoiceFilter })}
+            className={selectClass}
+          >
+            {TODO_INVOICE_FILTER_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </FilterField>
       </FilterBar>
 
       {isLoading && <Spinner />}
@@ -148,7 +164,10 @@ export default function TodosPage() {
                       {t.customerId === null ? `📌 ${t.customerName || "Losse todo"}` : t.customerName}
                       {t.customerCity && <span className="font-normal text-gray-500"> · {t.customerCity}</span>}
                     </span>
-                    <span className="shrink-0"><StatusBadge status={t.status} /></span>
+                    <span className="flex shrink-0 flex-col items-end gap-0.5">
+                      <StatusBadge status={t.status} />
+                      <InvoiceStateBadge state={t.invoiceState} />
+                    </span>
                   </div>
                   <div className="mt-0.5 flex items-baseline justify-between gap-2 text-sm">
                     <span className="min-w-0 truncate text-gray-700">
@@ -171,9 +190,10 @@ export default function TodosPage() {
                   <th className="px-3 py-2">Klant</th>
                   <th className="px-3 py-2">Todo</th>
                   <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Factuur</th>
                   <th className="px-3 py-2 text-right">Uren</th>
-                  <th className="hidden px-3 py-2 md:table-cell">Resources</th>
-                  <th className="hidden px-3 py-2 lg:table-cell">Voorkeur</th>
+                  <th className="hidden px-3 py-2 lg:table-cell">Resources</th>
+                  <th className="hidden px-3 py-2 xl:table-cell">Voorkeur</th>
                   <th className="hidden px-3 py-2 xl:table-cell">Checklist</th>
                   <th className="hidden px-3 py-2 2xl:table-cell">Aangemaakt</th>
                   <th className="px-3 py-2" />
@@ -182,7 +202,7 @@ export default function TodosPage() {
               <tbody className="divide-y divide-gray-100">
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-3 py-6 text-center text-gray-500">
+                    <td colSpan={10} className="px-3 py-6 text-center text-gray-500">
                       Geen todo&apos;s die aan de filters voldoen.
                     </td>
                   </tr>
@@ -212,7 +232,10 @@ export default function TodosPage() {
                         {t.title}
                       </td>
                       <td className="whitespace-nowrap px-3 py-1.5">
-                        <span className="shrink-0"><StatusBadge status={t.status} /></span>
+                        <StatusBadge status={t.status} />
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5">
+                        <InvoiceStateBadge state={t.invoiceState} />
                       </td>
                       <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
                         {formatMinutesAsHours(t.estimatedHours * 60)}
@@ -222,10 +245,10 @@ export default function TodosPage() {
                           </div>
                         )}
                       </td>
-                      <td className="hidden max-w-[12rem] truncate whitespace-nowrap px-3 py-1.5 text-xs md:table-cell">
+                      <td className="hidden max-w-[12rem] truncate whitespace-nowrap px-3 py-1.5 text-xs lg:table-cell">
                         {(t.resources ?? []).map((r) => r.name).join(", ")}
                       </td>
-                      <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs lg:table-cell">{t.windowLabel ?? ""}</td>
+                      <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs xl:table-cell">{t.windowLabel ?? ""}</td>
                       <td className="hidden whitespace-nowrap px-3 py-1.5 text-xs tabular-nums xl:table-cell">
                         {tasks.length > 0 ? `${tasks.filter((x) => x.done).length}/${tasks.length}` : ""}
                       </td>
@@ -295,4 +318,11 @@ export default function TodosPage() {
       )}
     </div>
   );
+}
+
+/** Invoice state of the registered work (nothing when nothing was registered). */
+function InvoiceStateBadge({ state }: { state: TodoRow["invoiceState"] }) {
+  if (!state || state === "none") return null;
+  const { label, cls } = TODO_INVOICE_BADGES[state];
+  return <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{label}</span>;
 }
