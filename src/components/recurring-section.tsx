@@ -249,6 +249,7 @@ function RecurringFormModal({
     <Modal
       title={template ? "Terugkerend werk bewerken" : "Terugkerend werk toevoegen"}
       open
+      wide
       onClose={onClose}
     >
       {saveMutation.error && <ErrorNote message={(saveMutation.error as Error).message} />}
@@ -412,11 +413,11 @@ function RecurringFormModal({
               </Field>
               <FieldGroup label="Einde">
                 <div className="space-y-1.5 text-sm">
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 whitespace-nowrap">
                     <input type="radio" name="endMode" checked={endMode === "never"} onChange={() => setEndMode("never")} />
                     Geen einddatum
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 whitespace-nowrap">
                     <input type="radio" name="endMode" checked={endMode === "date"} onChange={() => setEndMode("date")} />
                     Eindigt op
                     <TextInput
@@ -429,7 +430,7 @@ function RecurringFormModal({
                       className="!w-40"
                     />
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 whitespace-nowrap">
                     <input type="radio" name="endMode" checked={endMode === "count"} onChange={() => setEndMode("count")} />
                     Na
                     <TextInput
