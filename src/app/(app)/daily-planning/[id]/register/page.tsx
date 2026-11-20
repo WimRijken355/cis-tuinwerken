@@ -512,42 +512,6 @@ function RegisterFlow({
 
       {step === 1 && (
         <div className="space-y-3">
-          <Card title="Artikel toevoegen (optioneel)">
-            <TextInput
-              type="search"
-              placeholder="Zoek op naam, bv. graszaad…"
-              value={articleSearch}
-              onChange={(e) => setArticleSearch(e.target.value)}
-              className="text-base"
-            />
-            {(priceList ?? []).length === 0 && <p className="mt-2 text-sm text-gray-500">Geen artikels.</p>}
-            <ul className="mt-1 divide-y divide-gray-100">
-              {articleResults.results.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onMouseDown={keepInputFocus}
-                    onClick={() => addArticle(p)}
-                    className="flex w-full items-center justify-between gap-3 py-2.5 text-left text-sm active:bg-gray-50"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate">{p.name}</span>
-                      <span className="text-xs text-gray-400">
-                        {euro.format(p.unitPrice)}/{p.unit} · {p.vatRate}% btw
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-lg text-brand-600">＋</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {articleResults.more && (
-              <p className="mt-1 text-xs text-gray-400">Meer artikels gevonden — typ verder om te verfijnen.</p>
-            )}
-            {articleSearch && articleResults.results.length === 0 && (
-              <p className="mt-2 text-sm text-gray-500">Geen artikels voor &quot;{articleSearch}&quot;.</p>
-            )}
-          </Card>
           {extras.length > 0 && (
             <Card title={`Gekozen artikels (${extras.length})`}>
               <ul className="space-y-2">
@@ -631,6 +595,42 @@ function RegisterFlow({
               </p>
             </Card>
           )}
+          <Card title="Artikel toevoegen (optioneel)">
+            <TextInput
+              type="search"
+              placeholder="Zoek op naam, bv. graszaad…"
+              value={articleSearch}
+              onChange={(e) => setArticleSearch(e.target.value)}
+              className="text-base"
+            />
+            {(priceList ?? []).length === 0 && <p className="mt-2 text-sm text-gray-500">Geen artikels.</p>}
+            <ul className="mt-1 divide-y divide-gray-100">
+              {articleResults.results.map((p) => (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onMouseDown={keepInputFocus}
+                    onClick={() => addArticle(p)}
+                    className="flex w-full items-center justify-between gap-3 py-2.5 text-left text-sm active:bg-gray-50"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate">{p.name}</span>
+                      <span className="text-xs text-gray-400">
+                        {euro.format(p.unitPrice)}/{p.unit} · {p.vatRate}% btw
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-lg text-brand-600">＋</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {articleResults.more && (
+              <p className="mt-1 text-xs text-gray-400">Meer artikels gevonden — typ verder om te verfijnen.</p>
+            )}
+            {articleSearch && articleResults.results.length === 0 && (
+              <p className="mt-2 text-sm text-gray-500">Geen artikels voor &quot;{articleSearch}&quot;.</p>
+            )}
+          </Card>
           <Nav onBack={() => setStep(0)} onNext={() => setStep(2)} />
         </div>
       )}
