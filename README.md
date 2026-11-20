@@ -51,11 +51,11 @@ bewaar de getoonde herstelcodes op een veilige plek.
 |---|---|
 | `npm run dev` | Dev-server op poort 3000 |
 | `npm run build` / `npm start` | Productie-build maken / draaien |
-| `npm run db:up` | PostgreSQL-container starten |
+| `npm run db:up` | PostgreSQL- en pgAdmin-container starten |
 | `npm run db:migrate` | Schemawijzigingen doorvoeren (Prisma Migrate) |
 | `npm run db:seed` | Basisgegevens laden (idempotent) |
 | `npm run db:studio` | Prisma Studio: database bekijken in de browser |
-| `npm run db:admin` | pgAdmin starten op http://localhost:5050 (geen login, server "Tuinwerken (dev)" staat klaar) |
+| `npm run db:admin` | Enkel pgAdmin (her)starten op http://localhost:5050 (geen login, server "Tuinwerken (dev)" staat klaar; start ook mee met `db:up`) |
 
 ## Projectstatus
 

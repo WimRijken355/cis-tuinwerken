@@ -1,8 +1,8 @@
-# Ontwikkelomgeving: alleen de database draait in Docker.
+# Ontwikkelomgeving: de database (+ pgAdmin) draait in Docker.
 # De app zelf start je met `npm run dev`.
 #
-# Starten:  docker compose up -d postgres
-# pgAdmin:  docker compose up -d pgadmin   → http://localhost:5050
+# Starten:  npm run db:up  (= docker compose up -d postgres pgadmin)
+# pgAdmin:  http://localhost:5050
 # Stoppen:  docker compose down        (data blijft bewaard in het volume)
 
 services:

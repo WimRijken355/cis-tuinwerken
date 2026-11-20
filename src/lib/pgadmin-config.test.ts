@@ -28,6 +28,12 @@ describe("pgAdmin dev config", () => {
     expect(server.PasswordExecCommand).toBe(`echo ${composeValue("POSTGRES_PASSWORD")}`);
   });
 
+  it("is started together with the database by npm run db:up", () => {
+    const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+    expect(pkg.scripts["db:up"]).toContain("postgres");
+    expect(pkg.scripts["db:up"]).toContain("pgadmin");
+  });
+
   it("only exposes pgAdmin on localhost", () => {
     expect(compose).toContain('"127.0.0.1:5050:80"');
   });
