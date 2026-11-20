@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { CustomerPicker, type PickedCustomer } from "@/components/customer-picker";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
-import { ErrorNote, Field, TextInput } from "@/components/ui";
+import { ErrorNote, Field, FieldGroup, TextInput } from "@/components/ui";
 import { apiGet } from "@/lib/api-client";
 import type { LooseTodoPresetDto } from "@/lib/schemas/loose-todo-presets";
 import type { TodoResourceDto, TodoTaskDto } from "@/lib/schemas/todos";
@@ -119,9 +119,9 @@ export function TodoEditor({
 
       {!ownerLocked && kind === "customer" && (
         <div className="mb-3">
-          <Field label="Klant">
+          <FieldGroup label="Klant">
             <CustomerPicker value={customer} onChange={setCustomer} />
-          </Field>
+          </FieldGroup>
         </div>
       )}
       {kind === "loose" && (

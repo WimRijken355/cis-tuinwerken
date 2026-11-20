@@ -44,6 +44,22 @@ export function Field({
   );
 }
 
+/**
+ * Like Field, but a <div> instead of a <label>: for composite controls with
+ * buttons (pickers, segmented choices). Never put clickable controls inside a
+ * Field — Safari/WebKit forwards a click on a label to its first labelable
+ * descendant (e.g. a "Wijzigen" button), undoing the user's choice.
+ */
+export function FieldGroup({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+  return (
+    <div className="block" role="group" aria-label={label}>
+      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <div className="mt-1">{children}</div>
+      {hint && <p className="mt-1 text-xs text-gray-400">{hint}</p>}
+    </div>
+  );
+}
+
 export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input

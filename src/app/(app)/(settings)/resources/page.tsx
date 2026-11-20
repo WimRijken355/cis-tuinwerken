@@ -8,6 +8,7 @@ import {
   EmptyState,
   ErrorNote,
   Field,
+  FieldGroup,
   Modal,
   PageHeader,
   Spinner,
@@ -278,7 +279,7 @@ function ResourceForm({ resource, onDone }: { resource: ResourceDto | null; onDo
       }}
     >
       {saveMutation.error && <ErrorNote message={(saveMutation.error as Error).message} />}
-      <Field label="Type">
+      <FieldGroup label="Type">
         <div className="flex gap-2">
           {RESOURCE_TYPES.map((t) => (
             <button
@@ -295,7 +296,7 @@ function ResourceForm({ resource, onDone }: { resource: ResourceDto | null; onDo
             </button>
           ))}
         </div>
-      </Field>
+      </FieldGroup>
       <Field label="Naam">
         <TextInput
           value={name}
