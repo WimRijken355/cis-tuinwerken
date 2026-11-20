@@ -178,6 +178,9 @@ export default function TodosPage() {
                       {formatMinutesAsHours(t.estimatedHours * 60)}
                     </span>
                   </div>
+                  {t.registeredOn && (
+                    <div className="mt-0.5 text-xs text-gray-500">Klaargemeld op {formatDateShort(t.registeredOn)}</div>
+                  )}
                 </button>
               </li>
             ))}
@@ -190,6 +193,7 @@ export default function TodosPage() {
                   <th className="px-3 py-2">Klant</th>
                   <th className="px-3 py-2">Todo</th>
                   <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Klaargemeld</th>
                   <th className="px-3 py-2">Factuur</th>
                   <th className="px-3 py-2 text-right">Uren</th>
                   <th className="hidden px-3 py-2 lg:table-cell">Resources</th>
@@ -202,7 +206,7 @@ export default function TodosPage() {
               <tbody className="divide-y divide-gray-100">
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-3 py-6 text-center text-gray-500">
+                    <td colSpan={11} className="px-3 py-6 text-center text-gray-500">
                       Geen todo&apos;s die aan de filters voldoen.
                     </td>
                   </tr>
@@ -233,6 +237,9 @@ export default function TodosPage() {
                       </td>
                       <td className="whitespace-nowrap px-3 py-1.5">
                         <StatusBadge status={t.status} />
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 tabular-nums">
+                        {t.registeredOn ? formatDateShort(t.registeredOn) : ""}
                       </td>
                       <td className="whitespace-nowrap px-3 py-1.5">
                         <InvoiceStateBadge state={t.invoiceState} />

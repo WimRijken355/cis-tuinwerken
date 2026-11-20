@@ -5,6 +5,7 @@ import {
   isTodoFilterActive,
   matchesTodoFilter,
   matchesTodoState,
+  registeredOn,
   todoInvoiceState,
   todoStatusActions,
   type TodoListFilter,
@@ -136,3 +137,12 @@ describe("invoice filter", () => {
   });
 });
 
+describe("registeredOn", () => {
+  it("is the work date of the last registered block", () => {
+    expect(registeredOn(["2026-11-18T07:00:00.000Z", "2026-11-20T07:00:00.000Z"], null)).toBe("2026-11-20T07:00:00.000Z");
+  });
+  it("falls back to completedAt, or null when nothing was registered or closed", () => {
+    expect(registeredOn([], "2026-11-21T10:00:00.000Z")).toBe("2026-11-21T10:00:00.000Z");
+    expect(registeredOn([], null)).toBeNull();
+  });
+});

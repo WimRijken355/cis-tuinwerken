@@ -160,3 +160,14 @@ export const TODO_INVOICE_BADGES: Record<Exclude<TodoInvoiceState, "none">, { la
   excluded: { label: "Factuur: niet versturen", cls: "bg-gray-100 text-gray-500" },
   in_ef: { label: "Factuur in EF ✓", cls: "bg-green-100 text-green-800" },
 };
+
+/**
+ * "Klaargemeld" date of a todo in the overview: the work date of its last
+ * registered block; a todo closed without registration falls back to its
+ * completedAt. Null when nothing was registered/closed. ISO string.
+ */
+export function registeredOn(registeredBlockDates: (Date | string)[], completedAt: Date | string | null): string | null {
+  const times = registeredBlockDates.map((d) => new Date(d).getTime());
+  if (times.length > 0) return new Date(Math.max(...times)).toISOString();
+  return completedAt ? new Date(completedAt).toISOString() : null;
+}

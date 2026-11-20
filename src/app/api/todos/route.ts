@@ -14,7 +14,7 @@ import {
 import type { Prisma } from "@/generated/prisma/client";
 import { periodToWindow, windowLabel } from "@/lib/registration";
 import { needsPlanning } from "@/lib/planning";
-import { todoInvoiceState } from "@/lib/todo-list";
+import { registeredOn, todoInvoiceState } from "@/lib/todo-list";
 import { loadPlanningMeta } from "@/lib/services/appointments";
 
 /**
@@ -58,14 +58,17 @@ export async function GET(request: NextRequest) {
     const completions = await db.completion.findMany({
       where: { appointment: { todoId: { in: todos.map((t) => t.id) } } },
       select: {
-        appointment: { select: { todoId: true } },
+        appointment: { select: { todoId: true, startAt: true } },
         includedInInvoice: { select: { pushStatus: true, efInvoiceId: true, syncExcluded: true } },
       },
     });
-    const daysByTodo = new Map<number, { invoice: (typeof completions)[number]["includedInInvoice"] }[]>();
+    const daysByTodo = new Map<
+      number,
+      { date: Date; invoice: (typeof completions)[number]["includedInInvoice"] }[]
+    >();
     for (const c of completions) {
       const list = daysByTodo.get(c.appointment.todoId) ?? [];
-      list.push({ invoice: c.includedInInvoice });
+      list.push({ date: c.appointment.startAt, invoice: c.includedInInvoice });
       daysByTodo.set(c.appointment.todoId, list);
     }
     const withMeta = todos.map((t) => ({ todo: t, meta: meta.get(t.id) }));
@@ -83,6 +86,10 @@ export async function GET(request: NextRequest) {
         remainingMinutes: m?.remainingMinutes ?? 0,
         appointmentCount: m?.parts.size ?? 0,
         invoiceState: todoInvoiceState(daysByTodo.get(t.id) ?? []),
+        registeredOn: registeredOn(
+          (daysByTodo.get(t.id) ?? []).map((d) => d.date),
+          t.status === "DONE" ? t.completedAt : null,
+        ),
         // Recurring work: its window label; otherwise the preferred period ("apr 2027").
         windowLabel: t.recurringWindow?.label ?? windowLabel(t.windowStart, t.windowEnd),
         resources: toTodoResourceDtos(t.resources),

@@ -130,6 +130,8 @@ export interface TodoDto {
   appointmentCount?: number;
   /** Invoice state of the registered work (GET /api/todos, todoInvoiceState()). */
   invoiceState?: TodoInvoiceState;
+  /** Work date of the last registered block, else completedAt (registeredOn()). */
+  registeredOn?: string | null;
 }
 
 /**
