@@ -117,6 +117,20 @@ mail). Verplaats je een afspraak naar een andere dag, dan krijgt de klant
 vanzelf een nieuwe herinnering. In de afspraak zie je of de mail verstuurd is
 (✓) of mislukt (⚠), en je kan er altijd handmatig één sturen.
 
+## Todo's (overzicht van al het werk)
+
+Via het menu **Todo's** zie je alle todo's samen: van alle klanten plus de
+losse todo's (📌). Standaard staat de filter op **open werk** (in te plannen +
+ingepland). Bovenaan filter je op status (bv. "Afgewerkt" = klaar + geannuleerd),
+op tekst (titel, klant, gemeente), op soort (klant of losse todo) en op resource.
+
+- **+ Nieuwe todo**: maak een todo aan voor een klant of een losse todo. Hij
+  komt in "In te plannen"; inplannen doe je daarna in de Planning.
+- **✏️** (of op de gsm: tik op het kaartje): hetzelfde bewerkscherm als in de
+  planning, met daaronder de geplande blokken en, waar het mag,
+  **Annuleren** (zolang er niets ingepland of geregistreerd is), **Heropenen**
+  (een geannuleerde todo) of **Verwijderen** (zolang er nog geen blokken zijn).
+
 ## Terugkerend werk (bv. haag 2×/jaar)
 
 Op de klantfiche → **Terugkerend werk → + Toevoegen**:

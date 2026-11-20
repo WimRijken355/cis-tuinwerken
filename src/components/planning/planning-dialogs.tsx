@@ -295,24 +295,63 @@ export function NewTodoDialog({
   );
 }
 
-interface TodoDetail extends TodoDto {
+/**
+ * New todo without planning it right away (Todo's overview): for a customer
+ * (with checklist + resources) or a "losse todo". It lands in "In te plannen".
+ */
+export function CreateTodoDialog({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const createMutation = useMutation({
+    mutationFn: (payload: TodoEditorPayload) => apiSend<TodoDto>("/api/todos", "POST", payload),
+    onSuccess: onCreated,
+  });
+
+  return (
+    <Modal title="Nieuwe todo" open onClose={onClose}>
+      <TodoEditor
+        initial={{
+          kind: "customer",
+          customer: null,
+          contact: EMPTY_CONTACT,
+          title: "",
+          estimatedHours: 1,
+          resources: [],
+          tasks: [],
+        }}
+        submitLabel="Aanmaken"
+        busy={createMutation.isPending}
+        error={createMutation.error ? (createMutation.error as Error).message : null}
+        onSubmit={(payload) => createMutation.mutate(payload)}
+        onCancel={onClose}
+      />
+      <p className="mt-2 text-xs text-gray-400">
+        De todo komt in &quot;In te plannen&quot;; inplannen doe je daarna in de Planning.
+      </p>
+    </Modal>
+  );
+}
+
+export interface TodoDetail extends TodoDto {
   customerAddress: string;
-  appointments: { id: number; status: string }[];
+  appointments: { id: number; status: "PLANNED" | "DONE" | "CANCELLED"; startAt: string; durationMinutes: number }[];
 }
 
 /**
  * Edit an existing todo completely, like a new one: owner (customer or losse
  * todo with name/address), title, total time, checklist and resources.
- * Opened from a sidebar card or from the details of a block in the grid.
+ * Opened from a sidebar card or from the details of a block in the grid, and
+ * from the Todo's overview (which adds its blocks + status actions via `extra`).
  */
 export function TodoEditDialog({
   todoId,
   onClose,
   onSaved,
+  extra,
 }: {
   todoId: number;
   onClose: () => void;
   onSaved: () => void;
+  /** Extra content below the editor, rendered once the todo is loaded. */
+  extra?: (todo: TodoDetail) => React.ReactNode;
 }) {
   const { data: todo, isLoading, error: loadError } = useQuery({
     queryKey: ["todo", todoId],
@@ -362,6 +401,7 @@ export function TodoEditDialog({
           Pas je de totale tijd aan, dan verandert ook wat er nog in te plannen blijft. Geplande blokken blijven staan.
         </p>
       )}
+      {todo && extra?.(todo)}
     </Modal>
   );
 }

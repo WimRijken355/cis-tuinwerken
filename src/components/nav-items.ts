@@ -23,6 +23,7 @@ export const MAIN_ITEMS: NavItem[] = [
   // Mostly used on a phone (see CLAUDE.md): one day at a time, ‹ › to browse.
   { href: "/daily-planning", label: "Dag", labelLong: "Dagplanning", icon: "📋" },
   { href: "/planning", label: "Planning", icon: "📅" },
+  { href: "/todos", label: "Todo's", icon: "✅" },
   { href: "/customers", label: "Klanten", icon: "👥" },
   { href: "/invoices", label: "Facturen", icon: "🧾" },
   { href: "/dashboard", label: "Dashboard", icon: "📊", desktopOnly: true },

@@ -7,6 +7,12 @@ describe("navigation items", () => {
     expect(MAIN_ITEMS.some((i) => i.href === START_PATH)).toBe(true);
   });
 
+  it("has the Todo's overview as a main menu item (also on mobile)", () => {
+    const todos = MAIN_ITEMS.find((i) => i.href === "/todos");
+    expect(todos?.label).toBe("Todo's");
+    expect(todos?.desktopOnly).toBeFalsy();
+  });
+
   it("groups artikels, resources, checklist, losse todo's, gebruikers and audittrail under Instellingen", () => {
     expect(SETTINGS_ITEMS.map((i) => i.href)).toEqual([
       "/settings",
