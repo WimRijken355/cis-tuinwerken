@@ -7,12 +7,20 @@ import { ZONE } from "./time";
  * A todo has a total estimate (estimatedHours). It is planned as one or more
  * appointments ("blocks"); what is not planned yet is the *remaining* time,
  * always derived (estimate − sum of planned blocks), never stored. So:
- * - dropping a todo creates a block of at most one working day;
+ * - dropping a todo creates a block of at most one working day (setting
+ *   "max. uren per ingepland blok", default 10 h — `workdayMinutes`);
  * - shortening a block automatically raises the remaining time again;
  * - the planning sidebar shows every todo that still has remaining time.
  */
 
-export const WORKDAY_MINUTES = 8 * 60;
+/** Default max. length of one planned block ("werkdag"); configurable in Settings (maxBlockHours). */
+export const DEFAULT_WORKDAY_MINUTES = 10 * 60;
+
+/** Max. block length in minutes from the setting (hours), rounded to whole slots. */
+export function workdayMinutesFrom(maxBlockHours: number | null | undefined): number {
+  if (!maxBlockHours || maxBlockHours <= 0) return DEFAULT_WORKDAY_MINUTES;
+  return Math.max(15, Math.round((maxBlockHours * 60) / 15) * 15);
+}
 /** Grid snap / minimum block length. */
 export const SLOT_MINUTES = 15;
 
@@ -39,9 +47,13 @@ export function minutesUntilMidnight(start: Date | string): number {
  * remaining time, but at most one working day and never past midnight,
  * rounded down to whole slots (at least one slot).
  */
-export function dropDurationMinutes(remaining: number, start: Date | string): number {
+export function dropDurationMinutes(
+  remaining: number,
+  start: Date | string,
+  workdayMinutes: number = DEFAULT_WORKDAY_MINUTES,
+): number {
   // Nothing left by the estimate (a follow-up day): propose a working day.
-  const cap = Math.min(remaining > 0 ? remaining : WORKDAY_MINUTES, WORKDAY_MINUTES, minutesUntilMidnight(start));
+  const cap = Math.min(remaining > 0 ? remaining : workdayMinutes, workdayMinutes, minutesUntilMidnight(start));
   return Math.max(SLOT_MINUTES, Math.floor(cap / SLOT_MINUTES) * SLOT_MINUTES);
 }
 
@@ -53,11 +65,12 @@ export function dropDurationMinutes(remaining: number, start: Date | string): nu
 export function partNumbers(
   blocks: { id: number; startAt: Date | string }[],
   remaining: number,
+  workdayMinutes: number = DEFAULT_WORKDAY_MINUTES,
 ): Map<number, { index: number; total: number }> {
   const sorted = [...blocks].sort(
     (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime() || a.id - b.id,
   );
-  const total = sorted.length + Math.ceil(remaining / WORKDAY_MINUTES);
+  const total = sorted.length + Math.ceil(remaining / workdayMinutes);
   return new Map(sorted.map((b, i) => [b.id, { index: i + 1, total }]));
 }
 
@@ -242,12 +255,13 @@ export function splitOverWorkdays(
   date: string, // yyyy-MM-dd
   time: string, // HH:mm
   totalMinutes: number,
+  workdayMinutes: number = DEFAULT_WORKDAY_MINUTES,
 ): { startAt: string; durationMinutes: number }[] {
   const blocks: { startAt: string; durationMinutes: number }[] = [];
   let day = DateTime.fromISO(`${date}T${time}`, { zone: ZONE });
   let left = totalMinutes;
   while (left > 0 && blocks.length < 200) {
-    const minutes = Math.min(left, WORKDAY_MINUTES, minutesUntilMidnight(day.toJSDate()));
+    const minutes = Math.min(left, workdayMinutes, minutesUntilMidnight(day.toJSDate()));
     blocks.push({ startAt: day.toUTC().toISO()!, durationMinutes: minutes });
     left -= minutes;
     do {
@@ -277,9 +291,9 @@ export function minutesPerDay(
 export type DayLoad = "free" | "partial" | "full";
 
 /** Free (nothing planned), partial, or full (a working day or more). */
-export function dayLoad(minutes: number): DayLoad {
+export function dayLoad(minutes: number, workdayMinutes: number = DEFAULT_WORKDAY_MINUTES): DayLoad {
   if (minutes <= 0) return "free";
-  return minutes >= WORKDAY_MINUTES ? "full" : "partial";
+  return minutes >= workdayMinutes ? "full" : "partial";
 }
 
 /**

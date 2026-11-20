@@ -1,7 +1,7 @@
 "use client";
 
 import { ACTION_ICONS } from "@/components/action-icons";
-import { dayLoad, formatMinutesAsHours, partLabel, todoColor, WORKDAY_MINUTES } from "@/lib/planning";
+import { dayLoad, formatMinutesAsHours, partLabel, todoColor } from "@/lib/planning";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { TodoDto, TodoResourceDto } from "@/lib/schemas/todos";
 
@@ -325,9 +325,18 @@ export function MonthEventContent({
 }
 
 /** Top of a month day cell: day number + how full the day is (free / partial / full). */
-export function DayCellTop({ dayNumberText, minutes }: { dayNumberText: string; minutes: number }) {
-  const load = dayLoad(minutes);
-  const percent = Math.min(100, Math.round((minutes / WORKDAY_MINUTES) * 100));
+export function DayCellTop({
+  dayNumberText,
+  minutes,
+  workdayMinutes,
+}: {
+  dayNumberText: string;
+  minutes: number;
+  /** A full day (Settings → max. uren per ingepland blok). */
+  workdayMinutes: number;
+}) {
+  const load = dayLoad(minutes, workdayMinutes);
+  const percent = Math.min(100, Math.round((minutes / workdayMinutes) * 100));
   const tone = {
     free: { bar: "bg-green-500", text: "text-green-700", label: "vrij" },
     partial: { bar: "bg-amber-500", text: "text-amber-700", label: formatMinutesAsHours(minutes) },

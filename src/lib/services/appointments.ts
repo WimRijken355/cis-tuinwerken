@@ -1,5 +1,6 @@
 import { db } from "../db";
-import { partNumbers, plannedMinutes, remainingMinutes } from "../planning";
+import { partNumbers, plannedMinutes, remainingMinutes, workdayMinutesFrom } from "../planning";
+import { getSettings } from "./settings";
 import type { AppointmentDto } from "../schemas/appointments";
 import { formatAddress } from "../schemas/customers";
 import { todoPlace, toTodoResourceDtos, toTodoTaskDtos } from "../schemas/todos";
@@ -68,6 +69,7 @@ export interface TodoPlanningMeta {
 export async function loadPlanningMeta(todoIds: number[]): Promise<Map<number, TodoPlanningMeta>> {
   const ids = [...new Set(todoIds)];
   if (ids.length === 0) return new Map();
+  const workdayMinutes = workdayMinutesFrom((await getSettings()).maxBlockHours);
   const todos = await db.todo.findMany({
     where: { id: { in: ids } },
     select: {
@@ -90,7 +92,7 @@ export async function loadPlanningMeta(todoIds: number[]): Promise<Map<number, T
           remainingMinutes: remaining,
           plannedBlocks: t.appointments.filter((a) => a.status === "PLANNED").length,
           doneBlocks: t.appointments.filter((a) => a.status === "DONE").length,
-          parts: partNumbers(t.appointments, remaining),
+          parts: partNumbers(t.appointments, remaining, workdayMinutes),
         },
       ];
     }),

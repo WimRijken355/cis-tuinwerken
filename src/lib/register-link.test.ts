@@ -33,7 +33,8 @@ describe("adHocBlockMinutes", () => {
   });
   it("at least 1 hour, at most a workday; cancelled blocks do not count", () => {
     expect(adHocBlockMinutes(2, [{ status: "DONE", durationMinutes: 120 }])).toBe(60);
-    expect(adHocBlockMinutes(20, [])).toBe(480);
+    expect(adHocBlockMinutes(20, [])).toBe(600); // default workday 10 h
+    expect(adHocBlockMinutes(20, [], 480)).toBe(480); // setting at 8 h
     expect(adHocBlockMinutes(2, [{ status: "CANCELLED", durationMinutes: 120 }])).toBe(120);
   });
 });

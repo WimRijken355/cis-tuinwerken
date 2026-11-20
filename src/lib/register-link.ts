@@ -1,4 +1,4 @@
-import { WORKDAY_MINUTES } from "./planning";
+import { DEFAULT_WORKDAY_MINUTES } from "./planning";
 
 /**
  * Links into the registration wizard (/daily-planning/:id/register), which is
@@ -36,10 +36,11 @@ export function registerBackHref(params: { get(name: string): string | null }): 
 export function adHocBlockMinutes(
   estimatedHours: number,
   blocks: { status: "PLANNED" | "DONE" | "CANCELLED" | string; durationMinutes: number }[],
+  workdayMinutes: number = DEFAULT_WORKDAY_MINUTES,
 ): number {
   const used = blocks.filter((b) => b.status !== "CANCELLED").reduce((sum, b) => sum + b.durationMinutes, 0);
   const left = Math.round(estimatedHours * 60) - used;
-  return Math.min(WORKDAY_MINUTES, Math.max(60, Math.ceil(left / 15) * 15));
+  return Math.min(workdayMinutes, Math.max(60, Math.ceil(left / 15) * 15));
 }
 
 /** Name of the page the wizard returns to, for its links ("← Dagplanning", "Naar Todo's"). */

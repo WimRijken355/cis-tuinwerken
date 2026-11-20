@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { applyPlanningFlags, dropDurationMinutes } from "@/lib/planning";
+import { applyPlanningFlags, dropDurationMinutes, workdayMinutesFrom } from "@/lib/planning";
+import { getSettings } from "@/lib/services/settings";
 import { appointmentInputSchema } from "@/lib/schemas/appointments";
 import {
   appointmentInclude,
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
       dropDurationMinutes(
         (await loadPlanningMeta([todo.id])).get(todo.id)?.remainingMinutes ?? 0,
         input.startAt,
+        workdayMinutesFrom((await getSettings()).maxBlockHours),
       );
 
     const created = await db.appointment.create({

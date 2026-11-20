@@ -26,7 +26,8 @@ import {
   plannedMinutes,
   remainingMinutes,
   todoColor,
-  WORKDAY_MINUTES,
+  DEFAULT_WORKDAY_MINUTES,
+  workdayMinutesFrom,
 } from "./planning";
 import { appointmentInputSchema, appointmentUpdateSchema } from "./schemas/appointments";
 import { todoInputSchema } from "./schemas/todos";
@@ -55,7 +56,7 @@ describe("remaining time", () => {
 
 describe("dropDurationMinutes (splitting a todo when it is dropped)", () => {
   it("plans at most one working day; the rest stays to be planned", () => {
-    expect(dropDurationMinutes(40 * 60, at("08:00"))).toBe(WORKDAY_MINUTES);
+    expect(dropDurationMinutes(40 * 60, at("08:00"))).toBe(DEFAULT_WORKDAY_MINUTES);
     expect(dropDurationMinutes(150, at("08:00"))).toBe(150);
   });
 
@@ -225,12 +226,14 @@ describe("duration as hours + quarter minutes", () => {
   });
 
   it("splits more than a working day over consecutive weekdays (same start time)", () => {
-    // Thursday 19 Nov 2026, 08:00 Brussels (UTC+1), 20 h → Thu 8 h, Fri 8 h, Mon 4 h.
-    expect(splitOverWorkdays("2026-11-19", "08:00", 20 * 60)).toEqual([
-      { startAt: "2026-11-19T07:00:00.000Z", durationMinutes: 480 },
-      { startAt: "2026-11-20T07:00:00.000Z", durationMinutes: 480 },
-      { startAt: "2026-11-23T07:00:00.000Z", durationMinutes: 240 },
+    // Thursday 19 Nov 2026, 08:00 Brussels (UTC+1), 25 h with the default 10 h → Thu 10, Fri 10, Mon 5.
+    expect(splitOverWorkdays("2026-11-19", "08:00", 25 * 60)).toEqual([
+      { startAt: "2026-11-19T07:00:00.000Z", durationMinutes: 600 },
+      { startAt: "2026-11-20T07:00:00.000Z", durationMinutes: 600 },
+      { startAt: "2026-11-23T07:00:00.000Z", durationMinutes: 300 },
     ]);
+    // With the setting at 8 h: 20 h → 8 + 8 + 4.
+    expect(splitOverWorkdays("2026-11-19", "08:00", 20 * 60, 480).map((b) => b.durationMinutes)).toEqual([480, 480, 240]);
     expect(splitOverWorkdays("2026-11-19", "08:00", 90)).toEqual([
       { startAt: "2026-11-19T07:00:00.000Z", durationMinutes: 90 },
     ]);
@@ -259,8 +262,18 @@ describe("month view load per day", () => {
   it("classifies a day as free, partial or full", () => {
     expect(dayLoad(0)).toBe("free");
     expect(dayLoad(180)).toBe("partial");
-    expect(dayLoad(480)).toBe("full");
+    expect(dayLoad(480)).toBe("partial"); // default workday is 10 h
     expect(dayLoad(600)).toBe("full");
+    expect(dayLoad(480, 480)).toBe("full"); // setting at 8 h
+  });
+
+  it("the max. block length comes from the setting (hours), default 10 h", () => {
+    expect(DEFAULT_WORKDAY_MINUTES).toBe(600);
+    expect(workdayMinutesFrom(undefined)).toBe(600);
+    expect(workdayMinutesFrom(8)).toBe(480);
+    expect(workdayMinutesFrom(7.6)).toBe(450); // whole quarters
+    expect(dropDurationMinutes(40 * 60, at("08:00"), 480)).toBe(480);
+    expect(partNumbers([{ id: 1, startAt: "2026-11-19T07:00:00Z" }], 20 * 60, 480).get(1)).toEqual({ index: 1, total: 4 });
   });
 });
 
@@ -283,6 +296,6 @@ describe("needsPlanning (in te plannen list)", () => {
   });
 
   it("proposes a working day when dropping a follow-up with no time left", () => {
-    expect(dropDurationMinutes(0, at("08:00"))).toBe(WORKDAY_MINUTES);
+    expect(dropDurationMinutes(0, at("08:00"))).toBe(DEFAULT_WORKDAY_MINUTES);
   });
 });

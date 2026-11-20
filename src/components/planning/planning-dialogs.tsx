@@ -7,7 +7,8 @@ import { EMPTY_CONTACT, TodoEditor, type TodoEditorPayload } from "@/components/
 import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, Field, Modal, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
-import { formatMinutesAsHours, partLabel, roundToQuarter, splitOverWorkdays, WORKDAY_MINUTES } from "@/lib/planning";
+import { formatMinutesAsHours, partLabel, roundToQuarter, splitOverWorkdays } from "@/lib/planning";
+import { useWorkdayMinutes } from "@/lib/use-workday";
 import type { AppointmentDto, AppointmentInput } from "@/lib/schemas/appointments";
 import type { TodoDto, TodoRegistrationDto } from "@/lib/schemas/todos";
 import { ResourceChips } from "./planning-cards";
@@ -164,10 +165,11 @@ export function PlanDialog({
   const [date, setDate] = useState(tomorrow);
   const [time, setTime] = useState("08:00");
   // Whole quarters only (the smallest planning unit), shown in hours.
-  const [duration, setDuration] = useState(roundToQuarter(Math.min(remaining, WORKDAY_MINUTES)));
+  const workdayMinutes = useWorkdayMinutes();
+  const [duration, setDuration] = useState(roundToQuarter(Math.min(remaining, workdayMinutes)));
 
-  // More than a working day is spread over consecutive weekdays (max. 8 u each).
-  const blocks = splitOverWorkdays(date, time || "08:00", duration);
+  // More than a working day is spread over consecutive weekdays (max. one block each, see Settings).
+  const blocks = splitOverWorkdays(date, time || "08:00", duration, workdayMinutes);
 
   const planMutation = useMutation({
     mutationFn: async () => {
@@ -207,7 +209,7 @@ export function PlanDialog({
         </Field>
         {blocks.length > 1 ? (
           <p className="rounded-md bg-brand-50 px-3 py-2 text-xs text-brand-900">
-            Meer dan één werkdag: wordt verdeeld over {blocks.length} werkdagen (max. 8 u per dag, zelfde startuur,
+            Meer dan één werkdag: wordt verdeeld over {blocks.length} werkdagen (max. {formatMinutesAsHours(workdayMinutes)} per dag, zelfde startuur,
             weekend overgeslagen):{" "}
             {blocks
               .map(

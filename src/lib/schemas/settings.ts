@@ -20,6 +20,8 @@ export const settingsSchema = z.object({
   efInvoiceSyncEnabled: z.boolean(),
   /** Push a new invoice immediately on registration (default on). Off = send manually from Facturen. Only effective while efInvoiceSyncEnabled is on. */
   efInvoiceAutoSync: z.boolean(),
+  /** Planning: max. hours of one planned block (a longer todo is split over several days); default 10. */
+  maxBlockHours: z.coerce.number().min(1, "Minstens 1 uur").max(24, "Hoogstens 24 uur"),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;

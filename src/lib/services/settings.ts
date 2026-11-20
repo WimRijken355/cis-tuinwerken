@@ -16,6 +16,7 @@ const KEY_MAP: Record<keyof Settings, string> = {
   reminderEmailBody: "reminder_email_body",
   efInvoiceSyncEnabled: "ef_invoice_sync_enabled",
   efInvoiceAutoSync: "ef_invoice_auto_sync",
+  maxBlockHours: "max_block_hours",
 };
 
 const DEFAULTS: Settings = {
@@ -28,6 +29,7 @@ const DEFAULTS: Settings = {
   efInvoiceSyncEnabled: true,
   // On by default as well: new invoices keep being pushed immediately.
   efInvoiceAutoSync: true,
+  maxBlockHours: 10,
   reminderEmailBody:
     "Beste {{naam}},\n\nMorgen, {{datum}} om {{uur}}, komen wij bij u langs voor: {{werk}}.\n\n" +
     "Kan de afspraak niet doorgaan? Laat het ons gerust weten.\n\nMet vriendelijke groeten\nTuinwerken Cis",

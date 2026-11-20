@@ -49,6 +49,7 @@ export default function SettingsPage() {
       {settings && (
         <div className="space-y-6">
           <RatesSection settings={settings} />
+          <PlanningSection settings={settings} />
           <ReminderSection settings={settings} />
           <EfInvoiceSyncSection settings={settings} />
           <EfImportSection efConfigured={settings.efConfigured} />
@@ -185,6 +186,53 @@ function RatesSection({ settings }: { settings: SettingsResponse }) {
         <div className="w-40">
           <Field label="Betaaltermijn (dagen)">
             <TextInput inputMode="numeric" value={daysDue} onChange={(e) => setDaysDue(e.target.value)} />
+          </Field>
+        </div>
+        <Button type="submit" disabled={saveMutation.isPending}>
+          {saveMutation.isPending ? "Bezig…" : "Bewaren"}
+        </Button>
+        {saved && <span className="pb-2 text-sm text-green-700">✓</span>}
+      </form>
+      {saveMutation.error && (
+        <div className="mt-2">
+          <ErrorNote message={(saveMutation.error as Error).message} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Planning: the max. length of one planned block. A longer todo is split over
+ * several days (drag & drop, the plan dialog); also "full" in the month view.
+ */
+function PlanningSection({ settings }: { settings: SettingsResponse }) {
+  const queryClient = useQueryClient();
+  const [maxHours, setMaxHours] = useState(String(settings.maxBlockHours));
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setSaved(false), [maxHours]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => apiSend("/api/settings", "PUT", { maxBlockHours: Number(maxHours.replace(",", ".")) }),
+    onSuccess: () => {
+      setSaved(true);
+      void queryClient.invalidateQueries({ queryKey: ["settings"] });
+    },
+  });
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <h2 className="font-semibold">Planning</h2>
+      <form
+        className="mt-3 flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          saveMutation.mutate();
+        }}
+      >
+        <div className="w-56">
+          <Field label="Max. uren per ingepland blok" hint="Langere todo's worden over meerdere dagen verdeeld">
+            <TextInput inputMode="decimal" value={maxHours} onChange={(e) => setMaxHours(e.target.value)} />
           </Field>
         </div>
         <Button type="submit" disabled={saveMutation.isPending}>

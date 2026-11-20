@@ -28,20 +28,9 @@ import { AppointmentDialog, NewTodoDialog, PlanDialog, TodoEditDialog } from "@/
 import { PlanningFilters } from "@/components/planning/planning-filters";
 import { EmptyState, ErrorNote, Spinner } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
-import {
-  blockEmphasis,
-  dayKey,
-  minutesPerDay,
-  EMPTY_PLANNING_FILTER,
-  groupByCity,
-  isFilterActive,
-  matchesPlanningFilter,
-  NO_CITY_LABEL,
-  type PlanningFilter,
-  toggleFocus,
-  WORKDAY_MINUTES,
-} from "@/lib/planning";
+import { blockEmphasis, dayKey, minutesPerDay, EMPTY_PLANNING_FILTER, groupByCity, isFilterActive, matchesPlanningFilter, NO_CITY_LABEL, type PlanningFilter, toggleFocus, formatMinutesAsHours } from "@/lib/planning";
 import { todoChangedQueryKeys } from "@/lib/query-keys";
+import { useWorkdayMinutes } from "@/lib/use-workday";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { TodoDto } from "@/lib/schemas/todos";
 
@@ -68,6 +57,10 @@ export default function PlanningPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [newBlock, setNewBlock] = useState<{ start: Date; end: Date } | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  // Max. block length (Settings); a ref so the draggable (created once) always reads the current value.
+  const workdayMinutes = useWorkdayMinutes();
+  const workdayRef = useRef(workdayMinutes);
+  workdayRef.current = workdayMinutes;
   const [filter, setFilter] = useState<PlanningFilter>(EMPTY_PLANNING_FILTER);
   const [groupPerCity, setGroupPerCity] = useState(false);
   /** The todo selected in the sidebar or via one of its blocks (null = none). */
@@ -207,7 +200,7 @@ export default function PlanningPage() {
       itemSelector: ".todo-draggable",
       eventData: (itemEl: HTMLElement) => ({
         title: itemEl.dataset.title ?? "",
-        duration: { minutes: Math.min(Number(itemEl.dataset.remaining) || 60, WORKDAY_MINUTES) },
+        duration: { minutes: Math.min(Number(itemEl.dataset.remaining) || 60, workdayRef.current) },
         color: itemEl.dataset.color,
         create: false, // the server creates the block; see onDrop
       }),
@@ -268,7 +261,7 @@ export default function PlanningPage() {
       <aside className="flex shrink-0 flex-col md:w-72">
         <h2 className="mb-1 font-semibold text-brand-900">In te plannen</h2>
         <p className="mb-2 hidden text-xs text-gray-500 md:block">
-          Klik om aan te duiden, sleep naar de planning om in te plannen (max. 8 u per blok — de rest blijft hier
+          Klik om aan te duiden, sleep naar de planning om in te plannen (max. {formatMinutesAsHours(workdayMinutes)} per blok — de rest blijft hier
           staan). Selecteer een leeg vak om een nieuwe todo te maken.
         </p>
         <PlanningFilters
@@ -387,6 +380,7 @@ export default function PlanningPage() {
             dayCellTopContent={(info) =>
               info.view.type === "dayGridMonth" ? (
                 <DayCellTop
+                  workdayMinutes={workdayMinutes}
                   dayNumberText={info.dayNumberText}
                   minutes={loadPerDay.get(dayKey(info.date)) ?? 0}
                 />

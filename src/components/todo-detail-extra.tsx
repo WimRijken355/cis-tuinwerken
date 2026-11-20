@@ -14,6 +14,7 @@ import { apiSend } from "@/lib/api-client";
 import { closeJobCheck, isBillableLabor } from "@/lib/registration";
 import type { TodoRegistrationDto } from "@/lib/schemas/todos";
 import { adHocBlockMinutes, registerHref } from "@/lib/register-link";
+import { useWorkdayMinutes } from "@/lib/use-workday";
 import { formatDateShort, formatTime, ZONE } from "@/lib/time";
 import { todoStatusActions } from "@/lib/todo-list";
 
@@ -59,6 +60,7 @@ export function TodoDetailExtra({
   const canCloseOnly = closeJobCheck(closeInput, false).allowed;
   const [closeResult, setCloseResult] = useState<CloseResult | null>(null);
   const router = useRouter();
+  const workdayMinutes = useWorkdayMinutes();
   // Registering (same wizard as the Dagplanning): customer todos only, never closed ones.
   const registrable = todo.customerId !== null && (todo.status === "OPEN" || todo.status === "PLANNED");
   const hasPlannedBlock = todo.appointments.some((a) => a.status === "PLANNED");
@@ -68,7 +70,7 @@ export function TodoDetailExtra({
       apiSend<{ id: number }>("/api/appointments", "POST", {
         todoId: todo.id,
         startAt: DateTime.now().setZone(ZONE).set({ hour: 8, minute: 0, second: 0, millisecond: 0 }).toISO(),
-        durationMinutes: adHocBlockMinutes(todo.estimatedHours, todo.appointments),
+        durationMinutes: adHocBlockMinutes(todo.estimatedHours, todo.appointments, workdayMinutes),
       }),
     onSuccess: (block) => router.push(registerHref(block.id, { back: "/todos" })),
   });
