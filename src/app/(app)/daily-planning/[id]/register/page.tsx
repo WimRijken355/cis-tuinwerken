@@ -65,6 +65,8 @@ interface ExtraLine {
 interface CompleteResult {
   completed: boolean;
   invoiced: boolean;
+  /** The job (todo) was closed: invoiced, or finished without invoice. */
+  closed?: boolean;
   nextBlocks?: number;
   invoiceId?: number;
   totalExclVat?: number;
@@ -240,7 +242,11 @@ function RegisterFlow({
   const extraCandidates = (checklistItems ?? []).filter((c) => !onTodoChecklist.has(c.id));
 
   // --- Step 4: invoice ------------------------------------------------------------
-  const [invoiceNow, setInvoiceNow] = useState(context.defaultInvoiceNow);
+  // "Job afgewerkt" (close the todo) and "Nu factureren" are separate choices:
+  // a finished job can also be closed without invoicing it now (jobOutcome).
+  const [closeJob, setCloseJob] = useState(context.defaultInvoiceNow);
+  const [invoiceWanted, setInvoiceWanted] = useState(true);
+  const invoiceNow = closeJob && invoiceWanted;
   const todayDay = useMemo(
     () => ({
       date: appointment.startAt,
@@ -298,6 +304,7 @@ function RegisterFlow({
         extraTasks,
         note: note.trim() || undefined,
         invoiceNow,
+        closeJob,
         lineRemarks: invoiceNow ? lineRemarks : {},
         invoiceNotes: invoiceNow ? invoiceNotes.map((n) => n.trim()).filter(Boolean) : [],
       };
@@ -616,7 +623,7 @@ function RegisterFlow({
           <Card title="Factuur">
             <label className="flex items-start justify-between gap-3">
               <span>
-                <span className="block font-medium">Nu factureren</span>
+                <span className="block font-medium">Job afgewerkt</span>
                 <span className="block text-xs text-gray-500">
                   {context.defaultInvoiceNow
                     ? "Dit is de laatste geplande dag van deze job."
@@ -625,9 +632,27 @@ function RegisterFlow({
                       : `Er is nog ${formatMinutesAsHours(context.remainingUnplannedMinutes)} niet ingepland voor deze job.`}
                 </span>
               </span>
-              <Toggle checked={invoiceNow} onChange={setInvoiceNow} label="Nu factureren" />
+              <Toggle checked={closeJob} onChange={setCloseJob} label="Job afgewerkt" />
             </label>
-            {invoiceNow && context.otherPlannedBlocks > 0 && (
+            {closeJob && (
+              <label className="mt-3 flex items-start justify-between gap-3 border-t border-gray-100 pt-3">
+                <span>
+                  <span className="block font-medium">Nu factureren</span>
+                  <span className="block text-xs text-gray-500">
+                    {invoiceWanted
+                      ? "Alle nog niet gefactureerde dagen van deze job komen op één factuur."
+                      : "De job wordt afgesloten zonder factuur. Factureren kan later nog via Todo's → ✏️."}
+                  </span>
+                </span>
+                <Toggle checked={invoiceWanted} onChange={setInvoiceWanted} label="Nu factureren" />
+              </label>
+            )}
+            {!closeJob && (
+              <p className="mt-2 text-xs text-gray-500">
+                De todo blijft open voor een volgende dag; de factuur volgt wanneer de job afgewerkt is.
+              </p>
+            )}
+            {closeJob && context.otherPlannedBlocks > 0 && (
               <p className="mt-2 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
                 ⚠ De job wordt afgesloten: de {context.otherPlannedBlocks} nog geplande dag(en) worden uit de planning
                 gehaald.
@@ -762,7 +787,11 @@ function RegisterFlow({
                     </li>
                   ))}
               </ul>
-              <p className="mt-2 text-xs text-gray-400">Uren worden bewaard; de factuur volgt bij de laatste dag.</p>
+              <p className="mt-2 text-xs text-gray-400">
+                {closeJob
+                  ? "Uren worden bewaard en de job wordt afgesloten, zonder factuur."
+                  : "Uren worden bewaard; de factuur volgt bij de laatste dag."}
+              </p>
             </Card>
           )}
 
@@ -791,7 +820,13 @@ function RegisterFlow({
             onBack={() => setStep(2)}
             onNext={() => completeMutation.mutate()}
             nextLabel={
-              completeMutation.isPending ? "Bezig…" : invoiceNow ? "✓ Bevestigen & factureren" : "✓ Uren bewaren"
+              completeMutation.isPending
+                ? "Bezig…"
+                : invoiceNow
+                  ? "✓ Bevestigen & factureren"
+                  : closeJob
+                    ? "✓ Bewaren & afsluiten"
+                    : "✓ Uren bewaren"
             }
             nextDisabled={completeMutation.isPending || !hasHours}
           />
@@ -973,7 +1008,7 @@ function ResultAndFollowUp({
     <div className="mx-auto max-w-lg space-y-3 p-3 sm:p-4">
       <div className="rounded-xl border border-gray-200 bg-white p-4 text-center">
         <div className="text-3xl">✅</div>
-        <h1 className="mt-1 text-lg font-bold">{result.invoiced ? "Geregistreerd en gefactureerd" : "Uren bewaard"}</h1>
+        <h1 className="mt-1 text-lg font-bold">{result.invoiced ? "Geregistreerd en gefactureerd" : result.closed ? "Geregistreerd en afgesloten" : "Uren bewaard"}</h1>
         <p className="mt-1 text-sm text-gray-600">{appointment.customerName}</p>
         {result.invoiced ? (
           <>
@@ -996,6 +1031,10 @@ function ResultAndFollowUp({
               </p>
             )}
           </>
+        ) : result.closed ? (
+          <p className="mt-2 text-sm text-gray-600">
+            De job is afgesloten zonder factuur. Factureren kan later nog via Todo&apos;s → ✏️.
+          </p>
         ) : (
           <p className="mt-2 text-sm text-gray-600">
             {result.nextBlocks

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildJobInvoice,
   ceilToQuarterHour,
+  closeJobCheck,
   defaultInvoiceNow,
   hoursFromTimeRange,
+  jobOutcome,
   periodToWindow,
   proposeHours,
   searchArticles,
@@ -202,5 +204,43 @@ describe("searchArticles", () => {
     expect(searchArticles(items, "", new Set([2, 4])).results.map((i) => i.id)).toEqual([3, 1]);
     expect(searchArticles(items, "", new Set(), 2)).toMatchObject({ more: true });
     expect(searchArticles(items, "", new Set(), 2).results).toHaveLength(2);
+  });
+});
+
+describe("jobOutcome", () => {
+  it("invoicing always closes the job", () => {
+    expect(jobOutcome(true, false)).toBe("invoice");
+    expect(jobOutcome(true, undefined)).toBe("invoice");
+  });
+  it("finished without invoice closes the todo; otherwise it continues", () => {
+    expect(jobOutcome(false, true)).toBe("close");
+    expect(jobOutcome(false, false)).toBe("continue");
+    expect(jobOutcome(false, undefined)).toBe("continue");
+  });
+});
+
+describe("closeJobCheck", () => {
+  const base = { status: "OPEN" as const, hasCustomer: true, plannedBlocks: 0, registeredDays: 1, uninvoicedDays: 1, hasBillable: true };
+  it("a registered, unplanned job can be invoiced or closed without invoice", () => {
+    expect(closeJobCheck(base, true).allowed).toBe(true);
+    expect(closeJobCheck(base, false).allowed).toBe(true);
+  });
+  it("not while blocks are still planned, nor without any registration", () => {
+    expect(closeJobCheck({ ...base, status: "PLANNED", plannedBlocks: 1 }, true).allowed).toBe(false);
+    expect(closeJobCheck({ ...base, registeredDays: 0, uninvoicedDays: 0 }, false).allowed).toBe(false);
+  });
+  it("a job closed without invoice can still be invoiced, but not closed twice", () => {
+    const done = { ...base, status: "DONE" as const };
+    expect(closeJobCheck(done, true).allowed).toBe(true);
+    expect(closeJobCheck(done, false).allowed).toBe(false);
+    expect(closeJobCheck({ ...done, uninvoicedDays: 0 }, true).allowed).toBe(false);
+  });
+  it("losse todo's and cancelled todos are never invoiced", () => {
+    expect(closeJobCheck({ ...base, hasCustomer: false }, true).allowed).toBe(false);
+    expect(closeJobCheck({ ...base, status: "CANCELLED" }, true).allowed).toBe(false);
+  });
+  it("nothing billable (0 invoiced hours, no articles): no invoice, but closing is fine", () => {
+    expect(closeJobCheck({ ...base, hasBillable: false }, true).allowed).toBe(false);
+    expect(closeJobCheck({ ...base, hasBillable: false }, false).allowed).toBe(true);
   });
 });

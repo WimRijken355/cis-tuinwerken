@@ -48,8 +48,12 @@ dan als een echte app, zonder adresbalk.
      machines voeg je toe in de twee blokken eronder.
    - *Artikels:* optioneel (afvoer, …) + hoeveelheid
    - *Taken:* vink de geplande taken af, duid extra uitgevoerde taken aan, notitie
-   - *Factuur:* **Nu factureren** staat aan bij de laatste dag van een job (bij
-     een job over meerdere dagen registreer je eerst de tussendagen). Je ziet
+   - *Factuur:* **Job afgewerkt** staat aan bij de laatste dag van een job (bij
+     een job over meerdere dagen registreer je eerst de tussendagen; zet het
+     dan uit, de todo blijft open). Is de job afgewerkt, dan kies je met **Nu
+     factureren** of er meteen een factuur komt. Zet je dat uit, dan wordt de
+     todo afgesloten zonder factuur; factureren kan later nog via **Todo's** →
+     ✏️ → "Nu factureren". Je ziet
      exact welke regels gefactureerd worden — alle nog niet gefactureerde dagen
      samen, per dag "Werkuren op …" (met ⓘ de uren per persoon, enkel ter
      info). Per regel kan je een opmerking toevoegen, en onderaan extra
@@ -130,6 +134,10 @@ op tekst (titel, klant, gemeente), op soort (klant of losse todo) en op resource
   planning, met daaronder de geplande blokken en, waar het mag,
   **Annuleren** (zolang er niets ingepland of geregistreerd is), **Heropenen**
   (een geannuleerde todo) of **Verwijderen** (zolang er nog geen blokken zijn).
+- Bij werk dat al klaargemeld is, zie je onder **Geregistreerd** per dag de
+  uren per persoon/machine (gewerkt en gefactureerd), de artikels, de notitie
+  en of die dag al op een factuur staat. Staat er niets meer gepland, dan kan
+  je de job hier ook **Factureren en afsluiten** of **Afsluiten zonder factuur**.
 
 ## Terugkerend werk (bv. haag 2×/jaar)
 

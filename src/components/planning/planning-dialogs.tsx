@@ -8,7 +8,7 @@ import { Button, ErrorNote, Field, Modal, TextInput, Toggle } from "@/components
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours, partLabel, roundToQuarter, splitOverWorkdays, WORKDAY_MINUTES } from "@/lib/planning";
 import type { AppointmentDto, AppointmentInput } from "@/lib/schemas/appointments";
-import type { TodoDto } from "@/lib/schemas/todos";
+import type { TodoDto, TodoRegistrationDto } from "@/lib/schemas/todos";
 import { ResourceChips } from "./planning-cards";
 
 /** Click on a block: details, the bevestigd/reservatie switches, reminder, remove. */
@@ -333,6 +333,8 @@ export function CreateTodoDialog({ onClose, onCreated }: { onClose: () => void; 
 export interface TodoDetail extends TodoDto {
   customerAddress: string;
   appointments: { id: number; status: "PLANNED" | "DONE" | "CANCELLED"; startAt: string; durationMinutes: number }[];
+  /** Registered days (hours per resource, articles, invoice), oldest first. */
+  registrations: TodoRegistrationDto[];
 }
 
 /**

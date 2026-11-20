@@ -1,17 +1,18 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FilterBar, FilterField, Pagination, selectClass } from "@/components/pagination";
-import { CreateTodoDialog, type TodoDetail, TodoEditDialog } from "@/components/planning/planning-dialogs";
+import { CreateTodoDialog, TodoEditDialog } from "@/components/planning/planning-dialogs";
+import { TodoDetailExtra } from "@/components/todo-detail-extra";
 import { Button, EmptyState, ErrorNote, PageHeader, Spinner, StatusBadge } from "@/components/ui";
-import { apiGet, apiSend } from "@/lib/api-client";
+import { apiGet } from "@/lib/api-client";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { formatMinutesAsHours } from "@/lib/planning";
 import { todoChangedQueryKeys } from "@/lib/query-keys";
 import type { TodoDto } from "@/lib/schemas/todos";
-import { formatDateShort, formatTime } from "@/lib/time";
+import { formatDateShort } from "@/lib/time";
 import {
   DEFAULT_TODO_FILTER,
   filterTodos,
@@ -21,7 +22,6 @@ import {
   type TodoKindFilter,
   type TodoListFilter,
   type TodoStateFilter,
-  todoStatusActions,
 } from "@/lib/todo-list";
 
 /**
@@ -151,7 +151,10 @@ export default function TodosPage() {
                     <span className="shrink-0"><StatusBadge status={t.status} /></span>
                   </div>
                   <div className="mt-0.5 flex items-baseline justify-between gap-2 text-sm">
-                    <span className="min-w-0 truncate text-gray-700">{t.title}</span>
+                    <span className="min-w-0 truncate text-gray-700">
+                      {t.title}
+                      {t.windowLabel && <span className="text-xs text-brand-700"> · voorkeur {t.windowLabel}</span>}
+                    </span>
                     <span className="shrink-0 tabular-nums text-gray-500">
                       {formatMinutesAsHours(t.estimatedHours * 60)}
                     </span>
@@ -279,7 +282,7 @@ export default function TodosPage() {
             setDetailId(null);
           }}
           extra={(todo) => (
-            <TodoBlocksAndActions
+            <TodoDetailExtra
               todo={todo}
               onChanged={() => refresh(todo.id)}
               onDeleted={() => {
@@ -289,93 +292,6 @@ export default function TodosPage() {
             />
           )}
         />
-      )}
-    </div>
-  );
-}
-
-/** Below the todo editor: its planned/registered blocks and cancel/reopen/delete. */
-function TodoBlocksAndActions({
-  todo,
-  onChanged,
-  onDeleted,
-}: {
-  todo: TodoDetail;
-  onChanged: () => void;
-  onDeleted: () => void;
-}) {
-  const actions = todoStatusActions(todo.status, todo.appointments);
-  const blocks = [...todo.appointments].sort((a, b) => a.startAt.localeCompare(b.startAt));
-
-  const statusMutation = useMutation({
-    mutationFn: (status: "OPEN" | "CANCELLED") => apiSend(`/api/todos/${todo.id}`, "PATCH", { status }),
-    onSuccess: onChanged,
-  });
-  const deleteMutation = useMutation({
-    mutationFn: () => apiSend(`/api/todos/${todo.id}`, "DELETE"),
-    onSuccess: onDeleted,
-  });
-  const actionError = statusMutation.error ?? deleteMutation.error;
-  const busy = statusMutation.isPending || deleteMutation.isPending;
-
-  return (
-    <div className="mt-4 space-y-3 border-t border-gray-100 pt-3">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-700">Status:</span>
-        <StatusBadge status={todo.status} />
-      </div>
-
-      <div>
-        <h3 className="mb-1 text-sm font-medium text-gray-700">Blokken ({blocks.length})</h3>
-        {blocks.length === 0 ? (
-          <p className="text-xs text-gray-500">Nog niet ingepland. Inplannen doe je in de Planning.</p>
-        ) : (
-          <ul className="divide-y divide-gray-100 rounded-md border border-gray-200 text-sm">
-            {blocks.map((b) => {
-              const end = new Date(new Date(b.startAt).getTime() + b.durationMinutes * 60000);
-              return (
-                <li
-                  key={b.id}
-                  className={`flex items-center justify-between gap-2 px-2 py-1 ${
-                    b.status === "CANCELLED" ? "text-gray-400 line-through" : ""
-                  }`}
-                >
-                  <span className="tabular-nums">
-                    {formatDateShort(b.startAt)} {formatTime(b.startAt)}–{formatTime(end)}
-                  </span>
-                  <StatusBadge status={b.status} />
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {actionError && <ErrorNote message={(actionError as Error).message} />}
-      {(actions.canCancel || actions.canReopen || actions.canDelete) && (
-        <div className="flex flex-wrap gap-2">
-          {actions.canReopen && (
-            <Button variant="secondary" disabled={busy} onClick={() => statusMutation.mutate("OPEN")}>
-              ↺ Heropenen
-            </Button>
-          )}
-          {actions.canCancel && (
-            <Button variant="secondary" disabled={busy} onClick={() => statusMutation.mutate("CANCELLED")}>
-              Annuleren
-            </Button>
-          )}
-          {actions.canDelete && (
-            <Button
-              variant="danger"
-              disabled={busy}
-              onClick={() => {
-                if (window.confirm(`Todo "${todo.title}" definitief verwijderen?`)) deleteMutation.mutate();
-              }}
-            >
-              🗑 Verwijderen
-            </Button>
-          )}
-        </div>
       )}
     </div>
   );

@@ -1,13 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { contentFromBuilt, vatSummary } from "@/lib/invoice-content";
-import { buildJobInvoice } from "@/lib/registration";
+import { jobOutcome } from "@/lib/registration";
 import { completionInputSchema } from "@/lib/schemas/completions";
 import { syncTodoStatus } from "@/lib/services/appointments";
-import { initialSyncAction, syncSkipMessage } from "@/lib/services/invoice-sync";
-import { markInvoiceNotSynced, pushInvoiceToEf } from "@/lib/services/invoices";
-import { loadUninvoicedDays } from "@/lib/services/registration";
+import { closeJobInTx, createJobInvoiceInTx, pushNewJobInvoice } from "@/lib/services/job-close";
 import { getSettings } from "@/lib/services/settings";
 
 /**
@@ -16,9 +13,10 @@ import { getSettings } from "@/lib/services/settings";
  * Step 1 (one transaction, always committed locally):
  *   registration per resource (registered + invoiced hours, rate snapshots),
  *   extras, checklist result, appointment → DONE.
- *   With `invoiceNow`: all not yet invoiced days of this todo go on one
- *   local invoice (PENDING), remaining planned blocks are cancelled and the
- *   todo → DONE. Without: the todo stays open for the next block.
+ *   Then, per jobOutcome(): "invoice" = all not yet invoiced days of this
+ *   todo on one local invoice (PENDING) + close the job; "close" = job
+ *   finished without invoice (remaining planned blocks cancelled, todo → DONE);
+ *   "continue" = the todo stays open for the next block.
  * Step 2 (outside the transaction, only when invoiced): push to EF as concept.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +46,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     const resourceById = new Map(resources.map((r) => [r.id, r]));
     const settings = await getSettings();
+    const outcome = jobOutcome(input.invoiceNow, input.closeJob);
     const todoTaskIds = new Set(appointment.todo.tasks.map((t) => t.id));
 
     const result = await db.$transaction(async (tx) => {
@@ -104,63 +103,39 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
       await tx.appointment.update({ where: { id: appointment.id }, data: { status: "DONE" } });
 
-      if (!input.invoiceNow) return { invoice: null };
-
-      // Invoice the whole job: every registered day of this todo not invoiced yet.
-      const days = await loadUninvoicedDays(appointment.todoId, tx);
-      const built = buildJobInvoice({ days, remarks: input.lineRemarks, notes: input.invoiceNotes });
-      const invoice = await tx.invoice.create({
-        data: {
-          completionId: completion.id,
-          customerId: customer.id,
-          pushStatus: "PENDING",
-          linesJson: built.items as unknown as object,
-          // Editable structure (lines + remarks, notes) while not yet in EF.
-          contentJson: contentFromBuilt(built) as unknown as object,
-          totalExclVat: built.totalExclVat,
-        },
-      });
-      await tx.completion.updateMany({
-        where: { invoiceId: null, appointment: { todoId: appointment.todoId } },
-        data: { invoiceId: invoice.id },
-      });
-      // The job is finished: blocks still planned for it are cancelled.
-      await tx.appointment.updateMany({
-        where: { todoId: appointment.todoId, status: "PLANNED" },
-        data: { status: "CANCELLED" },
-      });
-      await tx.todo.update({
-        where: { id: appointment.todoId },
-        data: { status: "DONE", completedAt: new Date() },
-      });
-      return {
-        invoice: { id: invoice.id, totalExclVat: built.totalExclVat, totalInclVat: vatSummary(built.items).inclVat },
-      };
+      if (outcome === "continue") return { invoice: null };
+      // Invoice the whole job (every registered day not invoiced yet) and/or close it.
+      const invoice =
+        outcome === "invoice"
+          ? await createJobInvoiceInTx(tx, {
+              todoId: appointment.todoId,
+              customerId: customer.id,
+              triggerCompletionId: completion.id,
+              remarks: input.lineRemarks,
+              notes: input.invoiceNotes,
+            })
+          : null;
+      await closeJobInTx(tx, appointment.todoId);
+      return { invoice };
     });
 
     if (!result.invoice) {
-      await syncTodoStatus(appointment.todoId);
+      if (outcome === "continue") await syncTodoStatus(appointment.todoId);
       const nextBlocks = await db.appointment.count({ where: { todoId: appointment.todoId, status: "PLANNED" } });
-      return NextResponse.json({ completed: true, invoiced: false, nextBlocks }, { status: 201 });
+      return NextResponse.json(
+        { completed: true, invoiced: false, closed: outcome !== "continue", nextBlocks },
+        { status: 201 },
+      );
     }
 
-    // Step 2: push to EF (never blocking the registration), unless sync or
-    // automatic sync is switched off in Settings, or this is a demo customer.
-    const efPush =
-      initialSyncAction(settings.efInvoiceSyncEnabled, customer.isDemo, settings.efInvoiceAutoSync) === "skip"
-        ? await markInvoiceNotSynced(result.invoice.id).then(() => ({
-            ok: false,
-            skipped: true,
-            message: syncSkipMessage(settings.efInvoiceSyncEnabled, customer.isDemo, settings.efInvoiceAutoSync),
-          }))
-        : await pushInvoiceToEf(result.invoice.id).then((push) =>
-            push.ok ? { ok: true, efInvoiceId: push.efInvoiceId } : { ok: false, error: push.error },
-          );
+    // Step 2: push to EF (never blocking the registration).
+    const efPush = await pushNewJobInvoice(result.invoice.id, customer.isDemo);
 
     return NextResponse.json(
       {
         completed: true,
         invoiced: true,
+        closed: true,
         invoiceId: result.invoice.id,
         totalExclVat: result.invoice.totalExclVat,
         totalInclVat: result.invoice.totalInclVat,

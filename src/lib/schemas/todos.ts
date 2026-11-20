@@ -130,6 +130,19 @@ export interface TodoDto {
   appointmentCount?: number;
 }
 
+/** One registered day of a todo (GET /api/todos/:id → registrations). */
+export interface TodoRegistrationDto {
+  completionId: number;
+  appointmentId: number;
+  /** Start of the registered block (ISO). */
+  date: string;
+  note: string | null;
+  labor: { name: string; type: "PERSON" | "MACHINE"; registeredHours: number; invoicedHours: number }[];
+  extras: { description: string; quantity: number; unit: string; unitPrice: number }[];
+  /** The invoice this day is on; null = not invoiced (yet). */
+  invoice: { id: number; pushStatus: string; totalExclVat: number } | null;
+}
+
 export interface TodoTaskDto {
   id: number;
   checklistItemId: number | null;

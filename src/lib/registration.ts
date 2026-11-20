@@ -52,6 +52,59 @@ export function defaultInvoiceNow(input: { otherPlannedBlocks: number; remaining
   return input.otherPlannedBlocks === 0 && input.remainingUnplannedMinutes <= 0;
 }
 
+/**
+ * What a registration does with the job:
+ * - "invoice": close the job and invoice every not yet invoiced day;
+ * - "close": the job is finished but not invoiced (now) — todo DONE, the
+ *   remaining planned blocks are cancelled, the days stay uninvoiced (they can
+ *   still be invoiced later from the todo's details);
+ * - "continue": an intermediate day — the todo stays open for the next block.
+ * Invoicing always closes the job; `closeJob` missing = follow `invoiceNow`
+ * (older clients).
+ */
+export type JobOutcome = "invoice" | "close" | "continue";
+
+export function jobOutcome(invoiceNow: boolean, closeJob: boolean | undefined): JobOutcome {
+  if (invoiceNow) return "invoice";
+  return closeJob ? "close" : "continue";
+}
+
+/**
+ * May a job be closed afterwards from the todo's details (POST
+ * /api/todos/:id/close), with (`invoice`) or without invoicing its open days?
+ * Only once work was registered and nothing is planned any more; invoicing
+ * needs a customer and at least one day not invoiced yet (this also allows
+ * invoicing a job that was closed earlier without invoice).
+ */
+export function closeJobCheck(
+  todo: {
+    status: "OPEN" | "PLANNED" | "DONE" | "CANCELLED";
+    hasCustomer: boolean;
+    plannedBlocks: number;
+    registeredDays: number;
+    uninvoicedDays: number;
+    /** Something on the uninvoiced days to charge (invoiced hours > 0 or articles). */
+    hasBillable: boolean;
+  },
+  invoice: boolean,
+): { allowed: true } | { allowed: false; reason: string } {
+  if (todo.status === "CANCELLED") return { allowed: false, reason: "Deze todo is geannuleerd." };
+  if (todo.plannedBlocks > 0) {
+    return { allowed: false, reason: "Er staan nog geplande blokken: meld die eerst klaar of haal ze uit de planning." };
+  }
+  if (todo.registeredDays === 0) return { allowed: false, reason: "Er is nog geen werk geregistreerd." };
+  if (invoice) {
+    if (!todo.hasCustomer) return { allowed: false, reason: "Een losse todo wordt nooit gefactureerd." };
+    if (todo.uninvoicedDays === 0) return { allowed: false, reason: "Alle geregistreerde dagen zijn al gefactureerd." };
+    if (!todo.hasBillable) {
+      return { allowed: false, reason: "Er is niets te factureren: 0 gefactureerde uren en geen artikels." };
+    }
+    return { allowed: true };
+  }
+  if (todo.status === "DONE") return { allowed: false, reason: "Deze todo is al afgesloten." };
+  return { allowed: true };
+}
+
 // ---------------------------------------------------------------------------
 // Invoice of a job (one or more registered days)
 // ---------------------------------------------------------------------------

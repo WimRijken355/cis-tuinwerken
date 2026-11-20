@@ -67,6 +67,11 @@ export const completionInputSchema = z
      */
     invoiceNow: z.boolean(),
     /**
+     * The job is finished (also without invoicing now): todo DONE, remaining
+     * planned blocks cancelled. Implied by invoiceNow. See jobOutcome().
+     */
+    closeJob: z.boolean().optional(),
+    /**
      * Only with invoiceNow: a remark per invoice line (key from buildJobInvoice),
      * sent to EF as a text line right below that line.
      */

@@ -11,6 +11,7 @@ import {
   todoUpdateSchema,
   toTodoResourceDtos,
   toTodoTaskDtos,
+  type TodoRegistrationDto,
 } from "@/lib/schemas/todos";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
@@ -31,13 +32,57 @@ export async function GET(
       where: { id },
       include: {
         customer: { select: { name: true, street: true, postalCode: true, city: true } },
-        appointments: { orderBy: { startAt: "desc" } },
+        appointments: {
+          orderBy: { startAt: "desc" },
+          include: {
+            completion: {
+              include: {
+                laborEntries: { orderBy: { id: "asc" } },
+                extraCharges: { orderBy: { id: "asc" } },
+                includedInInvoice: { select: { id: true, pushStatus: true, totalExclVat: true } },
+              },
+            },
+          },
+        },
         ...todoResourcesInclude,
       },
     });
     if (!todo) throw new ApiError("Todo niet gevonden", 404);
+    const registrations: TodoRegistrationDto[] = todo.appointments
+      .filter((a) => a.completion !== null)
+      .map((a) => {
+        const c = a.completion!;
+        return {
+          completionId: c.id,
+          appointmentId: a.id,
+          date: a.startAt.toISOString(),
+          note: c.note,
+          labor: c.laborEntries.map((l) => ({
+            name: l.workerName ?? "Zaakvoerder",
+            type: l.resourceType ?? "PERSON",
+            registeredHours: Number(l.registeredHours),
+            invoicedHours: Number(l.invoicedHours),
+          })),
+          extras: c.extraCharges.map((e) => ({
+            description: e.description,
+            quantity: Number(e.quantity),
+            unit: e.unit,
+            unitPrice: Number(e.unitPrice),
+          })),
+          invoice: c.includedInInvoice
+            ? {
+                id: c.includedInInvoice.id,
+                pushStatus: c.includedInInvoice.pushStatus,
+                totalExclVat: Number(c.includedInInvoice.totalExclVat),
+              }
+            : null,
+        };
+      })
+      .sort((x, y) => x.date.localeCompare(y.date));
     return NextResponse.json({
       ...todo,
+      appointments: todo.appointments.map(({ completion: _completion, ...a }) => a),
+      registrations,
       estimatedHours: Number(todo.estimatedHours),
       customerName: todo.customer?.name ?? todo.contactName ?? "",
       /** Address of the linked customer (for the editor's customer picker). */
