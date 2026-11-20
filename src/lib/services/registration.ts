@@ -102,6 +102,7 @@ export async function loadRegistrationContext(appointmentId: number): Promise<Re
     otherPlannedBlocks,
     remainingUnplannedMinutes: remainingUnplanned,
     defaultInvoiceNow: defaultInvoiceNow({ otherPlannedBlocks, remainingUnplannedMinutes: remainingUnplanned }),
+    isProject: todo.isProject,
     uninvoicedDays: (await loadUninvoicedDays(todo.id)).map((d) => ({
       ...d,
       date: String(d.date),

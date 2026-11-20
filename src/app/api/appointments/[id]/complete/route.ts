@@ -16,7 +16,8 @@ import { getSettings } from "@/lib/services/settings";
  *   Then, per jobOutcome(): "invoice" = all not yet invoiced days of this
  *   todo on one local invoice (PENDING) + close the job; "close" = job
  *   finished without invoice (remaining planned blocks cancelled, todo → DONE);
- *   "continue" = the todo stays open for the next block.
+ *   "continue" = the todo stays open for the next block. A project todo is
+ *   invoiced directly in EF: "invoice" is downgraded to "close".
  * Step 2 (outside the transaction, only when invoiced): push to EF as concept.
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     }
     const resourceById = new Map(resources.map((r) => [r.id, r]));
     const settings = await getSettings();
-    const outcome = jobOutcome(input.invoiceNow, input.closeJob);
+    const outcome = jobOutcome(input.invoiceNow, input.closeJob, appointment.todo.isProject);
     const todoTaskIds = new Set(appointment.todo.tasks.map((t) => t.id));
 
     const result = await db.$transaction(async (tx) => {

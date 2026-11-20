@@ -152,6 +152,10 @@ model Todo {
   contactStreet     String?
   contactPostalCode String?
   contactCity       String?
+  /// Project: invoiced directly in EenvoudigFactureren, outside this app.
+  /// Hours are registered, but a registration never creates an invoice.
+  /// Always false for a losse todo.
+  isProject         Boolean   @default(false)
   completedAt       DateTime?
 
   // --- Koppeling met terugkerend werk -------------------------------------

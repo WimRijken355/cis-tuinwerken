@@ -392,6 +392,7 @@ export function TodoEditDialog({
             estimatedHours: todo.estimatedHours,
             resources: todo.resources ?? [],
             tasks: todo.tasks ?? [],
+            isProject: todo.isProject,
           }}
           ownerLocked={registered}
           submitLabel="Bewaren"

@@ -10,6 +10,7 @@ import {
   todoResourcesInclude,
   toTodoResourceDtos,
   toTodoTaskDtos,
+  projectFlagForTodo,
 } from "@/lib/schemas/todos";
 import type { Prisma } from "@/generated/prisma/client";
 import { periodToWindow, windowLabel } from "@/lib/registration";
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
         plannedMinutes: m?.plannedMinutes ?? 0,
         remainingMinutes: m?.remainingMinutes ?? 0,
         appointmentCount: m?.parts.size ?? 0,
-        invoiceState: todoInvoiceState(daysByTodo.get(t.id) ?? []),
+        invoiceState: todoInvoiceState(daysByTodo.get(t.id) ?? [], t.isProject),
         registeredOn: registeredOn(
           (daysByTodo.get(t.id) ?? []).map((d) => d.date),
           t.status === "DONE" ? t.completedAt : null,
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
     const created = await db.todo.create({
       data: {
         ...input,
+        isProject: projectFlagForTodo(input.customerId, input.isProject),
         ...contactForTodo(input.customerId, { contactName, contactStreet, contactPostalCode, contactCity }),
         ...(preferredFrom ? periodToWindow(preferredFrom, preferredTo) : {}),
       },

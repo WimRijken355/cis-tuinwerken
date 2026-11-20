@@ -61,12 +61,13 @@ export function defaultInvoiceNow(input: { otherPlannedBlocks: number; remaining
  *   still be invoiced later from the todo's details);
  * - "continue": an intermediate day — the todo stays open for the next block.
  * Invoicing always closes the job; `closeJob` missing = follow `invoiceNow`
- * (older clients).
+ * (older clients). A project todo (`isProject`) never gets an invoice here.
  */
 export type JobOutcome = "invoice" | "close" | "continue";
 
-export function jobOutcome(invoiceNow: boolean, closeJob: boolean | undefined): JobOutcome {
-  if (invoiceNow) return "invoice";
+export function jobOutcome(invoiceNow: boolean, closeJob: boolean | undefined, isProject = false): JobOutcome {
+  // A project is invoiced directly in EF: asking to invoice only closes the job.
+  if (invoiceNow) return isProject ? "close" : "invoice";
   return closeJob ? "close" : "continue";
 }
 
@@ -81,6 +82,8 @@ export function closeJobCheck(
   todo: {
     status: "OPEN" | "PLANNED" | "DONE" | "CANCELLED";
     hasCustomer: boolean;
+    /** Project: invoiced directly in EF, never from this app. */
+    isProject?: boolean;
     plannedBlocks: number;
     registeredDays: number;
     uninvoicedDays: number;
@@ -96,6 +99,9 @@ export function closeJobCheck(
   if (todo.registeredDays === 0) return { allowed: false, reason: "Er is nog geen werk geregistreerd." };
   if (invoice) {
     if (!todo.hasCustomer) return { allowed: false, reason: "Een losse todo wordt nooit gefactureerd." };
+    if (todo.isProject) {
+      return { allowed: false, reason: "Een project wordt rechtstreeks in EenvoudigFactureren gefactureerd." };
+    }
     if (todo.uninvoicedDays === 0) return { allowed: false, reason: "Alle geregistreerde dagen zijn al gefactureerd." };
     if (!todo.hasBillable) {
       return { allowed: false, reason: "Er is niets te factureren: 0 gefactureerde uren en geen artikels." };

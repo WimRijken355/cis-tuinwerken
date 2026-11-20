@@ -120,6 +120,8 @@ export interface RegistrationContextDto {
   otherPlannedBlocks: number;
   remainingUnplannedMinutes: number;
   defaultInvoiceNow: boolean;
+  /** Project todo: hours only, invoiced directly in EF (no invoice step). */
+  isProject: boolean;
   /** Earlier registered days of this todo that are not invoiced yet. */
   uninvoicedDays: {
     date: string;

@@ -47,6 +47,7 @@ export function TodoDetailExtra({
   const closeInput = {
     status: todo.status,
     hasCustomer: todo.customerId !== null,
+    isProject: todo.isProject,
     plannedBlocks: todo.appointments.filter((a) => a.status === "PLANNED").length,
     registeredDays: registrations.length,
     uninvoicedDays: registrations.filter((r) => r.invoice === null).length,

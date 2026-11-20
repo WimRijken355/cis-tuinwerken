@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, ErrorNote, Field, TextInput } from "@/components/ui";
+import { Button, ErrorNote, Field, TextInput, Toggle } from "@/components/ui";
 import type { TodoResourceDto, TodoResourceInput, TodoTaskDto } from "@/lib/schemas/todos";
 import {
   ChecklistPicker,
@@ -21,6 +21,8 @@ export interface TodoFormValues {
   /** Preferred period "yyyy-MM" (only when showPeriod). */
   preferredFrom?: string;
   preferredTo?: string;
+  /** Project: invoiced directly in EF (only when showProject). */
+  isProject?: boolean;
 }
 
 /**
@@ -40,12 +42,14 @@ export function TodoForm({
   titlePlaceholder = "bv. Gazon aanleggen achtertuin",
   titleSuggestions = [],
   showPeriod = false,
+  showProject = false,
 }: {
   initial?: {
     title: string;
     estimatedHours: number;
     resources: TodoResourceDto[];
     tasks: TodoTaskDto[];
+    isProject?: boolean;
   };
   submitLabel: string;
   busy?: boolean;
@@ -60,6 +64,8 @@ export function TodoForm({
   titleSuggestions?: string[];
   /** Ask for a preferred period (month, optionally a range), e.g. "april 2027". */
   showPeriod?: boolean;
+  /** Offer the "Project" toggle (customer todos only; a losse todo is never invoiced). */
+  showProject?: boolean;
 }) {
   const initialTasks = (initial?.tasks ?? [])
     .filter((t): t is TodoTaskDto & { checklistItemId: number } => t.checklistItemId !== null)
@@ -71,6 +77,7 @@ export function TodoForm({
   const [taskIds, setTaskIds] = useState<number[]>(initialTasks.map((t) => t.checklistItemId));
   const [preferredFrom, setPreferredFrom] = useState("");
   const [preferredTo, setPreferredTo] = useState("");
+  const [isProject, setIsProject] = useState(initial?.isProject ?? false);
 
   return (
     <form
@@ -83,6 +90,7 @@ export function TodoForm({
           resources: resourceSelectionToInput(resources),
           taskIds: showChecklist ? taskIds : [],
           ...(showPeriod && preferredFrom ? { preferredFrom, preferredTo: preferredTo || undefined } : {}),
+          ...(showProject ? { isProject } : {}),
         });
       }}
     >
@@ -145,6 +153,18 @@ export function TodoForm({
           </div>
           <p className="mt-1 text-xs text-gray-400">Bv. april 2027. Laat &quot;tot&quot; leeg voor één maand.</p>
         </fieldset>
+      )}
+      {showProject && (
+        <label className="flex items-start justify-between gap-3 rounded-md border border-gray-200 px-3 py-2">
+          <span>
+            <span className="block text-sm font-medium text-gray-700">Project</span>
+            <span className="block text-xs text-gray-500">
+              Wordt rechtstreeks in EenvoudigFactureren gefactureerd: je registreert wel uren, maar er wordt geen
+              factuur aangemaakt.
+            </span>
+          </span>
+          <Toggle checked={isProject} onChange={setIsProject} label="Project" />
+        </label>
       )}
       {showChecklist && <ChecklistPicker value={taskIds} onChange={setTaskIds} initial={initialTasks} />}
       <ResourcePicker value={resources} onChange={setResources} totalHours={hours} initial={initial?.resources} />

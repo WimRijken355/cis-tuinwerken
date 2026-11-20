@@ -34,6 +34,7 @@ export interface TodoEditorInitial {
   estimatedHours: number;
   resources: TodoResourceDto[];
   tasks: TodoTaskDto[];
+  isProject?: boolean;
 }
 
 /**
@@ -165,6 +166,7 @@ export function TodoEditor({
           estimatedHours: initial.estimatedHours,
           resources: initial.resources,
           tasks: initial.tasks,
+          isProject: initial.isProject,
         }}
         submitLabel={submitLabel}
         busy={busy}
@@ -172,6 +174,7 @@ export function TodoEditor({
         onSubmit={submit}
         onCancel={onCancel}
         showChecklist={kind === "customer"}
+        showProject={kind === "customer"}
         titleLabel={kind === "customer" ? "Wat moet er gebeuren?" : "Omschrijving"}
         titlePlaceholder={kind === "customer" ? "bv. Haag scheren" : "bv. Vakantie"}
         titleSuggestions={kind === "loose" ? (presets ?? []).map((p) => p.name) : []}

@@ -258,7 +258,9 @@ function RegisterFlow({
   // a finished job can also be closed without invoicing it now (jobOutcome).
   const [closeJob, setCloseJob] = useState(context.defaultInvoiceNow);
   const [invoiceWanted, setInvoiceWanted] = useState(true);
-  const invoiceNow = closeJob && invoiceWanted;
+  // A project is invoiced directly in EF: never an invoice from here.
+  const isProject = context.isProject;
+  const invoiceNow = closeJob && invoiceWanted && !isProject;
   const todayDay = useMemo(
     () => ({
       date: appointment.startAt,
@@ -332,10 +334,10 @@ function RegisterFlow({
   });
 
   if (result) {
-    return <ResultAndFollowUp appointment={appointment} result={result} backHref={backHref} />;
+    return <ResultAndFollowUp appointment={appointment} result={result} backHref={backHref} isProject={isProject} />;
   }
 
-  const steps = ["Uren", "Artikels", "Taken", "Factuur"];
+  const steps = ["Uren", "Artikels", "Taken", isProject ? "Afronden" : "Factuur"];
   const plannedLines = lines.filter((l) => l.planned);
   const extraPeople = lines.filter((l) => !l.planned && l.type === "PERSON");
   const extraMachines = lines.filter((l) => !l.planned && l.type === "MACHINE");
@@ -398,6 +400,7 @@ function RegisterFlow({
                 <ResourceHours
                   key={l.resourceId}
                   line={l}
+                  hideInvoiced={isProject}
                   onChange={(patch) => updateLine(l.resourceId, patch)}
                   onRemove={() => updateLine(l.resourceId, { absent: true })}
                   removeLabel="niet mee"
@@ -413,6 +416,7 @@ function RegisterFlow({
             onAdd={addResource}
             onChange={updateLine}
             onRemove={(rid) => setLines((ls) => ls.filter((l) => l.resourceId !== rid))}
+            hideInvoiced={isProject}
           />
           <ExtraResourceCard
             title="🚜 Extra machines"
@@ -422,10 +426,20 @@ function RegisterFlow({
             onAdd={addResource}
             onChange={updateLine}
             onRemove={(rid) => setLines((ls) => ls.filter((l) => l.resourceId !== rid))}
+            hideInvoiced={isProject}
           />
           <p className="px-1 text-xs text-gray-400">
-            Uren per begonnen kwartier. <strong>Geregistreerd</strong> = echt gewerkt (voor je overzicht),{" "}
-            <strong>gefactureerd</strong> = wat de klant betaalt.
+            {isProject ? (
+              <>
+                Uren per begonnen kwartier. Dit is een <strong>project</strong>: de factuur maak je rechtstreeks in
+                EenvoudigFactureren.
+              </>
+            ) : (
+              <>
+                Uren per begonnen kwartier. <strong>Geregistreerd</strong> = echt gewerkt (voor je overzicht),{" "}
+                <strong>gefactureerd</strong> = wat de klant betaalt.
+              </>
+            )}
           </p>
           <Nav onNext={() => setStep(1)} nextDisabled={!hasHours} />
         </div>
@@ -635,7 +649,13 @@ function RegisterFlow({
 
       {step === 3 && (
         <div className="space-y-3">
-          <Card title="Factuur">
+          <Card title={isProject ? "Afronden" : "Factuur"}>
+            {isProject && (
+              <p className="mb-3 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                Project: de uren worden bewaard, maar er wordt geen factuur aangemaakt. Factureer rechtstreeks in
+                EenvoudigFactureren.
+              </p>
+            )}
             <label className="flex items-start justify-between gap-3">
               <span>
                 <span className="block font-medium">Job afgewerkt</span>
@@ -643,13 +663,15 @@ function RegisterFlow({
                   {context.defaultInvoiceNow
                     ? "Dit is de laatste geplande dag van deze job."
                     : context.otherPlannedBlocks > 0
-                      ? `Er staan nog ${context.otherPlannedBlocks} geplande dag(en) voor deze job — de factuur volgt dan normaal bij de laatste.`
+                      ? `Er staan nog ${context.otherPlannedBlocks} geplande dag(en) voor deze job${
+                          isProject ? "." : " — de factuur volgt dan normaal bij de laatste."
+                        }`
                       : `Er is nog ${formatMinutesAsHours(context.remainingUnplannedMinutes)} niet ingepland voor deze job.`}
                 </span>
               </span>
               <Toggle checked={closeJob} onChange={setCloseJob} label="Job afgewerkt" />
             </label>
-            {closeJob && (
+            {closeJob && !isProject && (
               <label className="mt-3 flex items-start justify-between gap-3 border-t border-gray-100 pt-3">
                 <span>
                   <span className="block font-medium">Nu factureren</span>
@@ -664,7 +686,9 @@ function RegisterFlow({
             )}
             {!closeJob && (
               <p className="mt-2 text-xs text-gray-500">
-                De todo blijft open voor een volgende dag; de factuur volgt wanneer de job afgewerkt is.
+                {isProject
+                  ? "De todo blijft open voor een volgende dag."
+                  : "De todo blijft open voor een volgende dag; de factuur volgt wanneer de job afgewerkt is."}
               </p>
             )}
             {closeJob && context.otherPlannedBlocks > 0 && (
@@ -796,7 +820,8 @@ function RegisterFlow({
                         {l.type === "PERSON" ? "👷" : "🚜"} {l.name}
                       </span>
                       <span className="text-gray-600">
-                        {hoursText(l.registeredHours)} · gefactureerd {hoursText(l.invoicedHours)}
+                        {hoursText(l.registeredHours)}
+                        {!isProject && <> · gefactureerd {hoursText(l.invoicedHours)}</>}
                       </span>
                     </li>
                   ))}
@@ -804,7 +829,9 @@ function RegisterFlow({
               <p className="mt-2 text-xs text-gray-400">
                 {closeJob
                   ? "Uren worden bewaard en de job wordt afgesloten, zonder factuur."
-                  : "Uren worden bewaard; de factuur volgt bij de laatste dag."}
+                  : isProject
+                    ? "Uren worden bewaard; de job blijft open."
+                    : "Uren worden bewaard; de factuur volgt bij de laatste dag."}
               </p>
             </Card>
           )}
@@ -865,12 +892,15 @@ function ResourceHours({
   onChange,
   onRemove,
   removeLabel,
+  hideInvoiced = false,
 }: {
   line: ResourceLine;
   onChange: (patch: Partial<ResourceLine>) => void;
   onRemove?: () => void;
   /** Custom text instead of the delete icon (e.g. "niet mee" for a planned resource). */
   removeLabel?: string;
+  /** Project: no "invoiced" hours to enter (they follow the registered hours). */
+  hideInvoiced?: boolean;
 }) {
   return (
     <div className="border-b border-gray-100 py-2 last:border-0">
@@ -914,14 +944,16 @@ function ResourceHours({
           </div>
           <p className="mt-0.5 text-xs text-gray-500">= {hoursText(line.registeredHours)} geregistreerd</p>
         </div>
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Gefactureerd</p>
-          <HoursStepper
-            label={`Gefactureerd ${line.name}`}
-            value={line.invoicedHours}
-            onChange={(invoicedHours) => onChange({ invoicedHours, invoicedTouched: true })}
-          />
-        </div>
+        {!hideInvoiced && (
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Gefactureerd</p>
+            <HoursStepper
+              label={`Gefactureerd ${line.name}`}
+              value={line.invoicedHours}
+              onChange={(invoicedHours) => onChange({ invoicedHours, invoicedTouched: true })}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -935,6 +967,7 @@ function ExtraResourceCard({
   onAdd,
   onChange,
   onRemove,
+  hideInvoiced = false,
 }: {
   title: string;
   type: "PERSON" | "MACHINE";
@@ -943,6 +976,7 @@ function ExtraResourceCard({
   onAdd: (resource: ResourceDto) => void;
   onChange: (resourceId: number, patch: Partial<ResourceLine>) => void;
   onRemove: (resourceId: number) => void;
+  hideInvoiced?: boolean;
 }) {
   return (
     <Card title={title}>
@@ -952,6 +986,7 @@ function ExtraResourceCard({
           line={l}
           onChange={(patch) => onChange(l.resourceId, patch)}
           onRemove={() => onRemove(l.resourceId)}
+          hideInvoiced={hideInvoiced}
         />
       ))}
       {available.length > 0 ? (
@@ -1014,10 +1049,13 @@ function ResultAndFollowUp({
   appointment,
   result,
   backHref,
+  isProject = false,
 }: {
   appointment: AppointmentDto;
   result: CompleteResult;
   backHref: string;
+  /** Project: invoiced directly in EF, so no "invoice later" hint. */
+  isProject?: boolean;
 }) {
   const router = useRouter();
   const [created, setCreated] = useState(false);
@@ -1075,7 +1113,9 @@ function ResultAndFollowUp({
           </>
         ) : result.closed ? (
           <p className="mt-2 text-sm text-gray-600">
-            De job is afgesloten zonder factuur. Factureren kan later nog via Todo&apos;s → ✏️.
+            {isProject
+              ? "Project afgesloten. Maak de factuur rechtstreeks in EenvoudigFactureren."
+              : "De job is afgesloten zonder factuur. Factureren kan later nog via Todo's → ✏️."}
           </p>
         ) : (
           <p className="mt-2 text-sm text-gray-600">

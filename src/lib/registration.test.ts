@@ -218,6 +218,12 @@ describe("jobOutcome", () => {
     expect(jobOutcome(false, false)).toBe("continue");
     expect(jobOutcome(false, undefined)).toBe("continue");
   });
+  it("a project is never invoiced here: invoicing becomes closing", () => {
+    expect(jobOutcome(true, true, true)).toBe("close");
+    expect(jobOutcome(true, undefined, true)).toBe("close");
+    expect(jobOutcome(false, true, true)).toBe("close");
+    expect(jobOutcome(false, false, true)).toBe("continue");
+  });
 });
 
 describe("closeJobCheck", () => {
@@ -239,6 +245,11 @@ describe("closeJobCheck", () => {
   it("losse todo's and cancelled todos are never invoiced", () => {
     expect(closeJobCheck({ ...base, hasCustomer: false }, true).allowed).toBe(false);
     expect(closeJobCheck({ ...base, status: "CANCELLED" }, true).allowed).toBe(false);
+  });
+  it("a project is invoiced in EF: closing is fine, invoicing from the app is refused", () => {
+    const check = closeJobCheck({ ...base, isProject: true }, true);
+    expect(check).toEqual({ allowed: false, reason: expect.stringContaining("EenvoudigFactureren") });
+    expect(closeJobCheck({ ...base, isProject: true }, false).allowed).toBe(true);
   });
   it("nothing billable (0 invoiced hours, no articles): no invoice, but closing is fine", () => {
     expect(closeJobCheck({ ...base, hasBillable: false }, true).allowed).toBe(false);

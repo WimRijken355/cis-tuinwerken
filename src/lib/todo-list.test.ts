@@ -110,6 +110,13 @@ describe("todoInvoiceState", () => {
   const inv = (pushStatus: string, over: { efInvoiceId?: number | null; syncExcluded?: boolean } = {}) => ({
     invoice: { pushStatus, efInvoiceId: over.efInvoiceId ?? null, syncExcluded: over.syncExcluded ?? false },
   });
+  it("a project with registered work is 'project', never 'not invoiced'", () => {
+    expect(todoInvoiceState([{ invoice: null }, { invoice: null }], true)).toBe("project");
+    expect(todoInvoiceState([], true)).toBe("none");
+    expect(todoInvoiceState([{ invoice: null }], false)).toBe("uninvoiced");
+    // An invoice made before it became a project still shows its own state.
+    expect(todoInvoiceState([inv("CONCEPT_CREATED", { efInvoiceId: 5 })], true)).toBe("in_ef");
+  });
   it("nothing registered / registered without invoice / partly invoiced", () => {
     expect(todoInvoiceState([])).toBe("none");
     expect(todoInvoiceState([{ invoice: null }])).toBe("uninvoiced");

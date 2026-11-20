@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   contactForTodo,
+  projectFlagForTodo,
   planTodoTaskSync,
   resolveTodoOwner,
   sumResourceHours,
@@ -101,6 +102,21 @@ describe("todo checklist", () => {
     expect(
       toTodoTaskDtos([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true, sortOrder: 0 } as never]),
     ).toEqual([{ id: 1, checklistItemId: 2, label: "Haag scheren", done: true, unplanned: false }]);
+  });
+});
+
+describe("project flag", () => {
+  it("defaults to false on create and is optional on update", () => {
+    expect(todoInputSchema.parse({ customerId: 1, title: "Tuin", estimatedHours: 8 }).isProject).toBe(false);
+    expect(todoInputSchema.parse({ customerId: 1, title: "Tuin", estimatedHours: 8, isProject: true }).isProject).toBe(true);
+    expect(todoUpdateSchema.parse({ title: "Tuin" }).isProject).toBeUndefined();
+  });
+  it("only a customer todo can be a project; omitted keeps the current value", () => {
+    expect(projectFlagForTodo(7, true)).toBe(true);
+    expect(projectFlagForTodo(null, true)).toBe(false);
+    expect(projectFlagForTodo(7, undefined, true)).toBe(true);
+    expect(projectFlagForTodo(7, false, true)).toBe(false);
+    expect(projectFlagForTodo(null, undefined, true)).toBe(false);
   });
 });
 

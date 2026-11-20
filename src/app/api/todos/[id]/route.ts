@@ -14,6 +14,7 @@ import {
   toTodoResourceDtos,
   toTodoTaskDtos,
   type TodoRegistrationDto,
+  projectFlagForTodo,
 } from "@/lib/schemas/todos";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
@@ -119,11 +120,20 @@ export async function PATCH(
     await requireUser();
     const id = await parseId(params);
     const body = (await request.json()) as Record<string, unknown>;
-    const { resources, taskIds, customerId, contactName, contactStreet, contactPostalCode, contactCity, ...input } =
-      todoUpdateSchema.parse(body);
+    const {
+      resources,
+      taskIds,
+      customerId,
+      contactName,
+      contactStreet,
+      contactPostalCode,
+      contactCity,
+      isProject,
+      ...input
+    } = todoUpdateSchema.parse(body);
     const current = await db.todo.findUnique({
       where: { id },
-      select: { customerId: true, status: true, appointments: { select: { status: true } } },
+      select: { customerId: true, status: true, isProject: true, appointments: { select: { status: true } } },
     });
     if (!current) throw new ApiError("Todo niet gevonden", 404);
     // Cancelling follows the same rule as the button in the todo details
@@ -164,6 +174,7 @@ export async function PATCH(
       data: {
         ...input,
         ...(owner.ownerChanged ? { customerId: owner.customerId } : {}),
+        isProject: projectFlagForTodo(owner.customerId, isProject, current.isProject),
         ...(owner.contact ?? {}),
         ...(input.status === "DONE" ? { completedAt: new Date() } : {}),
         ...(input.status === "OPEN" ? { completedAt: null } : {}),

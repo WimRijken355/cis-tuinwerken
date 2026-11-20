@@ -239,6 +239,7 @@ function TodoSection({
         <h2 className="mb-3 font-semibold">Nieuwe todo</h2>
         <TodoForm
           key={formKey}
+          showProject
           submitLabel="Toevoegen"
           busy={addMutation.isPending}
           error={formError}
@@ -322,7 +323,9 @@ function TodoSection({
               estimatedHours: editing.estimatedHours,
               resources: editing.resources ?? [],
               tasks: editing.tasks ?? [],
+              isProject: editing.isProject,
             }}
+            showProject
             submitLabel="Bewaren"
             busy={editMutation.isPending}
             error={editMutation.error ? (editMutation.error as Error).message : null}

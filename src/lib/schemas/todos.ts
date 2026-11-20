@@ -66,6 +66,8 @@ export const todoInputSchema = z.object({
   /** Checklist item ids (ordered) that make up this todo's checklist. */
   taskIds: checklistItemIdsSchema.default([]),
   ...contactFields,
+  /** Project: invoiced directly in EF; registrations never create an invoice. */
+  isProject: z.boolean().default(false),
   /** Preferred period, e.g. "2027-04" (to "2027-05"): stored as windowStart/windowEnd. */
   preferredFrom: monthField,
   preferredTo: monthField,
@@ -85,6 +87,7 @@ export const todoUpdateSchema = z.object({
   resources: resourcesSchema.optional(),
   taskIds: checklistItemIdsSchema.optional(),
   ...contactFields,
+  isProject: z.boolean().optional(),
   status: z.enum(["OPEN", "PLANNED", "DONE", "CANCELLED"]).optional(),
 });
 export type TodoUpdate = z.infer<typeof todoUpdateSchema>;
@@ -106,6 +109,8 @@ export interface TodoDto {
   /** Als number geserialiseerd (Prisma Decimal → number in de API-laag). */
   estimatedHours: number;
   status: "OPEN" | "PLANNED" | "DONE" | "CANCELLED";
+  /** Project: invoiced directly in EF, hours only registered here. */
+  isProject: boolean;
   completedAt: string | null;
   /** Gezet voor todo's die uit terugkerend werk gegenereerd zijn. */
   recurringWindowId: number | null;
@@ -149,7 +154,9 @@ export type TodoInvoiceState =
   | "not_synced"
   | "failed"
   | "pending"
-  | "excluded";
+  | "excluded"
+  /** Project with registered work: invoiced directly in EF, not from this app. */
+  | "project";
 
 /** One registered day of a todo (GET /api/todos/:id → registrations). */
 export interface TodoRegistrationDto {
@@ -310,6 +317,15 @@ export function todoPlace(
     street: contact.contactStreet,
     postalCode: contact.contactPostalCode,
   };
+}
+
+/**
+ * Project flag to store: only a customer todo can be a project (a losse todo
+ * is never invoiced anyway). `requested` undefined keeps the current value.
+ */
+export function projectFlagForTodo(customerId: number | null, requested: boolean | undefined, current = false): boolean {
+  if (customerId === null) return false;
+  return requested ?? current;
 }
 
 export const CONTACT_KEYS = ["contactName", "contactStreet", "contactPostalCode", "contactCity"] as const;

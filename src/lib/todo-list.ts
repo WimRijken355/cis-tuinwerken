@@ -130,10 +130,12 @@ function matchesInvoiceFilter(state: TodoInvoiceState, filter: TodoInvoiceFilter
  */
 export function todoInvoiceState(
   days: { invoice: { pushStatus: string; efInvoiceId: number | null; syncExcluded: boolean } | null }[],
+  isProject = false,
 ): TodoInvoiceState {
   if (days.length === 0) return "none";
   const invoices = days.flatMap((d) => (d.invoice ? [d.invoice] : []));
-  if (invoices.length === 0) return "uninvoiced";
+  // A project is invoiced in EF itself: its uninvoiced days are not "to do".
+  if (invoices.length === 0) return isProject ? "project" : "uninvoiced";
   if (invoices.length < days.length) return "partly";
   const states = invoices.map((i): TodoInvoiceState =>
     i.efInvoiceId !== null || i.pushStatus === "CONCEPT_CREATED"
@@ -159,6 +161,7 @@ export const TODO_INVOICE_BADGES: Record<Exclude<TodoInvoiceState, "none">, { la
   failed: { label: "Factuur: push mislukt", cls: "bg-red-100 text-red-800" },
   excluded: { label: "Factuur: niet versturen", cls: "bg-gray-100 text-gray-500" },
   in_ef: { label: "Factuur in EF ✓", cls: "bg-green-100 text-green-800" },
+  project: { label: "Project · factuur via EF", cls: "bg-blue-100 text-blue-800" },
 };
 
 /**

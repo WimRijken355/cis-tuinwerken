@@ -49,6 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       {
         status: todo.status,
         hasCustomer: todo.customer !== null,
+        isProject: todo.isProject,
         plannedBlocks: todo.appointments.filter((a) => a.status === "PLANNED").length,
         registeredDays: completions.length,
         uninvoicedDays: uninvoiced.length,
