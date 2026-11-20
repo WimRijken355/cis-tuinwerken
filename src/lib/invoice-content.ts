@@ -24,6 +24,14 @@ export interface InvoiceContent {
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
+/** Belgian VAT rates an invoice line can have (the choices in the invoice editor). */
+export const VAT_RATES = [0, 6, 12, 21] as const;
+export type VatRate = (typeof VAT_RATES)[number];
+
+export function isVatRate(v: number): v is VatRate {
+  return (VAT_RATES as readonly number[]).includes(v);
+}
+
 /** The EF payload for a content structure. */
 export function itemsFromContent(content: InvoiceContent): EfInvoiceItem[] {
   const items: EfInvoiceItem[] = [];
@@ -99,7 +107,7 @@ export const invoiceContentSchema = z.object({
             .transform(round2),
           unit: z.string().trim().min(1, "Eenheid is verplicht").max(10, "Eenheid max 10 tekens (EF-limiet)"),
           amount: z.coerce.number().min(0, "Prijs kan niet negatief zijn").max(100000).transform(round2),
-          tax_rate: z.coerce.number().refine((v) => [0, 6, 12, 21].includes(v), "Btw: 0, 6, 12 of 21"),
+          tax_rate: z.coerce.number().refine(isVatRate, "Btw: 0, 6, 12 of 21"),
         }),
         remark: z
           .string()

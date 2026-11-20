@@ -4,7 +4,9 @@ import {
   contentFromBuilt,
   contentFromItems,
   invoiceContentSchema,
+  isVatRate,
   itemsFromContent,
+  VAT_RATES,
   rebuildContentKeepingNotes,
   totalOfContent,
   type InvoiceContent,
@@ -82,6 +84,19 @@ describe("invoiceContentSchema", () => {
     expect(() => invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, amount: -1 } }] })).toThrow();
     expect(() => invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, unit: "kubieke meter" } }] })).toThrow();
     expect(() => invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, tax_rate: 15 } }] })).toThrow();
+  });
+
+  it("accepts every rate from the editor's VAT dropdown and carries it to EF and the VAT totals", () => {
+    expect(VAT_RATES).toEqual([0, 6, 12, 21]);
+    for (const rate of VAT_RATES) {
+      const parsed = invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, tax_rate: String(rate) } }] });
+      expect(parsed.lines[0].item.tax_rate).toBe(rate);
+      expect(itemsFromContent(parsed)[0].tax_rate).toBe(rate);
+    }
+    // Changing a line from 21% to 6% moves it to the 6% VAT bucket.
+    const changed = invoiceContentSchema.parse({ lines: [{ item: { ...werkuren, tax_rate: 6 } }] });
+    expect(vatSummary(itemsFromContent(changed)).perRate.map((r) => r.rate)).toEqual([6]);
+    expect(isVatRate(9)).toBe(false);
   });
 });
 

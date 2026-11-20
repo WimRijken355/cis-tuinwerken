@@ -7,7 +7,7 @@ import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, Modal, Spinner, StatusBadge } from "@/components/ui";
 import { VatTotals } from "@/components/vat-totals";
 import { apiGet, apiSend } from "@/lib/api-client";
-import { itemsFromContent, vatSummary, type InvoiceContent } from "@/lib/invoice-content";
+import { itemsFromContent, VAT_RATES, vatSummary, type InvoiceContent } from "@/lib/invoice-content";
 import { parseDecimal } from "@/lib/number";
 import { searchArticles } from "@/lib/registration";
 import type { PriceListItemDto } from "@/lib/schemas/catalog";
@@ -299,7 +299,7 @@ const cellInput =
 
 /**
  * Edits an invoice that is not in EenvoudigFactureren yet: description,
- * quantity and price per line, a remark per line, note lines, and adding /
+ * quantity, price and VAT rate per line, a remark per line, note lines, and adding /
  * removing lines (articles from the price list). Saves the whole content.
  */
 function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone: () => void }) {
@@ -370,7 +370,7 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
               <th className="w-24 px-2 py-2 text-right">Aantal</th>
               <th className="w-16 px-2 py-2">Eenheid</th>
               <th className="w-28 px-2 py-2 text-right">Prijs</th>
-              <th className="w-14 px-2 py-2 text-right">Btw</th>
+              <th className="w-20 px-2 py-2 text-right">Btw</th>
               <th className="w-28 px-2 py-2 text-right">Totaal</th>
               <th className="w-10 px-1 py-2" />
             </tr>
@@ -418,7 +418,21 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
                         className={`${cellInput} text-right tabular-nums`}
                       />
                     </td>
-                    <td className="px-2 pb-1 pt-3.5 text-right tabular-nums text-gray-600">{l.tax_rate}%</td>
+                    <td className="px-2 pb-1 pt-2">
+                      <select
+                        aria-label="Btw-tarief"
+                        value={l.tax_rate}
+                        onChange={(e) => update(l.key, { tax_rate: Number(e.target.value) })}
+                        className={`${cellInput} bg-white text-right tabular-nums`}
+                      >
+                        {/* Keep an unexpected stored rate selectable instead of silently changing it. */}
+                        {[...new Set([...VAT_RATES, l.tax_rate])].map((rate) => (
+                          <option key={rate} value={rate}>
+                            {rate}%
+                          </option>
+                        ))}
+                      </select>
+                    </td>
                     <td className="px-2 pb-1 pt-3.5 text-right font-medium tabular-nums">
                       {Number.isFinite(total) ? euro.format(total) : "–"}
                     </td>
