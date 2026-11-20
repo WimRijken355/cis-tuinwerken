@@ -4,6 +4,7 @@ import {
   ceilToQuarterHour,
   closeJobCheck,
   defaultInvoiceNow,
+  followUpTodoInitial,
   hoursFromTimeRange,
   jobOutcome,
   periodToWindow,
@@ -242,5 +243,32 @@ describe("closeJobCheck", () => {
   it("nothing billable (0 invoiced hours, no articles): no invoice, but closing is fine", () => {
     expect(closeJobCheck({ ...base, hasBillable: false }, true).allowed).toBe(false);
     expect(closeJobCheck({ ...base, hasBillable: false }, false).allowed).toBe(true);
+  });
+});
+
+describe("followUpTodoInitial", () => {
+  const todo = {
+    title: "Haag scheren",
+    estimatedHours: 2,
+    resources: [{ resourceId: 1, name: "Cis", type: "PERSON" as const, hours: 2 }],
+    tasks: [
+      { id: 1, checklistItemId: 10, label: "Snoeien", done: true },
+      { id: 2, checklistItemId: 11, label: "Afvoeren", done: false },
+      { id: 3, checklistItemId: 12, label: "Onkruid", done: true, unplanned: true },
+      { id: 4, checklistItemId: 10, label: "Snoeien", done: true, unplanned: true },
+      { id: 5, checklistItemId: null, label: "Vrije taak", done: true },
+    ],
+  };
+  it("copies title, time and resources", () => {
+    const init = followUpTodoInitial(todo);
+    expect(init.title).toBe("Haag scheren");
+    expect(init.estimatedHours).toBe(2);
+    expect(init.resources).toEqual(todo.resources);
+    expect(init.resources[0]).not.toBe(todo.resources[0]);
+  });
+  it("takes planned + extra checklist tasks once, unticked, without free-text tasks", () => {
+    const init = followUpTodoInitial(todo);
+    expect(init.tasks.map((t) => t.checklistItemId)).toEqual([10, 11, 12]);
+    expect(init.tasks.every((t) => !t.done && !t.unplanned)).toBe(true);
   });
 });

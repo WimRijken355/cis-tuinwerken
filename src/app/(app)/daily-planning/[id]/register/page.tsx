@@ -11,12 +11,19 @@ import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { Button, ErrorNote, Spinner, TextArea, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours } from "@/lib/planning";
-import { buildJobInvoice, ceilToQuarterHour, hoursFromTimeRange, searchArticles } from "@/lib/registration";
+import {
+  buildJobInvoice,
+  ceilToQuarterHour,
+  followUpTodoInitial,
+  hoursFromTimeRange,
+  searchArticles,
+} from "@/lib/registration";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { PriceListItemDto } from "@/lib/schemas/catalog";
 import type { ChecklistItemDto } from "@/lib/schemas/checklist";
 import type { CompletionInput, RegistrationContextDto } from "@/lib/schemas/completions";
 import type { ResourceDto } from "@/lib/schemas/resources";
+import type { TodoDto } from "@/lib/schemas/todos";
 import { formatTime, toBrussels } from "@/lib/time";
 
 /**
@@ -986,7 +993,12 @@ function Nav({
   );
 }
 
-/** Result + last step: a new todo for the same customer (with a preferred period). */
+/**
+ * Result + last step: a new todo for the same customer (with a preferred
+ * period). By default it proposes the same work again (title, time,
+ * resources, checklist of the todo just registered — followUpTodoInitial);
+ * the switch clears the form for something different.
+ */
 function ResultAndFollowUp({
   appointment,
   result,
@@ -998,6 +1010,25 @@ function ResultAndFollowUp({
 }) {
   const router = useRouter();
   const [created, setCreated] = useState(false);
+  const [copyCurrent, setCopyCurrent] = useState(true);
+  // Fresh copy of the todo: includes the extra tasks just registered.
+  const { data: freshTodo } = useQuery({
+    queryKey: ["todo", appointment.todoId],
+    queryFn: () => apiGet<TodoDto>(`/api/todos/${appointment.todoId}`),
+  });
+  const source = freshTodo
+    ? {
+        title: freshTodo.title,
+        estimatedHours: freshTodo.estimatedHours,
+        resources: freshTodo.resources ?? [],
+        tasks: freshTodo.tasks ?? [],
+      }
+    : {
+        title: appointment.todoTitle,
+        estimatedHours: appointment.estimatedHours,
+        resources: appointment.resources,
+        tasks: appointment.tasks,
+      };
   const createMutation = useMutation({
     mutationFn: (values: TodoFormValues) =>
       apiSend("/api/todos", "POST", { ...values, customerId: appointment.customerId }),
@@ -1049,13 +1080,29 @@ function ResultAndFollowUp({
         {created ? (
           <p className="text-sm text-green-700">✓ Todo aangemaakt — hij staat bij &quot;In te plannen&quot;.</p>
         ) : (
-          <TodoForm
-            submitLabel="Todo aanmaken"
-            busy={createMutation.isPending}
-            error={createMutation.error ? (createMutation.error as Error).message : null}
-            onSubmit={(values) => createMutation.mutate(values)}
-            showPeriod
-          />
+          <>
+            <label className="mb-3 flex items-start justify-between gap-3 rounded-md bg-gray-50 px-3 py-2">
+              <span>
+                <span className="block text-sm font-medium">Gegevens van deze todo overnemen</span>
+                <span className="block text-xs text-gray-500">
+                  {copyCurrent
+                    ? "Zelfde werk: omschrijving, tijd, resources en checklist zijn al ingevuld."
+                    : "Leeg formulier voor ander werk."}
+                </span>
+              </span>
+              <Toggle checked={copyCurrent} onChange={setCopyCurrent} label="Gegevens van deze todo overnemen" />
+            </label>
+            <TodoForm
+              // Remount when the switch flips or the fresh todo arrives, so the defaults apply.
+              key={`${copyCurrent}-${freshTodo ? "fresh" : "block"}`}
+              initial={copyCurrent ? followUpTodoInitial(source) : undefined}
+              submitLabel="Todo aanmaken"
+              busy={createMutation.isPending}
+              error={createMutation.error ? (createMutation.error as Error).message : null}
+              onSubmit={(values) => createMutation.mutate(values)}
+              showPeriod
+            />
+          </>
         )}
       </section>
 

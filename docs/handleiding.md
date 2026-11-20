@@ -59,7 +59,9 @@ dan als een echte app, zonder adresbalk.
      info). Per regel kan je een opmerking toevoegen, en onderaan extra
      opmerkingsregels; die gaan mee naar EenvoudigFactureren.
 3. **Klaar!** Daarna kan je meteen een nieuwe todo voor de klant maken, met
-   een voorkeursperiode (bv. april 2027). De conceptfactuur staat in
+   een voorkeursperiode (bv. april 2027). Standaard staat **Gegevens van deze
+   todo overnemen** aan: omschrijving, tijd, resources en checklist zijn dan al
+   ingevuld (handig voor terugkerend werk). Zet het uit voor een leeg formulier. De conceptfactuur staat in
    EenvoudigFactureren. Daar kijk je ze na en maak je ze definitief.
    Lukte de push niet (bv. geen internet bij EenvoudigFactureren)? Geen
    probleem: je registratie is bewaard — ga later naar **Facturen** en tik

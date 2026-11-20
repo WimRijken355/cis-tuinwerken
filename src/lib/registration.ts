@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import type { EfInvoiceItem } from "./ef/types";
 import { normalize } from "./planning";
+import type { TodoResourceDto, TodoTaskDto } from "./schemas/todos";
 import { ZONE } from "./time";
 
 /**
@@ -336,4 +337,31 @@ export function searchArticles<T extends { id: number; name: string }>(
     .filter((i) => words.every((w) => normalize(i.name).includes(w)))
     .sort((a, b) => a.name.localeCompare(b.name, "nl-BE"));
   return { results: matches.slice(0, limit), more: matches.length > limit };
+}
+
+/**
+ * Proposal for the follow-up todo at the end of a registration ("Nieuwe todo
+ * voor …?"): the same work again — title, total time, resources with their
+ * hours, and the checklist (planned tasks plus the extra tasks done this
+ * time, each once, all unticked). Free-text tasks without checklist item are
+ * left out (the checklist picker only knows checklist items).
+ */
+export function followUpTodoInitial(todo: {
+  title: string;
+  estimatedHours: number;
+  resources: TodoResourceDto[];
+  tasks: TodoTaskDto[];
+}): { title: string; estimatedHours: number; resources: TodoResourceDto[]; tasks: TodoTaskDto[] } {
+  const seen = new Set<number>();
+  const tasks = todo.tasks.filter((t) => {
+    if (t.checklistItemId === null || seen.has(t.checklistItemId)) return false;
+    seen.add(t.checklistItemId);
+    return true;
+  });
+  return {
+    title: todo.title,
+    estimatedHours: todo.estimatedHours,
+    resources: todo.resources.map((r) => ({ ...r })),
+    tasks: tasks.map((t) => ({ ...t, done: false, unplanned: false })),
+  };
 }
