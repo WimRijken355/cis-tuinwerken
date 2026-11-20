@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { ActionButton } from "@/components/action-button";
 import { Button, ErrorNote, Field, Modal, PageHeader, Spinner, TextInput } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { useCurrentUser } from "@/lib/auth-client";
@@ -71,9 +72,10 @@ export default function UsersPage() {
                 <p className="truncate font-medium">{u.username}</p>
                 <p className={`truncate text-sm ${u.email.endsWith(".invalid") ? "text-red-600" : "text-gray-600"}`}>
                   {u.email.endsWith(".invalid") ? "⚠ Nog geen e-mailadres ingesteld" : u.email}{" "}
-                  <button
-                    type="button"
-                    className="text-brand-600 hover:underline"
+                  <ActionButton
+                    action="edit"
+                    iconOnly
+                    label="E-mailadres bewerken"
                     disabled={updateMutation.isPending}
                     onClick={() => {
                       const email = window.prompt(`E-mailadres van ${u.username}`, u.email.endsWith(".invalid") ? "" : u.email);
@@ -81,9 +83,7 @@ export default function UsersPage() {
                         updateMutation.mutate({ id: u.id, email: email.trim() });
                       }
                     }}
-                  >
-                    ✏️ wijzigen
-                  </button>
+                  />
                 </p>
                 <p className="truncate text-sm text-gray-500">
                   Sinds {formatDateShort(u.createdAt)} ·{" "}
@@ -105,8 +105,8 @@ export default function UsersPage() {
                     </option>
                   ))}
                 </select>
-                <Button
-                  variant="danger"
+                <ActionButton
+                  action="delete"
                   disabled={deleteMutation.isPending || u.id === me?.user?.id}
                   title={u.id === me?.user?.id ? "Je kan jezelf niet verwijderen" : undefined}
                   onClick={() => {
@@ -114,9 +114,7 @@ export default function UsersPage() {
                       deleteMutation.mutate(u.id);
                     }
                   }}
-                >
-                  Verwijderen
-                </Button>
+                />
               </div>
             </li>
           ))}

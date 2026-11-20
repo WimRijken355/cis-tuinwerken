@@ -3,6 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiGet, apiSend } from "@/lib/api-client";
+import { ActionButton } from "./action-button";
+import { toggleActiveAction } from "./action-icons";
 import { Button, ErrorNote, TextInput } from "./ui";
 
 interface SortableItem {
@@ -131,33 +133,24 @@ export function SortableListManager({
               ) : (
                 <>
                   <span className={`flex-1 ${item.active ? "" : "text-gray-400 line-through"}`}>{item.name}</span>
-                  <div className="flex shrink-0 gap-3 text-xs">
-                    <button
-                      type="button"
-                      className="text-brand-600 hover:underline"
+                  <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                    <ActionButton
+                      action="rename"
                       onClick={() => {
                         setEditingId(item.id);
                         setEditName(item.name);
                       }}
-                    >
-                      Hernoemen
-                    </button>
-                    <button
-                      type="button"
-                      className="text-brand-600 hover:underline"
+                    />
+                    <ActionButton
+                      action={toggleActiveAction(item.active)}
                       onClick={() => patchMutation.mutate({ id: item.id, data: { active: !item.active } })}
-                    >
-                      {item.active ? "Deactiveren" : "Activeren"}
-                    </button>
-                    <button
-                      type="button"
-                      className="text-red-500 hover:underline"
+                    />
+                    <ActionButton
+                      action="delete"
                       onClick={() => {
                         if (confirm(`"${item.name}" verwijderen?`)) deleteMutation.mutate(item.id);
                       }}
-                    >
-                      Verwijderen
-                    </button>
+                    />
                   </div>
                 </>
               )}

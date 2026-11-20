@@ -8,6 +8,7 @@ import { useState } from "react";
 import { HoursStepper } from "@/components/hours-stepper";
 import { SendToEfButton } from "@/components/invoice-detail";
 import type { TodoDetail } from "@/components/planning/planning-dialogs";
+import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, StatusBadge } from "@/components/ui";
 import { apiSend } from "@/lib/api-client";
 import { closeJobCheck } from "@/lib/registration";
@@ -241,7 +242,7 @@ export function TodoDetailExtra({
                 if (window.confirm(`Todo "${todo.title}" definitief verwijderen?`)) deleteMutation.mutate();
               }}
             >
-              🗑 Verwijderen
+              {ACTION_ICONS.delete} Verwijderen
             </Button>
           )}
         </div>
@@ -337,7 +338,7 @@ function RegistrationCard({
           }}
           className="mt-1 min-h-9 text-xs font-medium text-brand-700 hover:underline"
         >
-          ✏️ Te factureren uren aanpassen
+          {ACTION_ICONS.edit} Te factureren uren bewerken
         </button>
       )}
       {editing && (

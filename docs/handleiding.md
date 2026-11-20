@@ -150,7 +150,7 @@ gefactureerd", "Factuur niet in EF", "Factuur in EF ✓", …).
   en of die dag al op een factuur staat. Staat er niets meer gepland, dan kan
   je de job hier ook **Factureren en afsluiten** of **Afsluiten zonder factuur**.
 - Zolang een dag niet in EenvoudigFactureren staat, kan je met **✏️ Te
-  factureren uren aanpassen** de gefactureerde uren nog wijzigen (bv. als ze bij
+  factureren uren bewerken** de gefactureerde uren nog wijzigen (bv. als ze bij
   het klaarmelden op 0 stonden). Staat die dag al op een factuur die nog niet
   verstuurd is, dan wordt die factuur opnieuw opgebouwd (opmerkingen en
   notities blijven). Daarna factureer je met **Nu factureren** en stuur je de
@@ -186,7 +186,7 @@ een regel voor de details: exact wat naar EenvoudigFactureren ging, en per dag d
 resource (geregistreerd en gefactureerd) waaruit "Werkuren op …" is opgebouwd,
 en het totaal excl. en incl. btw. Zolang de factuur nog niet in
 EenvoudigFactureren staat ("Niet gesynchroniseerd" of "Push mislukt"), kan je
-ze daar met **✏️ Aanpassen** wijzigen: aantallen, prijzen en omschrijvingen,
+ze daar met **✏️ Bewerken** wijzigen: aantallen, prijzen en omschrijvingen,
 een opmerking per regel, opmerkingsregels, en artikels toevoegen of regels
 verwijderen.
 De status per factuur:
@@ -252,6 +252,12 @@ uitklapbaar submenu, op je gsm via **Meer** en dan de tabbladen bovenaan.
 Goed om te weten: tarieven worden **vastgeklikt per registratie**. Verhoog je
 later je uurtarief of een prijs, dan veranderen oude registraties en facturen
 dus niet mee.
+
+## Knoppen en iconen
+
+Overal in de app betekenen dezelfde iconen hetzelfde: ✏️ bewerken, 🏷️ hernoemen,
+⏸️ deactiveren / ▶️ activeren en 🗑️ verwijderen (ook een regel uit een lijst).
+✕ sluit enkel een venster.
 
 ## Veelgestelde vragen
 

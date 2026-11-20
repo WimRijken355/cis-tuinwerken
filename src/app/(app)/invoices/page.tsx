@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ActionButton } from "@/components/action-button";
 import { InvoiceDetailDialog } from "@/components/invoice-detail";
 import { FilterBar, FilterField, Pagination, selectClass } from "@/components/pagination";
 import { Button, EmptyState, ErrorNote, PageHeader, Spinner, StatusBadge, Toggle } from "@/components/ui";
@@ -335,15 +336,12 @@ export default function InvoicesPage() {
                         )}
                       </td>
                       <td className="px-2 py-1.5 text-right">
-                        <button
-                          type="button"
+                        <ActionButton
+                          action="edit"
+                          iconOnly
+                          label="Details bekijken / bewerken"
                           onClick={() => setDetailId(inv.id)}
-                          title="Details bekijken / aanpassen"
-                          aria-label="Details"
-                          className="rounded-md px-2 py-1 hover:bg-gray-100"
-                        >
-                          ✏️
-                        </button>
+                        />
                       </td>
                     </tr>
                   );

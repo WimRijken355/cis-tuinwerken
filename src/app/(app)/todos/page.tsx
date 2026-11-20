@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { ActionButton } from "@/components/action-button";
 import { FilterBar, FilterField, Pagination, selectClass } from "@/components/pagination";
 import { CreateTodoDialog, TodoEditDialog } from "@/components/planning/planning-dialogs";
 import { TodoDetailExtra } from "@/components/todo-detail-extra";
@@ -263,15 +264,12 @@ export default function TodosPage() {
                         {formatDateShort(t.createdAt)}
                       </td>
                       <td className="px-2 py-1.5 text-right">
-                        <button
-                          type="button"
+                        <ActionButton
+                          action="edit"
+                          iconOnly
+                          label="Details bekijken / bewerken"
                           onClick={() => setDetailId(t.id)}
-                          title="Details bekijken / bewerken"
-                          aria-label="Details"
-                          className="rounded-md px-2 py-1 hover:bg-gray-100"
-                        >
-                          ✏️
-                        </button>
+                        />
                       </td>
                     </tr>
                   );

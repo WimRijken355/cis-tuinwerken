@@ -1,5 +1,6 @@
 "use client";
 
+import { ACTION_ICONS } from "@/components/action-icons";
 import { dayLoad, formatMinutesAsHours, partLabel, todoColor, WORKDAY_MINUTES } from "@/lib/planning";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { TodoDto, TodoResourceDto } from "@/lib/schemas/todos";
@@ -255,7 +256,7 @@ export function SidebarTodoCard({
               }}
               className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
             >
-              ✏️ Bewerken
+              {ACTION_ICONS.edit} Bewerken
             </button>
           )}
           {blocks > 0 && onGoToBlock && (

@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { ActionButton } from "@/components/action-button";
+import { ACTION_ICONS } from "@/components/action-icons";
 import { CustomerForm } from "@/components/customer-form";
 import { RecurringSection } from "@/components/recurring-section";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
@@ -88,7 +90,7 @@ export default function CustomerDetailPage() {
         actions={
           <>
             <Button variant="secondary" onClick={() => setShowEdit(true)}>
-              Bewerken
+              {ACTION_ICONS.edit} Bewerken
             </Button>
             <Button
               variant="secondary"
@@ -146,7 +148,7 @@ export default function CustomerDetailPage() {
             }}
             disabled={deleteMutation.isPending}
           >
-            Klant verwijderen
+            {ACTION_ICONS.delete} Klant verwijderen
           </Button>
         </section>
 
@@ -273,22 +275,9 @@ function TodoSection({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <StatusBadge status={t.status} />
-                  <button
-                    type="button"
-                    className="text-xs text-brand-600 hover:underline"
-                    onClick={() => setEditing(t)}
-                  >
-                    Bewerken
-                  </button>
+                  <ActionButton action="edit" onClick={() => setEditing(t)} />
                   {t.status === "OPEN" && (
-                    <button
-                      type="button"
-                      className="text-sm text-gray-400 hover:text-red-600"
-                      title="Verwijderen"
-                      onClick={() => deleteTodo.mutate(t.id)}
-                    >
-                      🗑
-                    </button>
+                    <ActionButton action="delete" iconOnly label="Todo verwijderen" onClick={() => deleteTodo.mutate(t.id)} />
                   )}
                 </div>
               </li>

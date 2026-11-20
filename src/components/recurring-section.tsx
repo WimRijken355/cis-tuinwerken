@@ -9,6 +9,7 @@ import {
   windowLabel,
 } from "@/lib/schemas/recurring";
 import { apiSend } from "@/lib/api-client";
+import { ActionButton } from "./action-button";
 import { Button, ErrorNote, Field, Modal, TextInput } from "./ui";
 import {
   ChecklistPicker,
@@ -79,25 +80,16 @@ export function RecurringSection({
                   <ResourceSummary resources={t.resources} />
                 </div>
               </div>
-              <div className="flex shrink-0 gap-2 text-xs">
-                <button
-                  type="button"
-                  className="text-brand-600 hover:underline"
-                  onClick={() => setEditing(t)}
-                >
-                  Bewerken
-                </button>
-                <button
-                  type="button"
-                  className="text-red-500 hover:underline"
+              <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                <ActionButton action="edit" onClick={() => setEditing(t)} />
+                <ActionButton
+                  action="delete"
                   onClick={() => {
                     if (confirm(`"${t.title}" verwijderen? Al aangemaakte todo's blijven staan.`)) {
                       deleteMutation.mutate(t.id);
                     }
                   }}
-                >
-                  Verwijderen
-                </button>
+                />
               </div>
             </li>
           ))}
@@ -235,14 +227,12 @@ function RecurringFormModal({
                   {windowLabel(w.startMonth, w.endMonth)}
                 </span>
                 {windows.length > 1 && (
-                  <button
-                    type="button"
-                    className="text-gray-400 hover:text-red-600"
+                  <ActionButton
+                    action="delete"
+                    iconOnly
+                    label="Periode verwijderen"
                     onClick={() => setWindows((ws) => ws.filter((_, j) => j !== i))}
-                    aria-label="Periode verwijderen"
-                  >
-                    ✕
-                  </button>
+                  />
                 )}
               </div>
             ))}

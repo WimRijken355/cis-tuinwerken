@@ -8,6 +8,8 @@ import { HoursStepper } from "@/components/hours-stepper";
 import { VatTotals } from "@/components/vat-totals";
 import { vatSummary } from "@/lib/invoice-content";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
+import { ActionButton } from "@/components/action-button";
+import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, Spinner, TextArea, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours } from "@/lib/planning";
@@ -450,13 +452,13 @@ function RegisterFlow({
                             className="text-base"
                           />
                         </label>
-                        <button
-                          type="button"
+                        <ActionButton
+                          action="delete"
+                          iconOnly
+                          label="Artikel verwijderen"
+                          className="mt-5 min-h-10 text-base"
                           onClick={() => setExtras((list) => list.filter((y) => y.priceListItemId !== x.priceListItemId))}
-                          className="mt-5 shrink-0 rounded-md px-2 py-1 text-xs text-red-500 active:bg-red-50"
-                        >
-                          verwijderen
-                        </button>
+                        />
                       </div>
                       {x.description.trim() !== x.originalName && (
                         <p className="mt-0.5 text-xs text-gray-400">
@@ -719,7 +721,7 @@ function RegisterFlow({
                             onClick={() => setOpenRemark(line.key)}
                             className="mt-1 block w-full rounded bg-gray-50 px-2 py-1 text-left text-xs italic text-gray-700"
                           >
-                            💬 {line.remark} <span className="not-italic text-brand-600">· wijzigen</span>
+                            💬 {line.remark} <span className="not-italic text-brand-600">· {ACTION_ICONS.edit} bewerken</span>
                           </button>
                         ) : (
                           <button
@@ -754,14 +756,13 @@ function RegisterFlow({
                       onChange={(e) => setInvoiceNotes((list) => list.map((x, j) => (j === i ? e.target.value : x)))}
                       className="text-base"
                     />
-                    <button
-                      type="button"
-                      aria-label="Opmerkingsregel verwijderen"
+                    <ActionButton
+                      action="delete"
+                      iconOnly
+                      label="Opmerkingsregel verwijderen"
+                      className="min-h-10 text-base"
                       onClick={() => setInvoiceNotes((list) => list.filter((_, j) => j !== i))}
-                      className="shrink-0 rounded-md px-2 text-red-500 active:bg-red-50"
-                    >
-                      ✕
-                    </button>
+                    />
                   </div>
                 ))}
                 <button
@@ -861,11 +862,12 @@ function ResourceHours({
   line,
   onChange,
   onRemove,
-  removeLabel = "verwijderen",
+  removeLabel,
 }: {
   line: ResourceLine;
   onChange: (patch: Partial<ResourceLine>) => void;
   onRemove?: () => void;
+  /** Custom text instead of the delete icon (e.g. "niet mee" for a planned resource). */
   removeLabel?: string;
 }) {
   return (
@@ -874,7 +876,7 @@ function ResourceHours({
         <p className="font-medium">
           {line.type === "PERSON" ? "👷" : "🚜"} {line.name}
         </p>
-        {onRemove && (
+        {onRemove && removeLabel && (
           <button
             type="button"
             onClick={onRemove}
@@ -882,6 +884,9 @@ function ResourceHours({
           >
             {removeLabel}
           </button>
+        )}
+        {onRemove && !removeLabel && (
+          <ActionButton action="delete" iconOnly label={`${line.name} verwijderen`} className="min-h-10 text-base" onClick={onRemove} />
         )}
       </div>
       {line.info && <p className="text-xs text-gray-400">{line.info}</p>}

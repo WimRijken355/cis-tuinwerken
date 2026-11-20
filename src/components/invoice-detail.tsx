@@ -2,6 +2,8 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useMemo, useState } from "react";
+import { ActionButton } from "@/components/action-button";
+import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, Modal, Spinner, StatusBadge } from "@/components/ui";
 import { VatTotals } from "@/components/vat-totals";
 import { apiGet, apiSend } from "@/lib/api-client";
@@ -34,7 +36,7 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: { invoiceId: number;
 
   return (
     <Modal
-      title={data ? `${editing ? "Factuur aanpassen" : "Factuur"} — ${data.customerName}` : "Factuur"}
+      title={data ? `${editing ? "Factuur bewerken" : "Factuur"} — ${data.customerName}` : "Factuur"}
       open
       onClose={onClose}
       wide
@@ -128,7 +130,7 @@ function InvoiceDetail({ invoice: inv, onEdit }: { invoice: InvoiceDetailDto; on
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
           {inv.editable && (
             <Button variant="secondary" onClick={onEdit}>
-              ✏️ Aanpassen
+              {ACTION_ICONS.edit} Bewerken
             </Button>
           )}
           <SendToEfButton invoice={inv} />
@@ -421,15 +423,12 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
                       {Number.isFinite(total) ? euro.format(total) : "–"}
                     </td>
                     <td className="px-1 pb-1 pt-2 text-center">
-                      <button
-                        type="button"
-                        aria-label="Regel verwijderen"
-                        title="Regel verwijderen"
+                      <ActionButton
+                        action="delete"
+                        iconOnly
+                        label="Regel verwijderen"
                         onClick={() => setLines((list) => list.filter((x) => x.key !== l.key))}
-                        className="rounded px-1.5 py-1 text-red-500 hover:bg-red-50"
-                      >
-                        ✕
-                      </button>
+                      />
                     </td>
                   </tr>
                   {l.remarkOpen && (
@@ -448,15 +447,12 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
                         </div>
                       </td>
                       <td className="px-1 pb-2 text-center">
-                        <button
-                          type="button"
-                          aria-label="Opmerking verwijderen"
-                          title="Opmerking verwijderen"
+                        <ActionButton
+                          action="delete"
+                          iconOnly
+                          label="Opmerking verwijderen"
                           onClick={() => update(l.key, { remark: "", remarkOpen: false })}
-                          className="rounded px-1.5 py-1 text-gray-400 hover:bg-gray-100"
-                        >
-                          ✕
-                        </button>
+                        />
                       </td>
                     </tr>
                   )}
@@ -480,14 +476,12 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
                   </div>
                 </td>
                 <td className="px-1 py-1.5 text-center">
-                  <button
-                    type="button"
-                    aria-label="Opmerkingsregel verwijderen"
+                  <ActionButton
+                    action="delete"
+                    iconOnly
+                    label="Opmerkingsregel verwijderen"
                     onClick={() => setNotes((list) => list.filter((_, j) => j !== i))}
-                    className="rounded px-1.5 py-1 text-red-500 hover:bg-red-50"
-                  >
-                    ✕
-                  </button>
+                  />
                 </td>
               </tr>
             ))}

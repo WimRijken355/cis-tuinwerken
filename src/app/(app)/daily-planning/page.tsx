@@ -12,6 +12,7 @@ import { TodoChecklist } from "@/components/work-pickers";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours, partLabel, todoColor } from "@/lib/planning";
 import { todoChangedQueryKeys } from "@/lib/query-keys";
+import { ACTION_ICONS } from "@/components/action-icons";
 import { registerHref } from "@/lib/register-link";
 import { type AppointmentDto, wazeUrl } from "@/lib/schemas/appointments";
 import type { TodoTaskDto } from "@/lib/schemas/todos";
@@ -172,7 +173,7 @@ function DailyPlanning() {
                     onClick={() => setEditTodoId(a.todoId)}
                     className="mt-3 w-full rounded-md border border-gray-300 py-2.5 text-sm text-gray-700 active:bg-gray-50"
                   >
-                    ✏️ Todo bewerken (omschrijving, checklist, resources…)
+                    {ACTION_ICONS.edit} Todo bewerken (omschrijving, checklist, resources…)
                   </button>
                 </div>
               )}
@@ -197,7 +198,7 @@ function DailyPlanning() {
                   title="Todo bewerken"
                   className="w-11 shrink-0 rounded-md border border-gray-300 py-2.5 text-sm active:bg-gray-50"
                 >
-                  ✏️
+                  {ACTION_ICONS.edit}
                 </button>
                 {a.status === "PLANNED" && (
                   <button

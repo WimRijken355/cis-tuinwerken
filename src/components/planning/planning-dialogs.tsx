@@ -4,6 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { DurationInput } from "@/components/duration-input";
 import { EMPTY_CONTACT, TodoEditor, type TodoEditorPayload } from "@/components/todo-editor";
+import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, Field, Modal, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours, partLabel, roundToQuarter, splitOverWorkdays, WORKDAY_MINUTES } from "@/lib/planning";
@@ -76,7 +77,7 @@ export function AppointmentDialog({
             onClick={onEditTodo}
             className="mt-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
           >
-            ✏️ Todo bewerken (klant, checklist, resources…)
+            {ACTION_ICONS.edit} Todo bewerken (klant, checklist, resources…)
           </button>
         )}
       </div>
@@ -135,7 +136,7 @@ export function AppointmentDialog({
       <div className="mt-4 flex justify-between">
         {editable ? (
           <Button variant="danger" onClick={() => removeMutation.mutate()} disabled={removeMutation.isPending}>
-            Uit planning halen
+            {ACTION_ICONS.delete} Uit planning halen
           </Button>
         ) : (
           <span />

@@ -13,6 +13,8 @@ import {
   Spinner,
   TextInput,
 } from "@/components/ui";
+import { ActionButton } from "@/components/action-button";
+import { toggleActiveAction } from "@/components/action-icons";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import {
@@ -240,13 +242,9 @@ function RowActions({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex shrink-0 gap-3 text-xs">
-      <button type="button" className="text-brand-600 hover:underline" onClick={onEdit}>
-        Bewerken
-      </button>
-      <button type="button" className="text-brand-600 hover:underline" onClick={onToggle}>
-        {resource.active ? "Deactiveren" : "Activeren"}
-      </button>
+    <div className="flex shrink-0 flex-wrap justify-end gap-1">
+      <ActionButton action="edit" onClick={onEdit} />
+      <ActionButton action={toggleActiveAction(resource.active)} onClick={onToggle} />
     </div>
   );
 }

@@ -13,6 +13,8 @@ import {
   Spinner,
   TextInput,
 } from "@/components/ui";
+import { ActionButton } from "@/components/action-button";
+import { toggleActiveAction } from "@/components/action-icons";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import type { PriceListItemListDto, PriceListResponse } from "@/lib/schemas/catalog";
@@ -259,9 +261,7 @@ function ActiveBadge({ active }: { active: boolean }) {
 
 function ToggleButton({ item, onToggle }: { item: PriceListItemListDto; onToggle: () => void }) {
   return (
-    <button type="button" className="shrink-0 text-xs text-brand-600 hover:underline" onClick={onToggle}>
-      {item.active ? "Deactiveren" : "Activeren"}
-    </button>
+    <ActionButton action={toggleActiveAction(item.active)} onClick={onToggle} />
   );
 }
 
