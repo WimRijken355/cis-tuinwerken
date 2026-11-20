@@ -69,6 +69,8 @@ export async function GET(
             type: l.resourceType ?? "PERSON",
             registeredHours: Number(l.registeredHours),
             invoicedHours: Number(l.invoicedHours),
+            rateUnit: l.rateUnit,
+            invoicedDays: l.invoicedDays === null ? null : Number(l.invoicedDays),
           })),
           extras: c.extraCharges.map((e) => ({
             description: e.description,

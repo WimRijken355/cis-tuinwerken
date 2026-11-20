@@ -60,7 +60,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     const rebuilt = await db.$transaction(async (tx) => {
       for (const e of entries) {
-        await tx.laborEntry.update({ where: { id: e.laborEntryId }, data: { invoicedHours: e.invoicedHours } });
+        // Day-rate lines are charged in days, the others in hours.
+        const line = labor.find((l) => l.id === e.laborEntryId)!;
+        const data =
+          line.rateUnit === "DAY"
+            ? { invoicedDays: e.invoicedDays ?? Number(line.invoicedDays ?? 0) }
+            : { invoicedHours: e.invoicedHours ?? Number(line.invoicedHours) };
+        await tx.laborEntry.update({ where: { id: e.laborEntryId }, data });
       }
       const result: { id: number; totalExclVat: number }[] = [];
       for (const invoiceId of invoices.keys()) {

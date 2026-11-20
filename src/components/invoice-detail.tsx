@@ -236,12 +236,17 @@ function InvoiceDetail({ invoice: inv, onEdit }: { invoice: InvoiceDetailDto; on
                             <td className="px-3 py-1 text-right tabular-nums text-gray-500">{hours(l.registeredHours)}</td>
                             <td
                               className={`px-3 py-1 text-right tabular-nums ${
-                                l.invoicedHours !== l.registeredHours ? "font-semibold text-amber-700" : ""
+                                l.rateUnit !== "DAY" && l.invoicedHours !== l.registeredHours ? "font-semibold text-amber-700" : ""
                               }`}
                             >
-                              {hours(l.invoicedHours)}
+                              {l.rateUnit === "DAY"
+                                ? `${show(l.invoicedDays ?? 0)} ${l.invoicedDays === 1 ? "dag" : "dagen"}`
+                                : hours(l.invoicedHours)}
                             </td>
-                            <td className="px-3 py-1 text-right tabular-nums text-gray-500">{euro.format(l.hourlyRate)}/u</td>
+                            <td className="px-3 py-1 text-right tabular-nums text-gray-500">
+                              {euro.format(l.hourlyRate)}
+                              {l.rateUnit === "DAY" ? "/dag" : "/u"}
+                            </td>
                           </tr>
                         ))}
                         {day.extras.map((e, i) => (

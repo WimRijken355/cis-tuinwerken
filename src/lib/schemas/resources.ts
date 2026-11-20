@@ -16,10 +16,24 @@ export const RESOURCE_TYPE_LABELS: Record<ResourceType, string> = {
   MACHINE: "Machine",
 };
 
+export const RATE_UNITS = ["HOUR", "DAY"] as const;
+export type RateUnit = (typeof RATE_UNITS)[number];
+
+/** Dutch labels: "per uur" / "per dag", and the short suffix after an amount ("/uur", "/dag"). */
+export const RATE_UNIT_LABELS: Record<RateUnit, string> = { HOUR: "per uur", DAY: "per dag" };
+export const RATE_UNIT_SUFFIX: Record<RateUnit, string> = { HOUR: "/uur", DAY: "/dag" };
+
+/** Unit a new resource of this type starts with: machines usually have a day rate. */
+export function defaultRateUnit(type: ResourceType): RateUnit {
+  return type === "MACHINE" ? "DAY" : "HOUR";
+}
+
 export const resourceInputSchema = z.object({
   name: z.string().trim().min(1, "Naam is verplicht").max(100),
   type: z.enum(RESOURCE_TYPES).default("PERSON"),
-  hourlyRate: z.coerce.number().min(0, "Tarief kan niet negatief zijn").max(1000),
+  /** The rate per `rateUnit` (hour or day); stored in the column `hourlyRate`. */
+  hourlyRate: z.coerce.number().min(0, "Tarief kan niet negatief zijn").max(5000),
+  rateUnit: z.enum(RATE_UNITS).default("HOUR"),
   active: z.boolean().default(true),
 });
 export type ResourceInput = z.infer<typeof resourceInputSchema>;
@@ -28,7 +42,8 @@ export type ResourceInput = z.infer<typeof resourceInputSchema>;
 export const resourceUpdateSchema = z.object({
   name: z.string().trim().min(1, "Naam is verplicht").max(100).optional(),
   type: z.enum(RESOURCE_TYPES).optional(),
-  hourlyRate: z.coerce.number().min(0, "Tarief kan niet negatief zijn").max(1000).optional(),
+  hourlyRate: z.coerce.number().min(0, "Tarief kan niet negatief zijn").max(5000).optional(),
+  rateUnit: z.enum(RATE_UNITS).optional(),
   active: z.boolean().optional(),
 });
 
@@ -36,7 +51,9 @@ export interface ResourceDto {
   id: number;
   name: string;
   type: ResourceType;
+  /** The rate per `rateUnit`. */
   hourlyRate: number;
+  rateUnit: RateUnit;
   active: boolean;
 }
 

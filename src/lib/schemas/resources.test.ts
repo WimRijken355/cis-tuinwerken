@@ -4,6 +4,7 @@ import {
   resourceInputSchema,
   resourceListQuerySchema,
   resourceUpdateSchema,
+  defaultRateUnit,
 } from "./resources";
 
 describe("resourceInputSchema", () => {
@@ -12,8 +13,16 @@ describe("resourceInputSchema", () => {
       name: "Jan",
       type: "PERSON",
       hourlyRate: 35,
+      rateUnit: "HOUR",
       active: true,
     });
+  });
+
+  it("a machine usually has a day rate; the unit is stored with the resource", () => {
+    expect(defaultRateUnit("MACHINE")).toBe("DAY");
+    expect(defaultRateUnit("PERSON")).toBe("HOUR");
+    expect(resourceInputSchema.parse({ name: "Minigraver", type: "MACHINE", hourlyRate: 180, rateUnit: "DAY" }).rateUnit).toBe("DAY");
+    expect(resourceUpdateSchema.parse({ name: "x" }).rateUnit).toBeUndefined();
   });
 
   it("accepts a machine and rejects unknown types, empty names and negative rates", () => {

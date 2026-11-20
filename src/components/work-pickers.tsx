@@ -45,7 +45,7 @@ export function ResourcePicker({
 
   const inactiveSelected: ResourceDto[] = initial
     .filter((r) => !active?.some((a) => a.id === r.resourceId))
-    .map((r) => ({ id: r.resourceId, name: r.name, type: r.type, hourlyRate: 0, active: false }));
+    .map((r) => ({ id: r.resourceId, name: r.name, type: r.type, hourlyRate: 0, rateUnit: "HOUR" as const, active: false }));
   const resources = [...(active ?? []), ...inactiveSelected];
 
   function toggle(id: number) {

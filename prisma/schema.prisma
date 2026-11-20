@@ -347,7 +347,12 @@ model LaborEntry {
   workerName      String?
   registeredHours Decimal       @db.Decimal(5, 2)
   invoicedHours   Decimal       @db.Decimal(5, 2)
+  /// Snapshot of the resource's rate (per `rateUnit`) at registration.
   hourlyRate      Decimal       @db.Decimal(8, 2)
+  /// DAY = day rate: the invoice charges `invoicedDays` days (invoicedHours
+  /// then just follows the worked hours, for reporting).
+  rateUnit        RateUnit      @default(HOUR)
+  invoicedDays    Decimal?      @db.Decimal(4, 2)
   vatRate         Decimal       @db.Decimal(4, 2)
 
   completion Completion @relation(fields: [completionId], references: [id], onDelete: Cascade)
@@ -369,7 +374,9 @@ model Resource {
   id         Int          @id @default(autoincrement())
   name       String
   type       ResourceType @default(PERSON)
+  /// The rate per `rateUnit` (an hourly rate, or a day rate for most machines).
   hourlyRate Decimal      @db.Decimal(8, 2)
+  rateUnit   RateUnit     @default(HOUR)
   active     Boolean      @default(true)
   /// Created by the demo data (machines); removed again when demo data is switched off.
   isDemo     Boolean      @default(false)
@@ -657,4 +664,10 @@ model TodoQuoteLine {
   @@unique([todoId, quoteLineId])
   @@index([quoteLineId])
   @@index([invoiceId])
+}
+
+/// Unit of a resource's rate.
+enum RateUnit {
+  HOUR
+  DAY
 }

@@ -11,7 +11,7 @@ import type { TodoDetail } from "@/components/planning/planning-dialogs";
 import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, StatusBadge } from "@/components/ui";
 import { apiSend } from "@/lib/api-client";
-import { closeJobCheck } from "@/lib/registration";
+import { closeJobCheck, isBillableLabor } from "@/lib/registration";
 import type { TodoRegistrationDto } from "@/lib/schemas/todos";
 import { adHocBlockMinutes, registerHref } from "@/lib/register-link";
 import { formatDateShort, formatTime, ZONE } from "@/lib/time";
@@ -52,7 +52,7 @@ export function TodoDetailExtra({
     registeredDays: registrations.length,
     uninvoicedDays: registrations.filter((r) => r.invoice === null).length,
     hasBillable: registrations.some(
-      (r) => r.invoice === null && (r.labor.some((l) => l.invoicedHours > 0) || r.extras.length > 0),
+      (r) => r.invoice === null && (r.labor.some((l) => isBillableLabor(l)) || r.extras.length > 0),
     ),
   };
   const canInvoice = closeJobCheck(closeInput, true).allowed;
@@ -273,15 +273,19 @@ function RegistrationCard({
     mutationFn: () =>
       apiSend(`/api/todos/${todoId}/invoiced-hours`, "PATCH", {
         entries: r.labor
-          .filter((l) => draft[l.id] !== undefined && draft[l.id] !== l.invoicedHours)
-          .map((l) => ({ laborEntryId: l.id, invoicedHours: draft[l.id] })),
+          .filter((l) => draft[l.id] !== undefined && draft[l.id] !== invoicedValue(l))
+          .map((l) =>
+            l.rateUnit === "DAY"
+              ? { laborEntryId: l.id, invoicedDays: draft[l.id] }
+              : { laborEntryId: l.id, invoicedHours: draft[l.id] },
+          ),
       }),
     onSuccess: () => {
       setEditing(false);
       onChanged();
     },
   });
-  const changed = r.labor.some((l) => draft[l.id] !== undefined && draft[l.id] !== l.invoicedHours);
+  const changed = r.labor.some((l) => draft[l.id] !== undefined && draft[l.id] !== invoicedValue(l));
 
   return (
     <li className="rounded-md border border-gray-200 px-2 py-1.5 text-sm">
@@ -307,14 +311,16 @@ function RegistrationCard({
               <span className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">{hours(l.registeredHours)} gewerkt · factureren:</span>
                 <HoursStepper
-                  value={draft[l.id] ?? l.invoicedHours}
+                  value={draft[l.id] ?? invoicedValue(l)}
                   onChange={(h) => setDraft((d) => ({ ...d, [l.id]: h }))}
                   label={`Te factureren ${l.name}`}
+                  days={l.rateUnit === "DAY"}
                 />
               </span>
             ) : (
               <span className="tabular-nums text-gray-600">
-                {hours(l.registeredHours)} gewerkt · {hours(l.invoicedHours)} gefactureerd
+                {hours(l.registeredHours)} gewerkt ·{" "}
+                {l.rateUnit === "DAY" ? daysText(l.invoicedDays ?? 0) : hours(l.invoicedHours)} gefactureerd
               </span>
             )}
           </li>
@@ -363,3 +369,10 @@ function RegistrationCard({
     </li>
   );
 }
+
+/** What is charged on a labour line: days for a day rate, otherwise hours. */
+function invoicedValue(l: { rateUnit: "HOUR" | "DAY"; invoicedHours: number; invoicedDays: number | null }): number {
+  return l.rateUnit === "DAY" ? (l.invoicedDays ?? 0) : l.invoicedHours;
+}
+
+const daysText = (d: number) => `${String(d).replace(".", ",")} ${d === 1 ? "dag" : "dagen"}`;

@@ -72,6 +72,8 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
             registeredHours: Number(l.registeredHours),
             invoicedHours: Number(l.invoicedHours),
             hourlyRate: Number(l.hourlyRate),
+            rateUnit: l.rateUnit,
+            invoicedDays: l.invoicedDays === null ? null : Number(l.invoicedDays),
           })),
           extras: c.extraCharges.map((e) => ({
             description: e.description,

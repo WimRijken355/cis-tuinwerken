@@ -65,6 +65,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
                 registeredHours: r.registeredHours,
                 invoicedHours: r.invoicedHours,
                 hourlyRate: res.hourlyRate,
+                // Day rate: charged per day (default 1); hours stay for reporting.
+                rateUnit: res.rateUnit,
+                invoicedDays: res.rateUnit === "DAY" ? (r.invoicedDays ?? 1) : null,
                 vatRate: settings.laborVatRate,
               };
             }),

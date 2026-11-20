@@ -21,6 +21,13 @@ export const completionResourceSchema = z.object({
   registeredHours: quarterHours,
   /** Charged to the customer (sent to EenvoudigFactureren); may differ. */
   invoicedHours: quarterHours,
+  /** Day-rate resource: the days to charge (half days); ignored for an hourly rate. */
+  invoicedDays: z.coerce
+    .number()
+    .min(0)
+    .max(31)
+    .transform((v) => Math.ceil(Math.round(v * 1000) / 500) / 2)
+    .optional(),
 });
 
 export const completionInputSchema = z
@@ -97,7 +104,16 @@ export type CompletionInput = z.infer<typeof completionInputSchema>;
  */
 export const invoicedHoursUpdateSchema = z.object({
   entries: z
-    .array(z.object({ laborEntryId: z.number().int().positive(), invoicedHours: quarterHours }))
+    .array(
+      z
+        .object({
+          laborEntryId: z.number().int().positive(),
+          invoicedHours: quarterHours.optional(),
+          /** Day-rate lines: the days to charge. */
+          invoicedDays: z.coerce.number().min(0).max(31).optional(),
+        })
+        .refine((e) => e.invoicedHours !== undefined || e.invoicedDays !== undefined, "Geef uren of dagen op"),
+    )
     .min(1)
     .max(100)
     .refine((list) => new Set(list.map((e) => e.laborEntryId)).size === list.length, "Elke lijn kan maar één keer voorkomen"),
@@ -109,7 +125,9 @@ export interface RegistrationResourceDto {
   resourceId: number;
   name: string;
   type: "PERSON" | "MACHINE";
+  /** The rate per `rateUnit`. */
   hourlyRate: number;
+  rateUnit: "HOUR" | "DAY";
   /** Hours planned for this resource on the whole todo. */
   todoHours: number;
   /** Registered on earlier days of this todo. */
@@ -152,6 +170,8 @@ export interface RegisteredDayDto {
     invoicedHours: number;
     hourlyRate: number;
     vatRate: number;
+    rateUnit?: "HOUR" | "DAY";
+    invoicedDays?: number | null;
   }[];
   extras: {
     priceListItemId: number | null;
@@ -215,6 +235,8 @@ export interface InvoiceDetailDto extends Omit<InvoiceDto, "workDate"> {
       registeredHours: number;
       invoicedHours: number;
       hourlyRate: number;
+      rateUnit?: "HOUR" | "DAY";
+      invoicedDays?: number | null;
     }[];
     extras: { description: string; quantity: number; unit: string; unitPrice: number }[];
   }[];

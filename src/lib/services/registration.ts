@@ -134,6 +134,8 @@ async function loadDays(where: Prisma.CompletionWhereInput, client: Tx): Promise
       invoicedHours: Number(l.invoicedHours),
       hourlyRate: Number(l.hourlyRate),
       vatRate: Number(l.vatRate),
+      rateUnit: l.rateUnit,
+      invoicedDays: l.invoicedDays === null ? null : Number(l.invoicedDays),
     })),
     extras: c.extraCharges.map((e) => ({
       priceListItemId: e.priceListItemId,
@@ -184,6 +186,7 @@ export async function loadRegistrationContext(appointmentId: number): Promise<Re
         name: r.resource.name,
         type: r.resource.type,
         hourlyRate: Number(r.resource.hourlyRate),
+        rateUnit: r.resource.rateUnit,
         todoHours: Number(r.hours),
         alreadyRegisteredHours: already,
         proposedHours: proposeHours({

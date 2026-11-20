@@ -122,8 +122,25 @@ export interface RegisteredLabor {
   name: string;
   type: "PERSON" | "MACHINE";
   invoicedHours: number;
+  /** The rate per `rateUnit` (hour by default). */
   hourlyRate: number;
   vatRate: number;
+  /** DAY = day rate: charged per `invoicedDays` instead of per hour. */
+  rateUnit?: "HOUR" | "DAY";
+  invoicedDays?: number | null;
+}
+
+/** Is there something to charge on this labour line (hours, or days for a day rate)? */
+export function isBillableLabor(l: { rateUnit?: string | null; invoicedHours: unknown; invoicedDays?: unknown }): boolean {
+  return l.rateUnit === "DAY" ? Number(l.invoicedDays ?? 0) > 0 : Number(l.invoicedHours) > 0;
+}
+
+/** Day-rate resources are invoiced in half days: 0,5 · 1 · 1,5 … */
+export const DAY_STEP = 0.5;
+
+/** Rounds days up to the next half day (0,3 → 0,5). */
+export function ceilToHalfDay(days: number): number {
+  return Math.ceil(Math.round(days * 1000) / 1000 / DAY_STEP) * DAY_STEP;
 }
 
 export interface RegisteredExtra {
@@ -302,17 +319,45 @@ export function buildInvoice(params: {
 
     const sortedDays = [...job.days].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const laborDays = new Set(
-      sortedDays.filter((d) => d.labor.some((l) => l.type !== "MACHINE" && l.invoicedHours > 0)).map((d) => dayKeyOf(d.date).toISODate()),
+      sortedDays
+        .filter((d) => d.labor.some((l) => l.type !== "MACHINE" && l.rateUnit !== "DAY" && l.invoicedHours > 0))
+        .map((d) => dayKeyOf(d.date).toISODate()),
     ).size;
 
     // Per day: people summed per rate, then each machine.
-    type Group = { description: string; kind: "labor" | "machine"; hours: number; rate: number; vat: number; details: Map<string, number> };
+    type Group = {
+      description: string;
+      kind: "labor" | "machine";
+      hours: number;
+      unit: string;
+      rate: number;
+      vat: number;
+      details: Map<string, number>;
+    };
     const groups = new Map<string, Group>();
     for (const day of sortedDays) {
       const d = dayKeyOf(day.date);
       const iso = d.toISODate();
       const label = d.toFormat("dd/LL/yyyy");
       for (const l of day.labor) {
+        // Day rate (most machines): its own line per resource and day, in days.
+        if (l.rateUnit === "DAY") {
+          const days = l.invoicedDays ?? 0;
+          if (days <= 0) continue;
+          const key = `day|${l.resourceId ?? l.name}|${iso}|${l.hourlyRate}|${l.vatRate}`;
+          const group = groups.get(key) ?? {
+            description: `${l.name} op ${label}`,
+            kind: l.type === "MACHINE" ? ("machine" as const) : ("labor" as const),
+            hours: 0,
+            unit: "dag",
+            rate: l.hourlyRate,
+            vat: l.vatRate,
+            details: new Map<string, number>(),
+          };
+          group.hours += days;
+          groups.set(key, group);
+          continue;
+        }
         if (l.invoicedHours <= 0) continue;
         const isMachine = l.type === "MACHINE";
         const key = isMachine
@@ -322,6 +367,7 @@ export function buildInvoice(params: {
           description: isMachine ? `${l.name} op ${label}` : laborDescription(job.invoiceDescription, label, laborDays > 1),
           kind: isMachine ? ("machine" as const) : ("labor" as const),
           hours: 0,
+          unit: "uur",
           rate: l.hourlyRate,
           vat: l.vatRate,
           details: new Map<string, number>(),
@@ -332,7 +378,7 @@ export function buildInvoice(params: {
       }
     }
     for (const [key, g] of groups) {
-      addLine(key, g.kind, g.description, g.hours, "uur", g.rate, g.vat, [...g.details].map(([name, hours]) => ({ name, hours })));
+      addLine(key, g.kind, g.description, g.hours, g.unit, g.rate, g.vat, [...g.details].map(([name, hours]) => ({ name, hours })));
     }
 
     // Extras over the whole job, per article + description + price + VAT + unit

@@ -48,7 +48,11 @@ interface ResourceLine {
   resourceId: number;
   name: string;
   type: "PERSON" | "MACHINE";
+  /** The rate per `rateUnit`. */
   hourlyRate: number;
+  /** DAY = day rate: invoiced in days (invoicedDays), hours only for reporting. */
+  rateUnit: "HOUR" | "DAY";
+  invoicedDays: number;
   planned: boolean;
   /** "HH:mm", default from the planned block; registeredHours follows these. */
   fromTime: string;
@@ -161,6 +165,8 @@ function RegisterFlow({
       name: r.name,
       type: r.type,
       hourlyRate: r.hourlyRate,
+      rateUnit: r.rateUnit,
+      invoicedDays: 1,
       planned: true,
       fromTime: blockStart,
       toTime: timeAfter(r.proposedHours),
@@ -199,6 +205,8 @@ function RegisterFlow({
         name: resource.name,
         type: resource.type,
         hourlyRate: resource.hourlyRate,
+        rateUnit: resource.rateUnit,
+        invoicedDays: 1,
         planned: false,
         fromTime: blockStart,
         toTime: timeAfter(blockHours),
@@ -275,6 +283,8 @@ function RegisterFlow({
         invoicedHours: l.invoicedHours,
         hourlyRate: l.hourlyRate,
         vatRate: context.laborVatRate,
+        rateUnit: l.rateUnit,
+        invoicedDays: l.rateUnit === "DAY" ? l.invoicedDays : null,
       })),
       extras: extras
         .filter((e) => parseNum(e.quantity) > 0 && parseNum(e.unitPrice) >= 0)
@@ -349,7 +359,12 @@ function RegisterFlow({
       const input: CompletionInput = {
         resources: activeLines
           .filter((l) => l.registeredHours > 0 || l.invoicedHours > 0)
-          .map((l) => ({ resourceId: l.resourceId, registeredHours: l.registeredHours, invoicedHours: l.invoicedHours })),
+          .map((l) => ({
+            resourceId: l.resourceId,
+            registeredHours: l.registeredHours,
+            invoicedHours: l.invoicedHours,
+            ...(l.rateUnit === "DAY" ? { invoicedDays: l.invoicedDays } : {}),
+          })),
         extras: todayDay.extras.map((e) => ({
           priceListItemId: e.priceListItemId,
           description: e.description,
@@ -948,7 +963,9 @@ function RegisterFlow({
                       </span>
                       <span className="text-gray-600">
                         {hoursText(l.registeredHours)}
-                        {!isProject && <> · gefactureerd {hoursText(l.invoicedHours)}</>}
+                        {!isProject && (
+                          <> · gefactureerd {l.rateUnit === "DAY" ? daysText(l.invoicedDays) : hoursText(l.invoicedHours)}</>
+                        )}
                       </span>
                     </li>
                   ))}
@@ -1073,12 +1090,23 @@ function ResourceHours({
         </div>
         {!hideInvoiced && (
           <div>
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Gefactureerd</p>
-            <HoursStepper
-              label={`Gefactureerd ${line.name}`}
-              value={line.invoicedHours}
-              onChange={(invoicedHours) => onChange({ invoicedHours, invoicedTouched: true })}
-            />
+            <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+              Gefactureerd{line.rateUnit === "DAY" ? " (dagtarief)" : ""}
+            </p>
+            {line.rateUnit === "DAY" ? (
+              <HoursStepper
+                days
+                label={`Gefactureerd ${line.name}`}
+                value={line.invoicedDays}
+                onChange={(invoicedDays) => onChange({ invoicedDays })}
+              />
+            ) : (
+              <HoursStepper
+                label={`Gefactureerd ${line.name}`}
+                value={line.invoicedHours}
+                onChange={(invoicedHours) => onChange({ invoicedHours, invoicedTouched: true })}
+              />
+            )}
           </div>
         )}
       </div>
@@ -1289,4 +1317,9 @@ function ResultAndFollowUp({
       </Button>
     </div>
   );
+}
+
+/** "1 dag", "1,5 dagen" */
+function daysText(days: number): string {
+  return `${String(days).replace(".", ",")} ${days === 1 ? "dag" : "dagen"}`;
 }

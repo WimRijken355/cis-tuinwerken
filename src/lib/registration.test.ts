@@ -4,6 +4,8 @@ import {
   buildJobInvoice,
   defaultTogetherTodoIds,
   invoiceTogetherProblem,
+  ceilToHalfDay,
+  isBillableLabor,
   laborDescription,
   ceilToQuarterHour,
   closeJobCheck,
@@ -440,5 +442,48 @@ describe("facturatieomschrijving (todo's own description for the labour lines)",
       "Haag scheren",
       "Werkuren op 12/05/2027",
     ]);
+  });
+});
+
+describe("day rate (machines)", () => {
+  const cis = { resourceId: 1, name: "Cis", type: "PERSON" as const, hourlyRate: 45, vatRate: 21 };
+  const mini = { resourceId: 9, name: "Minigraver", type: "MACHINE" as const, hourlyRate: 180, vatRate: 21, rateUnit: "DAY" as const };
+  const d1 = "2027-05-12T07:00:00Z";
+  const d2 = "2027-05-13T07:00:00Z";
+
+  it("charges days, not hours: one line per machine and day", () => {
+    const built = buildJobInvoice({
+      days: [
+        { date: d1, labor: [{ ...cis, invoicedHours: 8 }, { ...mini, invoicedHours: 6, invoicedDays: 1 }], extras: [] },
+        { date: d2, labor: [{ ...mini, invoicedHours: 3, invoicedDays: 0.5 }], extras: [] },
+      ],
+    });
+    expect(built.items).toEqual([
+      { type: "item", description: "Werkuren op 12/05/2027", quantity: 8, unit: "uur", amount: 45, tax_rate: 21 },
+      { type: "item", description: "Minigraver op 12/05/2027", quantity: 1, unit: "dag", amount: 180, tax_rate: 21 },
+      { type: "item", description: "Minigraver op 13/05/2027", quantity: 0.5, unit: "dag", amount: 180, tax_rate: 21 },
+    ]);
+    expect(built.totalExclVat).toBe(8 * 45 + 1.5 * 180);
+  });
+
+  it("0 days = not on the invoice; a day-rate line alone does not count as 'Werkuren' days", () => {
+    const built = buildJobInvoice({
+      days: [
+        { date: d1, labor: [{ ...cis, invoicedHours: 2 }, { ...mini, invoicedHours: 6, invoicedDays: 0 }], extras: [] },
+        { date: d2, labor: [{ ...mini, invoicedHours: 6, invoicedDays: 1 }], extras: [] },
+      ],
+      invoiceDescription: "Tuinonderhoud",
+    });
+    // Labour on one day only → the description without a date.
+    expect(built.items.map((i) => i.description)).toEqual(["Tuinonderhoud", "Minigraver op 13/05/2027"]);
+  });
+
+  it("billable = days > 0 for a day rate, hours > 0 otherwise; half-day rounding", () => {
+    expect(isBillableLabor({ rateUnit: "DAY", invoicedHours: 6, invoicedDays: 0 })).toBe(false);
+    expect(isBillableLabor({ rateUnit: "DAY", invoicedHours: 0, invoicedDays: 0.5 })).toBe(true);
+    expect(isBillableLabor({ rateUnit: "HOUR", invoicedHours: 1 })).toBe(true);
+    expect(ceilToHalfDay(0.3)).toBe(0.5);
+    expect(ceilToHalfDay(1)).toBe(1);
+    expect(ceilToHalfDay(1.2)).toBe(1.5);
   });
 });

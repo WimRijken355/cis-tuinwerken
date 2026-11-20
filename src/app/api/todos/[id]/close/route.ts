@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
-import { closeJobCheck } from "@/lib/registration";
+import { closeJobCheck, isBillableLabor } from "@/lib/registration";
 import { closeJobInTx, createJobInvoiceInTx, pushNewJobInvoice } from "@/lib/services/job-close";
 
 const bodySchema = z.object({
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
               select: {
                 id: true,
                 invoiceId: true,
-                laborEntries: { select: { invoicedHours: true } },
+                laborEntries: { select: { invoicedHours: true, rateUnit: true, invoicedDays: true } },
                 _count: { select: { extraCharges: true } },
               },
             },
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         registeredDays: completions.length,
         uninvoicedDays: uninvoiced.length,
         hasBillable: uninvoiced.some(
-          (c) => c.laborEntries.some((l) => Number(l.invoicedHours) > 0) || c._count.extraCharges > 0,
+          (c) => c.laborEntries.some((l) => isBillableLabor(l)) || c._count.extraCharges > 0,
         ),
       },
       invoice,

@@ -195,6 +195,9 @@ export interface TodoRegistrationDto {
     type: "PERSON" | "MACHINE";
     registeredHours: number;
     invoicedHours: number;
+    /** DAY = day rate: `invoicedDays` is what is charged. */
+    rateUnit: "HOUR" | "DAY";
+    invoicedDays: number | null;
   }[];
   extras: { description: string; quantity: number; unit: string; unitPrice: number }[];
   /** The invoice this day is on; null = not invoiced (yet). */

@@ -1,38 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ceilToQuarterHour } from "@/lib/registration";
+import { ceilToHalfDay, ceilToQuarterHour, DAY_STEP } from "@/lib/registration";
 
 const show = (hours: number) => String(hours).replace(".", ",");
 
 /**
  * Thumb-friendly hours input for the phone: big − / + buttons in quarter
  * steps and a typed value that is rounded UP per started quarter on blur
- * (1,1 → 1,25). Value in hours.
+ * (1,1 → 1,25). Value in hours. With `days` it counts days instead, in half
+ * days (day-rate machines).
  */
 export function HoursStepper({
   value,
   onChange,
   label,
-  max = 24,
+  max,
+  days = false,
 }: {
   value: number;
-  onChange: (hours: number) => void;
+  onChange: (value: number) => void;
   /** Accessible label, e.g. "Geregistreerd Cis". */
   label: string;
   max?: number;
+  /** Count days (half-day steps) instead of hours. */
+  days?: boolean;
 }) {
   const [text, setText] = useState(show(value));
   useEffect(() => setText(show(value)), [value]);
+  const step = days ? DAY_STEP : 0.25;
+  const limit = max ?? (days ? 31 : 24);
+  const stepLabel = days ? "halve dag" : "kwartier";
 
-  const set = (hours: number) => onChange(Math.min(max, ceilToQuarterHour(Math.max(0, hours))));
+  const set = (v: number) => onChange(Math.min(limit, (days ? ceilToHalfDay : ceilToQuarterHour)(Math.max(0, v))));
 
   return (
     <div className="flex items-center gap-1.5" role="group" aria-label={label}>
       <button
         type="button"
-        aria-label={`${label}: kwartier minder`}
-        onClick={() => set(value - 0.25)}
+        aria-label={`${label}: ${stepLabel} minder`}
+        onClick={() => set(value - step)}
         className="h-10 w-10 shrink-0 rounded-full bg-gray-100 text-lg font-bold text-gray-700 active:bg-gray-200"
       >
         −
@@ -48,13 +55,13 @@ export function HoursStepper({
       />
       <button
         type="button"
-        aria-label={`${label}: kwartier meer`}
-        onClick={() => set(value + 0.25)}
+        aria-label={`${label}: ${stepLabel} meer`}
+        onClick={() => set(value + step)}
         className="h-10 w-10 shrink-0 rounded-full bg-gray-100 text-lg font-bold text-gray-700 active:bg-gray-200"
       >
         +
       </button>
-      <span className="text-sm text-gray-500">u</span>
+      <span className="text-sm text-gray-500">{days ? (value === 1 ? "dag" : "dagen") : "u"}</span>
     </div>
   );
 }

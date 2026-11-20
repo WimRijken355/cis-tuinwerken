@@ -24,6 +24,11 @@ import {
   type ResourceDto,
   type ResourceListResponse,
   type ResourceType,
+  RATE_UNITS,
+  RATE_UNIT_LABELS,
+  RATE_UNIT_SUFFIX,
+  defaultRateUnit,
+  type RateUnit,
 } from "@/lib/schemas/resources";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 
@@ -152,7 +157,10 @@ export default function ResourcesPage() {
                     <td className="px-4 py-2">
                       <TypeBadge type={r.type} />
                     </td>
-                    <td className="px-4 py-2 text-right tabular-nums">{euro.format(r.hourlyRate)}/uur</td>
+                    <td className="px-4 py-2 text-right tabular-nums">
+                      {euro.format(r.hourlyRate)}
+                      {RATE_UNIT_SUFFIX[r.rateUnit]}
+                    </td>
                     <td className="px-4 py-2">
                       <ActiveBadge active={r.active} />
                     </td>
@@ -174,7 +182,8 @@ export default function ResourcesPage() {
                     {TYPE_ICONS[r.type]} {r.name}
                   </p>
                   <p className="text-gray-500">
-                    {RESOURCE_TYPE_LABELS[r.type]} · {euro.format(r.hourlyRate)}/uur
+                    {RESOURCE_TYPE_LABELS[r.type]} · {euro.format(r.hourlyRate)}
+                    {RATE_UNIT_SUFFIX[r.rateUnit]}
                   </p>
                   {!r.active && <ActiveBadge active={false} />}
                 </div>
@@ -256,10 +265,16 @@ function ResourceForm({ resource, onDone }: { resource: ResourceDto | null; onDo
   const [name, setName] = useState(resource?.name ?? "");
   const [type, setType] = useState<ResourceType>(resource?.type ?? "PERSON");
   const [rate, setRate] = useState(resource ? String(resource.hourlyRate) : "");
+  const [rateUnit, setRateUnit] = useState<RateUnit>(resource?.rateUnit ?? defaultRateUnit(resource?.type ?? "PERSON"));
+  const pickType = (t: ResourceType) => {
+    // A new resource follows the type's usual unit (machines: per day).
+    if (!resource) setRateUnit(defaultRateUnit(t));
+    setType(t);
+  };
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      const body = { name, type, hourlyRate: Number(rate.replace(",", ".")) };
+      const body = { name, type, hourlyRate: Number(rate.replace(",", ".")), rateUnit };
       return resource
         ? apiSend(`/api/resources/${resource.id}`, "PATCH", body)
         : apiSend("/api/resources", "POST", body);
@@ -285,7 +300,7 @@ function ResourceForm({ resource, onDone }: { resource: ResourceDto | null; onDo
             <button
               key={t}
               type="button"
-              onClick={() => setType(t)}
+              onClick={() => pickType(t)}
               className={`flex-1 rounded-md border px-3 py-2 text-sm ${
                 type === t
                   ? "border-brand-600 bg-brand-50 font-medium text-brand-700"
@@ -306,11 +321,44 @@ function ResourceForm({ resource, onDone }: { resource: ResourceDto | null; onDo
           autoFocus
         />
       </Field>
-      <div className="w-40">
-        <Field label="Uurtarief (€)" hint="Excl. btw">
-          <TextInput inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} required />
-        </Field>
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="w-40">
+          <Field label={rateUnit === "DAY" ? "Dagtarief (€)" : "Uurtarief (€)"} hint="Excl. btw">
+            <TextInput inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} required />
+          </Field>
+        </div>
+        <FieldGroup label="Tarief">
+          <div className="flex gap-1" role="radiogroup" aria-label="Tariefeenheid">
+            {RATE_UNITS.map((u) => (
+              <button
+                key={u}
+                type="button"
+                role="radio"
+                aria-checked={rateUnit === u}
+                onClick={() => setRateUnit(u)}
+                className={`min-h-10 rounded-md border px-3 text-sm ${
+                  rateUnit === u
+                    ? "border-brand-600 bg-brand-50 font-medium text-brand-700"
+                    : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {RATE_UNIT_LABELS[u]}
+              </button>
+            ))}
+          </div>
+        </FieldGroup>
       </div>
+      {rateUnit === "DAY" && (
+        <p className="text-xs text-gray-500">
+          Bij het klaarmelden geef je voor deze resource het aantal dagen in (per halve dag); de gewerkte uren blijven
+          voor het overzicht.
+        </p>
+      )}
+      {resource && resource.rateUnit !== rateUnit && (
+        <p className="text-xs text-amber-700">
+          Pas ook het bedrag aan. Al geregistreerd werk behoudt zijn tarief van toen.
+        </p>
+      )}
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onDone}>
           Annuleren
