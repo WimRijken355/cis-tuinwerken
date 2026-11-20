@@ -10,9 +10,9 @@ import {
   rebuildContentKeepingNotes,
   totalOfContent,
 } from "@/lib/invoice-content";
-import { buildJobInvoice } from "@/lib/registration";
+import { buildInvoice } from "@/lib/registration";
 import { invoicedHoursUpdateSchema } from "@/lib/schemas/completions";
-import { loadInvoiceDays } from "@/lib/services/registration";
+import { loadInvoiceJobs } from "@/lib/services/registration";
 
 /**
  * PATCH /api/todos/:id/invoiced-hours — change the hours to invoice of
@@ -65,7 +65,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const result: { id: number; totalExclVat: number }[] = [];
       for (const invoiceId of invoices.keys()) {
         const invoice = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
-        const built = buildJobInvoice({ days: await loadInvoiceDays(invoiceId, tx) });
+        // Rebuilt per todo (an invoice can hold several), charged quote lines included.
+        const built = buildInvoice({ jobs: await loadInvoiceJobs(invoiceId, tx) });
         if (built.lines.length === 0) {
           throw new ApiError(
             "Een factuur heeft minstens één regel: zet op minstens één dag uren om te factureren.",

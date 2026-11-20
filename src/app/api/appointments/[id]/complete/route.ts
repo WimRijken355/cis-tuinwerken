@@ -115,6 +115,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
               remarks: input.lineRemarks,
               notes: input.invoiceNotes,
               quoteLinkIds: input.quoteLinkIds,
+              alsoTodoIds: input.alsoInvoiceTodoIds,
             })
           : null;
       await closeJobInTx(tx, appointment.todoId);

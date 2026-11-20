@@ -156,3 +156,39 @@ describe("rebuildContentKeepingNotes", () => {
   });
 });
 
+
+describe("todo headings (invoice with several todos)", () => {
+  const line = (description: string, extra: object = {}) => ({
+    item: { description, quantity: 1, unit: "uur", amount: 45, tax_rate: 21 },
+    ...extra,
+  });
+
+  it("a heading becomes a text line right above its line in EF, and survives validation", () => {
+    const content = invoiceContentSchema.parse({ lines: [line("Werkuren", { heading: " Haag scheren " })], notes: [] });
+    expect(content.lines[0].heading).toBe("Haag scheren");
+    expect(itemsFromContent(content).map((i) => i.description)).toEqual(["Haag scheren", "Werkuren"]);
+  });
+
+  it("a rebuild keeps each remark with the same line of the same todo", () => {
+    const previous = {
+      lines: [
+        line("Werkuren op 12/05/2027", { heading: "Haag scheren", remark: "Achterkant" }),
+        line("Werkuren op 12/05/2027", { heading: "Gras afrijden", remark: "Voortuin" }),
+      ],
+      notes: [],
+    };
+    const item = (quantity: number) => ({ type: "item" as const, ...line("Werkuren op 12/05/2027").item, quantity });
+    const built = {
+      lines: [
+        { item: item(2), heading: "Haag scheren" },
+        { item: item(1), heading: "Gras afrijden" },
+      ],
+      notes: [],
+    };
+    const rebuilt = rebuildContentKeepingNotes(built, previous);
+    expect(rebuilt.lines.map((l) => [l.heading, l.remark, l.item.quantity])).toEqual([
+      ["Haag scheren", "Achterkant", 2],
+      ["Gras afrijden", "Voortuin", 1],
+    ]);
+  });
+});

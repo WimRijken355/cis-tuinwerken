@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildInvoice,
   buildJobInvoice,
+  defaultTogetherTodoIds,
+  invoiceTogetherProblem,
   ceilToQuarterHour,
   closeJobCheck,
   defaultInvoiceNow,
@@ -329,5 +332,68 @@ describe("quote lines in the invoice step", () => {
     expect([...toggleId(ids, 2)]).toEqual([1, 2]);
     expect([...toggleId(ids, 1)]).toEqual([]);
     expect([...ids]).toEqual([1]);
+  });
+});
+
+describe("samen factureren (several todos on one invoice)", () => {
+  const cis = { resourceId: 1, name: "Cis", type: "PERSON" as const, hourlyRate: 45, vatRate: 21 };
+  const day = "2027-05-12T07:00:00Z";
+  const hedge = { todoId: 11, title: "Haag scheren", days: [{ date: day, labor: [{ ...cis, invoicedHours: 3 }], extras: [] }] };
+  const grass = {
+    todoId: 12,
+    title: "Gras afrijden",
+    days: [{ date: day, labor: [{ ...cis, invoicedHours: 1.5 }], extras: [] }],
+    quoteLines: [{ linkId: 5, description: "Graszaad", quantity: 2, unit: "kg", amount: 8, taxRate: 6 }],
+  };
+
+  it("groups the lines per todo under a title line, with remarks staying in their own group", () => {
+    const built = buildInvoice({
+      jobs: [hedge, grass],
+      remarks: { "todo12|labor|2027-05-12|45|21": "Enkel voortuin" },
+      notes: ["Bedankt!"],
+    });
+    expect(built.items).toEqual([
+      { type: "text", description: "Haag scheren" },
+      { type: "item", description: "Werkuren op 12/05/2027", quantity: 3, unit: "uur", amount: 45, tax_rate: 21 },
+      { type: "text", description: "Gras afrijden" },
+      { type: "item", description: "Werkuren op 12/05/2027", quantity: 1.5, unit: "uur", amount: 45, tax_rate: 21 },
+      { type: "text", description: "Enkel voortuin" },
+      { type: "item", description: "Graszaad", quantity: 2, unit: "kg", amount: 8, tax_rate: 6 },
+      { type: "text", description: "Bedankt!" },
+    ]);
+    expect(built.lines.map((l) => [l.key, l.heading ?? null, l.group])).toEqual([
+      ["todo11|labor|2027-05-12|45|21", "Haag scheren", "Haag scheren"],
+      ["todo12|labor|2027-05-12|45|21", "Gras afrijden", "Gras afrijden"],
+      ["todo12|quote|5", null, "Gras afrijden"],
+    ]);
+    expect(built.totalExclVat).toBe(4.5 * 45 + 16);
+  });
+
+  it("a single todo stays exactly as before (no title line, no key prefix)", () => {
+    expect(buildInvoice({ jobs: [hedge] })).toEqual(buildJobInvoice({ days: hedge.days }));
+  });
+
+  it("a todo without anything to charge gets no title line", () => {
+    const empty = { todoId: 13, title: "Leeg", days: [{ date: day, labor: [{ ...cis, invoicedHours: 0 }], extras: [] }] };
+    const built = buildInvoice({ jobs: [hedge, empty] });
+    expect(built.items.filter((i) => i.type === "text").map((i) => i.description)).toEqual(["Haag scheren"]);
+  });
+
+  it("ticks other work of the same Brussels day by default, not older work", () => {
+    const jobs = [
+      { todoId: 1, lastRegisteredOn: "2027-05-12T06:00:00Z" },
+      { todoId: 2, lastRegisteredOn: "2027-05-11T21:30:00Z" }, // 23:30 Brussels on the 11th
+      { todoId: 3, lastRegisteredOn: "2027-05-11T22:30:00Z" }, // 00:30 Brussels on the 12th
+    ];
+    expect(defaultTogetherTodoIds(jobs, "2027-05-12T13:00:00Z")).toEqual([1, 3]);
+  });
+
+  it("only finished, non-project todos of the same customer with something to invoice", () => {
+    const ok = { customerId: 7, status: "DONE", isProject: false, uninvoicedDays: 1 };
+    expect(invoiceTogetherProblem(ok, 7)).toBeNull();
+    expect(invoiceTogetherProblem({ ...ok, customerId: 8 }, 7)).toMatch(/andere klant/);
+    expect(invoiceTogetherProblem({ ...ok, isProject: true }, 7)).toMatch(/project/);
+    expect(invoiceTogetherProblem({ ...ok, status: "OPEN" }, 7)).toMatch(/afgewerkte/);
+    expect(invoiceTogetherProblem({ ...ok, uninvoicedDays: 0 }, 7)).toMatch(/niets meer/);
   });
 });

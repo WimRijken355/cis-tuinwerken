@@ -156,6 +156,13 @@ export interface BuiltInvoiceLine {
    * e.g. "Werkuren op 07/12/2026" = Cis 8 u + Ken 7,5 u.
    */
   details: { name: string; hours: number }[];
+  /**
+   * Invoice with several todos: the todo's title as a text line right above
+   * this line (only on the first line of each todo).
+   */
+  heading?: string;
+  /** Invoice with several todos: the todo this line belongs to (preview grouping). */
+  group?: string;
 }
 
 /**
@@ -182,6 +189,14 @@ export interface InvoiceQuoteLine {
   unit: string;
   amount: number;
   taxRate: number;
+}
+
+/** One todo's part of an invoice: its registered days and chosen quote lines. */
+export interface InvoiceJob {
+  todoId: number;
+  title: string;
+  days: RegisteredDay[];
+  quoteLines?: InvoiceQuoteLine[];
 }
 
 export interface BuiltInvoice {
@@ -221,83 +236,112 @@ export function buildJobInvoice(params: {
   /** Quote lines (EF offertes) of the job chosen to invoice now; key "quote|<linkId>". */
   quoteLines?: InvoiceQuoteLine[];
 }): BuiltInvoice {
+  return buildInvoice({
+    jobs: [{ todoId: 0, title: "", days: params.days, quoteLines: params.quoteLines }],
+    remarks: params.remarks,
+    notes: params.notes,
+  });
+}
+
+/**
+ * One invoice for one or more todos of the same customer ("samen factureren").
+ * Each todo's lines are built like buildJobInvoice; with several todos they are
+ * grouped per todo, each group headed by the todo's title as a text line, and
+ * line keys get the prefix "todo<id>|" so remarks stay with the right todo.
+ * With a single todo the result is exactly that of buildJobInvoice.
+ */
+export function buildInvoice(params: {
+  jobs: InvoiceJob[];
+  remarks?: Record<string, string>;
+  notes?: string[];
+}): BuiltInvoice {
+  const grouped = params.jobs.length > 1;
   const lines: BuiltInvoiceLine[] = [];
   let totalCents = 0;
 
-  function addLine(
-    key: string,
-    kind: BuiltInvoiceLine["kind"],
-    description: string,
-    quantity: number,
-    unit: string,
-    amount: number,
-    taxRate: number,
-    details: BuiltInvoiceLine["details"],
-  ) {
-    const qty = round2(quantity);
-    const unitPrice = round2(amount);
-    if (qty <= 0) return;
-    if (unit.length > 10) throw new Error(`Eenheid "${unit}" is langer dan 10 tekens (limiet EenvoudigFactureren)`);
-    if (![0, 6, 12, 21].includes(taxRate)) throw new Error(`Ongeldig btw-tarief: ${taxRate}`);
-    lines.push({
-      key,
-      kind,
-      item: { type: "item", description: description.slice(0, 500), quantity: qty, unit, amount: unitPrice, tax_rate: taxRate },
-      details,
-    });
-    totalCents += Math.round(qty * Math.round(unitPrice * 100));
-  }
+  for (const job of params.jobs) {
+    const prefix = grouped ? `todo${job.todoId}|` : "";
+    const jobLines: BuiltInvoiceLine[] = [];
 
-  const sortedDays = [...params.days].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const addLine = (
+      key: string,
+      kind: BuiltInvoiceLine["kind"],
+      description: string,
+      quantity: number,
+      unit: string,
+      amount: number,
+      taxRate: number,
+      details: BuiltInvoiceLine["details"],
+    ) => {
+      const qty = round2(quantity);
+      const unitPrice = round2(amount);
+      if (qty <= 0) return;
+      if (unit.length > 10) throw new Error(`Eenheid "${unit}" is langer dan 10 tekens (limiet EenvoudigFactureren)`);
+      if (![0, 6, 12, 21].includes(taxRate)) throw new Error(`Ongeldig btw-tarief: ${taxRate}`);
+      jobLines.push({
+        key: prefix + key,
+        kind,
+        item: { type: "item", description: description.slice(0, 500), quantity: qty, unit, amount: unitPrice, tax_rate: taxRate },
+        details,
+        ...(grouped ? { group: job.title } : {}),
+      });
+      totalCents += Math.round(qty * Math.round(unitPrice * 100));
+    };
 
-  // Per day: people summed per rate, then each machine.
-  type Group = { description: string; kind: "labor" | "machine"; hours: number; rate: number; vat: number; details: Map<string, number> };
-  const groups = new Map<string, Group>();
-  for (const day of sortedDays) {
-    const d = dayKeyOf(day.date);
-    const iso = d.toISODate();
-    const label = d.toFormat("dd/LL/yyyy");
-    for (const l of day.labor) {
-      if (l.invoicedHours <= 0) continue;
-      const isMachine = l.type === "MACHINE";
-      const key = isMachine
-        ? `machine|${l.resourceId ?? l.name}|${iso}|${l.hourlyRate}|${l.vatRate}`
-        : `labor|${iso}|${l.hourlyRate}|${l.vatRate}`;
-      const group = groups.get(key) ?? {
-        description: isMachine ? `${l.name} op ${label}` : `Werkuren op ${label}`,
-        kind: isMachine ? ("machine" as const) : ("labor" as const),
-        hours: 0,
-        rate: l.hourlyRate,
-        vat: l.vatRate,
-        details: new Map<string, number>(),
-      };
-      group.hours += l.invoicedHours;
-      group.details.set(l.name, (group.details.get(l.name) ?? 0) + l.invoicedHours);
-      groups.set(key, group);
+    const sortedDays = [...job.days].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Per day: people summed per rate, then each machine.
+    type Group = { description: string; kind: "labor" | "machine"; hours: number; rate: number; vat: number; details: Map<string, number> };
+    const groups = new Map<string, Group>();
+    for (const day of sortedDays) {
+      const d = dayKeyOf(day.date);
+      const iso = d.toISODate();
+      const label = d.toFormat("dd/LL/yyyy");
+      for (const l of day.labor) {
+        if (l.invoicedHours <= 0) continue;
+        const isMachine = l.type === "MACHINE";
+        const key = isMachine
+          ? `machine|${l.resourceId ?? l.name}|${iso}|${l.hourlyRate}|${l.vatRate}`
+          : `labor|${iso}|${l.hourlyRate}|${l.vatRate}`;
+        const group = groups.get(key) ?? {
+          description: isMachine ? `${l.name} op ${label}` : `Werkuren op ${label}`,
+          kind: isMachine ? ("machine" as const) : ("labor" as const),
+          hours: 0,
+          rate: l.hourlyRate,
+          vat: l.vatRate,
+          details: new Map<string, number>(),
+        };
+        group.hours += l.invoicedHours;
+        group.details.set(l.name, (group.details.get(l.name) ?? 0) + l.invoicedHours);
+        groups.set(key, group);
+      }
     }
-  }
-  for (const [key, g] of groups) {
-    addLine(key, g.kind, g.description, g.hours, "uur", g.rate, g.vat, [...g.details].map(([name, hours]) => ({ name, hours })));
-  }
-
-  // Extras over the whole job, per article + description + price + VAT + unit
-  // (an edited description becomes its own line).
-  const extras = new Map<string, { extra: RegisteredExtra; quantity: number }>();
-  for (const day of sortedDays) {
-    for (const e of day.extras) {
-      const key = `extra|${e.priceListItemId ?? ""}|${e.description}|${e.unitPrice}|${e.vatRate}|${e.unit}`;
-      const entry = extras.get(key) ?? { extra: e, quantity: 0 };
-      entry.quantity += e.quantity;
-      extras.set(key, entry);
+    for (const [key, g] of groups) {
+      addLine(key, g.kind, g.description, g.hours, "uur", g.rate, g.vat, [...g.details].map(([name, hours]) => ({ name, hours })));
     }
-  }
-  for (const [key, { extra, quantity }] of extras) {
-    addLine(key, "extra", extra.description, quantity, extra.unit, extra.unitPrice, extra.vatRate, []);
-  }
 
-  // Quote lines as they were offered (after the registered work).
-  for (const q of params.quoteLines ?? []) {
-    addLine(`quote|${q.linkId}`, "quote", q.description, q.quantity, q.unit.slice(0, 10), q.amount, q.taxRate, []);
+    // Extras over the whole job, per article + description + price + VAT + unit
+    // (an edited description becomes its own line).
+    const extras = new Map<string, { extra: RegisteredExtra; quantity: number }>();
+    for (const day of sortedDays) {
+      for (const e of day.extras) {
+        const key = `extra|${e.priceListItemId ?? ""}|${e.description}|${e.unitPrice}|${e.vatRate}|${e.unit}`;
+        const entry = extras.get(key) ?? { extra: e, quantity: 0 };
+        entry.quantity += e.quantity;
+        extras.set(key, entry);
+      }
+    }
+    for (const [key, { extra, quantity }] of extras) {
+      addLine(key, "extra", extra.description, quantity, extra.unit, extra.unitPrice, extra.vatRate, []);
+    }
+
+    // Quote lines as they were offered (after the registered work).
+    for (const q of job.quoteLines ?? []) {
+      addLine(`quote|${q.linkId}`, "quote", q.description, q.quantity, q.unit.slice(0, 10), q.amount, q.taxRate, []);
+    }
+
+    if (grouped && jobLines.length > 0) jobLines[0].heading = job.title.slice(0, 500);
+    lines.push(...jobLines);
   }
 
   // Remarks below their line; remarks whose line no longer exists become notes.
@@ -317,12 +361,42 @@ export function buildJobInvoice(params: {
   const items: EfInvoiceItem[] = [];
   for (const line of lines) {
     line.remark = remarks[line.key];
+    if (line.heading) items.push({ type: "text", description: line.heading });
     items.push(line.item);
     if (line.remark) items.push({ type: "text", description: line.remark.slice(0, 500) });
   }
   for (const note of notes) items.push({ type: "text", description: note.slice(0, 1000) });
 
   return { items, lines, notes, totalExclVat: totalCents / 100 };
+}
+
+/**
+ * Other work ticked by default in "Ook factureren voor deze klant": the jobs
+ * whose last registered day is the same (Brussels) day as the block being
+ * registered. Older work stays unticked.
+ */
+export function defaultTogetherTodoIds(
+  jobs: { todoId: number; lastRegisteredOn: string }[],
+  blockStartAt: Date | string,
+): number[] {
+  const day = dayKeyOf(blockStartAt).toISODate();
+  return jobs.filter((j) => dayKeyOf(j.lastRegisteredOn).toISODate() === day).map((j) => j.todoId);
+}
+
+/**
+ * May this other todo go on the invoice together with the job being
+ * registered (same customer, finished, not a project, something registered
+ * that is not invoiced yet)? Null = yes, otherwise the reason (Dutch).
+ */
+export function invoiceTogetherProblem(
+  todo: { customerId: number | null; status: string; isProject: boolean; uninvoicedDays: number },
+  customerId: number,
+): string | null {
+  if (todo.customerId !== customerId) return "Hoort bij een andere klant.";
+  if (todo.isProject) return "Een project wordt rechtstreeks in EenvoudigFactureren gefactureerd.";
+  if (todo.status !== "DONE") return "Enkel afgewerkte todo's kunnen mee gefactureerd worden.";
+  if (todo.uninvoicedDays === 0) return "Er is niets meer te factureren op deze todo.";
+  return null;
 }
 
 // ---------------------------------------------------------------------------

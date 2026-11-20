@@ -7,6 +7,7 @@ import { Suspense, useState } from "react";
 import { ActionButton } from "@/components/action-button";
 import { ACTION_ICONS } from "@/components/action-icons";
 import { CustomerForm } from "@/components/customer-form";
+import { CustomerInvoiceDialog } from "@/components/customer-invoice-dialog";
 import { CustomerQuotes } from "@/components/customer-quotes";
 import { QuoteLinePicker } from "@/components/quote-line-picker";
 import { FilterBar, FilterField, selectClass } from "@/components/pagination";
@@ -242,7 +243,7 @@ function CustomerDetailView() {
 
       {tab === "history" && (
         <TabPanel id="history">
-          <HistoryPanel customer={customer} onChanged={invalidate} />
+          <HistoryPanel customer={customer} onChanged={invalidate} onToast={setToast} />
         </TabPanel>
       )}
 
@@ -306,10 +307,13 @@ function NewTodoPanel({ customerId, onCreated }: { customerId: number; onCreated
 function HistoryPanel({
   customer,
   onChanged,
+  onToast,
 }: {
   customer: { id: number; todos: TodoDto[] };
   onChanged: () => void;
+  onToast: (message: string) => void;
 }) {
+  const [invoicing, setInvoicing] = useState(false);
   const [filter, setFilter] = useState<CustomerHistoryFilter>(DEFAULT_HISTORY_FILTER);
   const [actionError, setActionError] = useState<string | null>(null);
   const [editing, setEditing] = useState<TodoDto | null>(null);
@@ -372,8 +376,24 @@ function HistoryPanel({
             ))}
           </select>
         </FilterField>
+        <div className="ml-auto self-end">
+          <Button type="button" variant="secondary" onClick={() => setInvoicing(true)}>
+            🧾 Factuur maken
+          </Button>
+        </div>
       </FilterBar>
       {actionError && <ErrorNote message={actionError} />}
+      {invoicing && (
+        <CustomerInvoiceDialog
+          customerId={customer.id}
+          onClose={() => setInvoicing(false)}
+          onDone={(message) => {
+            setInvoicing(false);
+            onToast(message);
+            onChanged();
+          }}
+        />
+      )}
 
       <div className="rounded-lg border border-gray-200 bg-white p-4">
         <p className="mb-2 text-xs text-gray-500">

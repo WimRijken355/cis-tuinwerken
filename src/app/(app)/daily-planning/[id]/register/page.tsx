@@ -15,7 +15,8 @@ import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours } from "@/lib/planning";
 import { keepInputFocus } from "@/lib/pointer";
 import {
-  buildJobInvoice,
+  buildInvoice,
+  defaultTogetherTodoIds,
   ceilToQuarterHour,
   followUpTodoInitial,
   hoursFromTimeRange,
@@ -259,7 +260,8 @@ function RegisterFlow({
   // "Job afgewerkt" (close the todo) and "Nu factureren" are separate choices:
   // a finished job can also be closed without invoicing it now (jobOutcome).
   const [closeJob, setCloseJob] = useState(context.defaultInvoiceNow);
-  const [invoiceWanted, setInvoiceWanted] = useState(true);
+  // Another block of this customer later today: invoice together at the last one.
+  const [invoiceWanted, setInvoiceWanted] = useState(context.otherBlocksToday.length === 0);
   // A project is invoiced directly in EF: never an invoice from here.
   const isProject = context.isProject;
   const invoiceNow = closeJob && invoiceWanted && !isProject;
@@ -290,27 +292,54 @@ function RegisterFlow({
   const [lineRemarks, setLineRemarks] = useState<Record<string, string>>({});
   const [openRemark, setOpenRemark] = useState<string | null>(null);
   const [invoiceNotes, setInvoiceNotes] = useState<string[]>([]);
-  // Linked quote lines (EF offertes) still to invoice: all ticked by default.
-  const [quoteLinkIds, setQuoteLinkIds] = useState<Set<number>>(() => new Set(context.quoteLines.map((l) => l.linkId)));
-  const chosenQuoteLines = useMemo(
-    () => selectQuoteLines(context.quoteLines, quoteLinkIds),
-    [context.quoteLines, quoteLinkIds],
+  // Other finished, uninvoiced work of this customer on the same invoice
+  // ("samen factureren"): work of the same day is ticked by default.
+  const [alsoTodoIds, setAlsoTodoIds] = useState<Set<number>>(
+    () => new Set(defaultTogetherTodoIds(context.otherJobs, appointment.startAt)),
+  );
+  const chosenJobs = useMemo(
+    () => context.otherJobs.filter((j) => alsoTodoIds.has(j.todoId)),
+    [context.otherJobs, alsoTodoIds],
+  );
+  // Linked quote lines (EF offertes) still to invoice — of this todo and of the
+  // chosen other todos: all ticked by default.
+  const [quoteLinkIds, setQuoteLinkIds] = useState<Set<number>>(
+    () => new Set([...context.quoteLines, ...context.otherJobs.flatMap((j) => j.quoteLines)].map((l) => l.linkId)),
+  );
+  const quoteGroups = useMemo(
+    () => [
+      { title: context.todoTitle, lines: context.quoteLines },
+      ...chosenJobs.map((j) => ({ title: j.title, lines: j.quoteLines })),
+    ].filter((g) => g.lines.length > 0),
+    [context.todoTitle, context.quoteLines, chosenJobs],
+  );
+  const jobs = useMemo(
+    () => [
+      {
+        todoId: appointment.todoId,
+        title: context.todoTitle,
+        days: [...context.uninvoicedDays, todayDay],
+        quoteLines: selectQuoteLines(context.quoteLines, quoteLinkIds),
+      },
+      ...chosenJobs.map((j) => ({
+        todoId: j.todoId,
+        title: j.title,
+        days: j.days,
+        quoteLines: selectQuoteLines(j.quoteLines, quoteLinkIds),
+      })),
+    ],
+    [appointment.todoId, context.todoTitle, context.uninvoicedDays, context.quoteLines, todayDay, chosenJobs, quoteLinkIds],
   );
   const preview = useMemo(() => {
     try {
       return {
-        ...buildJobInvoice({
-          days: [...context.uninvoicedDays, todayDay],
-          remarks: lineRemarks,
-          notes: invoiceNotes,
-          quoteLines: chosenQuoteLines,
-        }),
+        ...buildInvoice({ jobs, remarks: lineRemarks, notes: invoiceNotes }),
         error: null as string | null,
       };
     } catch (e) {
       return { items: [], lines: [], notes: [], totalExclVat: 0, error: (e as Error).message };
     }
-  }, [context.uninvoicedDays, todayDay, lineRemarks, invoiceNotes, chosenQuoteLines]);
+  }, [jobs, lineRemarks, invoiceNotes]);
 
   const [result, setResult] = useState<CompleteResult | null>(null);
   const completeMutation = useMutation({
@@ -334,7 +363,8 @@ function RegisterFlow({
         closeJob,
         lineRemarks: invoiceNow ? lineRemarks : {},
         invoiceNotes: invoiceNow ? invoiceNotes.map((n) => n.trim()).filter(Boolean) : [],
-        quoteLinkIds: invoiceNow ? chosenQuoteLines.map((l) => l.linkId) : [],
+        quoteLinkIds: invoiceNow ? jobs.flatMap((j) => j.quoteLines.map((l) => l.linkId)) : [],
+        alsoInvoiceTodoIds: invoiceNow ? chosenJobs.map((j) => j.todoId) : [],
       };
       return apiSend<CompleteResult>(`/api/appointments/${appointment.id}/complete`, "POST", input);
     },
@@ -685,6 +715,12 @@ function RegisterFlow({
               </span>
               <Toggle checked={closeJob} onChange={setCloseJob} label="Job afgewerkt" />
             </label>
+            {!isProject && context.otherBlocksToday.length > 0 && (
+              <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                Vandaag staat ook nog {context.otherBlocksToday.map((b) => `"${b.title}"`).join(", ")} voor deze klant
+                gepland — factureer samen bij de laatste (daar kies je dit werk mee aan).
+              </p>
+            )}
             {closeJob && !isProject && (
               <label className="mt-3 flex items-start justify-between gap-3 border-t border-gray-100 pt-3">
                 <span>
@@ -713,36 +749,73 @@ function RegisterFlow({
             )}
           </Card>
 
-          {invoiceNow && context.quoteLines.length > 0 && (
-            <Card title="Offertelijnen">
+          {invoiceNow && context.otherJobs.length > 0 && (
+            <Card title="Ook factureren voor deze klant">
               <p className="mb-2 text-xs text-gray-500">
-                Gekoppeld aan deze todo vanuit EenvoudigFactureren. Vink aan wat je nu mee wilt factureren; de rest blijft
-                openstaan voor later.
+                Afgewerkt werk van deze klant dat nog niet gefactureerd is. Aangevinkt werk komt op dezelfde factuur,
+                gegroepeerd per todo.
               </p>
               <ul className="divide-y divide-gray-100">
-                {context.quoteLines.map((l) => (
-                  <li key={l.linkId}>
+                {context.otherJobs.map((j) => (
+                  <li key={j.todoId}>
                     <label className="flex min-h-11 items-start gap-3 py-2">
                       <input
                         type="checkbox"
                         className="mt-1 h-5 w-5 shrink-0"
-                        checked={quoteLinkIds.has(l.linkId)}
-                        onChange={() => setQuoteLinkIds((ids) => toggleId(ids, l.linkId))}
+                        checked={alsoTodoIds.has(j.todoId)}
+                        onChange={() => setAlsoTodoIds((ids) => toggleId(ids, j.todoId))}
                       />
                       <span className="min-w-0 flex-1 text-sm">
-                        <span className="block leading-snug">{l.description}</span>
+                        <span className="block leading-snug">{j.title}</span>
                         <span className="block text-xs text-gray-500">
-                          Offerte {l.quoteNumber} · {String(l.quantity).replace(".", ",")} {l.unit} ×{" "}
-                          {euro.format(l.amount)} · {l.taxRate}% btw
+                          {j.days.length === 1 ? "1 dag" : `${j.days.length} dagen`}, laatst op{" "}
+                          {toBrussels(j.lastRegisteredOn).toFormat("dd/LL/yyyy")}
+                          {j.quoteLines.length > 0 &&
+                            ` · ${j.quoteLines.length} offertelijn${j.quoteLines.length === 1 ? "" : "en"}`}
                         </span>
-                      </span>
-                      <span className="shrink-0 text-sm font-medium tabular-nums">
-                        {euro.format(l.quantity * l.amount)}
                       </span>
                     </label>
                   </li>
                 ))}
               </ul>
+            </Card>
+          )}
+
+          {invoiceNow && quoteGroups.length > 0 && (
+            <Card title="Offertelijnen">
+              <p className="mb-2 text-xs text-gray-500">
+                Gekoppeld aan deze todo vanuit EenvoudigFactureren. Vink aan wat je nu mee wilt factureren; de rest blijft
+                openstaan voor later.
+              </p>
+              {quoteGroups.map((g) => (
+                <div key={g.title}>
+                  {quoteGroups.length > 1 && <p className="mt-2 text-xs font-semibold text-gray-600">{g.title}</p>}
+                  <ul className="divide-y divide-gray-100">
+                    {g.lines.map((l) => (
+                      <li key={l.linkId}>
+                        <label className="flex min-h-11 items-start gap-3 py-2">
+                          <input
+                            type="checkbox"
+                            className="mt-1 h-5 w-5 shrink-0"
+                            checked={quoteLinkIds.has(l.linkId)}
+                            onChange={() => setQuoteLinkIds((ids) => toggleId(ids, l.linkId))}
+                          />
+                          <span className="min-w-0 flex-1 text-sm">
+                            <span className="block leading-snug">{l.description}</span>
+                            <span className="block text-xs text-gray-500">
+                              Offerte {l.quoteNumber} · {String(l.quantity).replace(".", ",")} {l.unit} ×{" "}
+                              {euro.format(l.amount)} · {l.taxRate}% btw
+                            </span>
+                          </span>
+                          <span className="shrink-0 text-sm font-medium tabular-nums">
+                            {euro.format(l.quantity * l.amount)}
+                          </span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </Card>
           )}
 
@@ -759,6 +832,11 @@ function RegisterFlow({
                     const editing = openRemark === line.key;
                     return (
                       <li key={line.key} className="py-2">
+                        {line.heading && (
+                          <p className="-mt-1 mb-1 border-b border-gray-200 pb-1 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                            {line.heading}
+                          </p>
+                        )}
                         <p className="font-medium leading-snug">{item.description}</p>
                         <p className="flex justify-between text-xs text-gray-500">
                           <span>

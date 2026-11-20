@@ -7,7 +7,7 @@ import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, Modal, Spinner, StatusBadge } from "@/components/ui";
 import { VatTotals } from "@/components/vat-totals";
 import { apiGet, apiSend } from "@/lib/api-client";
-import { itemsFromContent, VAT_RATES, vatSummary, type InvoiceContent } from "@/lib/invoice-content";
+import { itemsFromContent, removeLineKeepingHeading, VAT_RATES, vatSummary, type InvoiceContent } from "@/lib/invoice-content";
 import { parseDecimal } from "@/lib/number";
 import { searchArticles } from "@/lib/registration";
 import type { PriceListItemDto } from "@/lib/schemas/catalog";
@@ -158,27 +158,42 @@ function InvoiceDetail({ invoice: inv, onEdit }: { invoice: InvoiceDetailDto; on
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {inv.items.map((item, i) =>
-                item.type === "text" ? (
-                  <tr key={i}>
-                    <td colSpan={5} className="px-3 py-1.5 italic text-gray-600">
-                      💬 {item.description}
-                    </td>
-                  </tr>
-                ) : (
-                  <tr key={i}>
-                    <td className="px-3 py-2">{item.description}</td>
+              {inv.content.lines.map((line, i) => (
+                <Fragment key={i}>
+                  {line.heading && (
+                    <tr className="bg-gray-50">
+                      <td colSpan={5} className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                        {line.heading}
+                      </td>
+                    </tr>
+                  )}
+                  <tr>
+                    <td className="px-3 py-2">{line.item.description}</td>
                     <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">
-                      {show(item.quantity ?? 0)} {item.unit}
+                      {show(line.item.quantity)} {line.item.unit}
                     </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{euro.format(item.amount ?? 0)}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{item.tax_rate}%</td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums">{euro.format(line.item.amount)}</td>
+                    <td className="px-3 py-2 text-right tabular-nums">{line.item.tax_rate}%</td>
                     <td className="whitespace-nowrap px-3 py-2 text-right font-medium tabular-nums">
-                      {euro.format((item.quantity ?? 0) * (item.amount ?? 0))}
+                      {euro.format(line.item.quantity * line.item.amount)}
                     </td>
                   </tr>
-                ),
-              )}
+                  {line.remark && (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-1.5 italic text-gray-600">
+                        💬 {line.remark}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              ))}
+              {inv.content.notes.map((note, i) => (
+                <tr key={`note-${i}`}>
+                  <td colSpan={5} className="px-3 py-1.5 italic text-gray-600">
+                    💬 {note}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -289,9 +304,12 @@ interface EditLine {
   tax_rate: number;
   remark: string;
   remarkOpen: boolean;
+  /** Todo title shown above this line (invoice with several todos); kept as is. */
+  heading?: string;
 }
 
 let nextKey = 1;
+
 
 /** Compact input that fills its table cell. */
 const cellInput =
@@ -314,6 +332,7 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
       tax_rate: l.item.tax_rate,
       remark: l.remark ?? "",
       remarkOpen: Boolean(l.remark),
+      heading: l.heading,
     })),
   );
   const [notes, setNotes] = useState<string[]>(invoice.content.notes);
@@ -336,6 +355,7 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
           tax_rate: l.tax_rate,
         },
         remark: l.remark.trim() || undefined,
+        heading: l.heading,
       })),
       notes: notes.map((n) => n.trim()).filter(Boolean),
     }),
@@ -380,6 +400,13 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
               const total = num(l.quantity) * num(l.amount);
               return (
                 <Fragment key={l.key}>
+                  {l.heading && (
+                    <tr className="border-t border-gray-200 bg-gray-50">
+                      <td colSpan={7} className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-brand-700">
+                        {l.heading}
+                      </td>
+                    </tr>
+                  )}
                   <tr className="border-t border-gray-100 align-top">
                     <td className="px-2 pb-1 pt-2">
                       <input
@@ -441,7 +468,7 @@ function InvoiceEditor({ invoice, onDone }: { invoice: InvoiceDetailDto; onDone:
                         action="delete"
                         iconOnly
                         label="Regel verwijderen"
-                        onClick={() => setLines((list) => list.filter((x) => x.key !== l.key))}
+                        onClick={() => setLines((list) => removeLineKeepingHeading(list, l.key))}
                       />
                     </td>
                   </tr>

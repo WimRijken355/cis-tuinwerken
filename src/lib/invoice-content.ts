@@ -7,6 +7,8 @@ import type { EfInvoiceItem } from "./ef/types";
  * EenvoudigFactureren only knows a flat list of lines ("item" with an amount,
  * "text" without). Our structure keeps what belongs together:
  *   lines: priced lines, each with an optional remark (→ a text line right below)
+ *          and an optional heading (→ a text line right above: the todo's title
+ *          when several todos share one invoice)
  *   notes: free note lines (→ text lines at the bottom)
  * Invoice.contentJson stores this; Invoice.linesJson (the EF payload) is
  * always generated from it with itemsFromContent().
@@ -15,6 +17,8 @@ import type { EfInvoiceItem } from "./ef/types";
 export interface InvoiceContentLine {
   item: { description: string; quantity: number; unit: string; amount: number; tax_rate: number };
   remark?: string;
+  /** Text line above this line: the title of the todo whose lines start here. */
+  heading?: string;
 }
 
 export interface InvoiceContent {
@@ -36,6 +40,8 @@ export function isVatRate(v: number): v is VatRate {
 export function itemsFromContent(content: InvoiceContent): EfInvoiceItem[] {
   const items: EfInvoiceItem[] = [];
   for (const line of content.lines) {
+    const heading = line.heading?.trim();
+    if (heading) items.push({ type: "text", description: heading });
     items.push({ type: "item", ...line.item });
     const remark = line.remark?.trim();
     if (remark) items.push({ type: "text", description: remark });
@@ -115,6 +121,12 @@ export const invoiceContentSchema = z.object({
           .max(500)
           .optional()
           .transform((v) => v || undefined),
+        heading: z
+          .string()
+          .trim()
+          .max(500)
+          .optional()
+          .transform((v) => v || undefined),
       }),
     )
     .min(1, "Een factuur heeft minstens één regel")
@@ -128,7 +140,7 @@ export const invoiceContentSchema = z.object({
 
 /** Content structure of a freshly built job invoice (buildJobInvoice result). */
 export function contentFromBuilt(built: {
-  lines: { item: EfInvoiceItem; remark?: string }[];
+  lines: { item: EfInvoiceItem; remark?: string; heading?: string }[];
   notes: string[];
 }): InvoiceContent {
   return {
@@ -141,6 +153,7 @@ export function contentFromBuilt(built: {
         tax_rate: Number(l.item.tax_rate ?? 21),
       },
       ...(l.remark ? { remark: l.remark } : {}),
+      ...(l.heading ? { heading: l.heading } : {}),
     })),
     notes: [...built.notes],
   };
@@ -186,22 +199,46 @@ export function vatSummary(
  * come from the rebuilt invoice.
  */
 export function rebuildContentKeepingNotes(
-  built: { lines: { item: EfInvoiceItem }[]; notes: string[] },
+  built: { lines: { item: EfInvoiceItem; heading?: string }[]; notes: string[] },
   previous: InvoiceContent,
 ): InvoiceContent {
   const fresh = contentFromBuilt(built);
+  // Match on todo group + description: two todos can both have "Werkuren op 12/05/2027".
+  const keyed = (lines: InvoiceContentLine[]) => {
+    let group = "";
+    return lines.map((line) => {
+      if (line.heading) group = line.heading;
+      return { line, key: JSON.stringify([group, line.item.description]) };
+    });
+  };
   const remarkByDescription = new Map<string, string>();
-  for (const line of previous.lines) {
+  for (const { line, key } of keyed(previous.lines)) {
     const remark = line.remark?.trim();
-    if (remark) remarkByDescription.set(line.item.description, remark);
+    if (remark) remarkByDescription.set(key, remark);
   }
-  for (const line of fresh.lines) {
-    const remark = remarkByDescription.get(line.item.description);
+  for (const { line, key } of keyed(fresh.lines)) {
+    const remark = remarkByDescription.get(key);
     if (remark) {
       line.remark = remark;
-      remarkByDescription.delete(line.item.description);
+      remarkByDescription.delete(key);
     }
   }
   const notes = [...fresh.notes, ...remarkByDescription.values(), ...previous.notes];
   return { lines: fresh.lines, notes: [...new Set(notes.map((n) => n.trim()).filter(Boolean))] };
+}
+
+/**
+ * Removes a line; when it carried a todo heading, the next line of that todo
+ * (if it has no heading of its own) takes the heading over.
+ */
+export function removeLineKeepingHeading<T extends { key: number; heading?: string }>(lines: T[], key: number): T[] {
+  const index = lines.findIndex((l) => l.key === key);
+  if (index < 0) return lines;
+  const removed = lines[index];
+  const next = lines[index + 1];
+  const rest = lines.filter((l) => l.key !== key);
+  if (removed.heading && next && !next.heading) {
+    return rest.map((l) => (l.key === next.key ? { ...l, heading: removed.heading } : l));
+  }
+  return rest;
 }

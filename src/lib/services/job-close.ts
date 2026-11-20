@@ -1,10 +1,10 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { contentFromBuilt, vatSummary } from "../invoice-content";
-import { buildJobInvoice } from "../registration";
+import { ApiError } from "../api";
+import { buildInvoice, invoiceTogetherProblem } from "../registration";
 import { initialSyncAction, syncSkipMessage } from "./invoice-sync";
 import { markInvoiceNotSynced, pushInvoiceToEf } from "./invoices";
-import { loadUninvoicedDays } from "./registration";
-import { loadTodoQuoteLines } from "./todo-quote-lines";
+import { loadUninvoicedJob } from "./registration";
 import { getSettings } from "./settings";
 
 /**
@@ -29,8 +29,10 @@ export async function closeJobInTx(tx: Tx, todoId: number): Promise<void> {
 
 /**
  * One invoice with every registered, not yet invoiced day of the todo (local,
- * PENDING; pushed afterwards with pushNewJobInvoice). `triggerCompletionId` is
- * the registration that "made" the invoice. Null when there is nothing to invoice.
+ * PENDING; pushed afterwards with pushNewJobInvoice), optionally together with
+ * other finished todos of the same customer (`alsoTodoIds`, "samen
+ * factureren": grouped per todo on the invoice). `triggerCompletionId` is the
+ * registration that "made" the invoice. Null when there is nothing to invoice.
  */
 export async function createJobInvoiceInTx(
   tx: Tx,
@@ -40,16 +42,39 @@ export async function createJobInvoiceInTx(
     triggerCompletionId: number;
     remarks?: Record<string, string>;
     notes?: string[];
-    /** TodoQuoteLine ids to charge too (only this todo's, not invoiced yet). */
+    /** TodoQuoteLine ids to charge too (of the todos on this invoice, not invoiced yet). */
     quoteLinkIds?: number[];
+    /** Other finished todos of this customer to put on the same invoice. */
+    alsoTodoIds?: number[];
   },
 ): Promise<CreatedJobInvoice | null> {
-  const days = await loadUninvoicedDays(input.todoId, tx);
-  if (days.length === 0) return null;
-  const quoteLines = (await loadTodoQuoteLines(input.todoId, tx)).filter(
-    (l) => l.invoiceId === null && (input.quoteLinkIds ?? []).includes(l.linkId),
-  );
-  const built = buildJobInvoice({ days, remarks: input.remarks ?? {}, notes: input.notes ?? [], quoteLines });
+  const alsoTodoIds = [...new Set(input.alsoTodoIds ?? [])].filter((id) => id !== input.todoId);
+  for (const id of alsoTodoIds) {
+    const other = await tx.todo.findUnique({
+      where: { id },
+      select: {
+        customerId: true,
+        status: true,
+        isProject: true,
+        _count: { select: { appointments: { where: { completion: { invoiceId: null } } } } },
+      },
+    });
+    const problem = other
+      ? invoiceTogetherProblem({ ...other, uninvoicedDays: other._count.appointments }, input.customerId)
+      : "Todo niet gevonden.";
+    if (problem) throw new ApiError(`Kan todo #${id} niet mee factureren: ${problem}`, 409);
+  }
+
+  const todoIds = [input.todoId, ...alsoTodoIds];
+  const chosen = new Set(input.quoteLinkIds ?? []);
+  const jobs = [];
+  for (const id of todoIds) {
+    const job = await loadUninvoicedJob(id, tx);
+    jobs.push({ ...job, quoteLines: (job.quoteLines ?? []).filter((l) => chosen.has(l.linkId)) });
+  }
+  if (jobs.every((j) => j.days.length === 0)) return null;
+
+  const built = buildInvoice({ jobs, remarks: input.remarks ?? {}, notes: input.notes ?? [] });
   const invoice = await tx.invoice.create({
     data: {
       completionId: input.triggerCompletionId,
@@ -62,12 +87,13 @@ export async function createJobInvoiceInTx(
     },
   });
   await tx.completion.updateMany({
-    where: { invoiceId: null, appointment: { todoId: input.todoId } },
+    where: { invoiceId: null, appointment: { todoId: { in: todoIds } } },
     data: { invoiceId: invoice.id },
   });
-  if (quoteLines.length > 0) {
+  const chargedLinks = jobs.flatMap((j) => (j.quoteLines ?? []).map((l) => l.linkId));
+  if (chargedLinks.length > 0) {
     await tx.todoQuoteLine.updateMany({
-      where: { id: { in: quoteLines.map((l) => l.linkId) }, invoiceId: null },
+      where: { id: { in: chargedLinks }, todoId: { in: todoIds }, invoiceId: null },
       data: { invoiceId: invoice.id },
     });
   }

@@ -81,6 +81,8 @@ export const completionInputSchema = z
     invoiceNotes: z.array(z.string().trim().max(1000)).max(20).default([]),
     /** Only with invoiceNow: linked quote lines (TodoQuoteLine ids) to invoice too. */
     quoteLinkIds: z.array(z.number().int().positive()).max(200).default([]),
+    /** Only with invoiceNow: other finished todos of this customer on the same invoice. */
+    alsoInvoiceTodoIds: z.array(z.number().int().positive()).max(50).default([]),
   })
   .refine(
     (c) => c.resources.some((r) => r.registeredHours > 0 || r.invoicedHours > 0),
@@ -128,26 +130,46 @@ export interface RegistrationContextDto {
   /** Quote lines linked to the todo that are not invoiced yet. */
   quoteLines: TodoQuoteLineDto[];
   /** Earlier registered days of this todo that are not invoiced yet. */
-  uninvoicedDays: {
-    date: string;
-    labor: {
-      resourceId: number | null;
-      name: string;
-      type: "PERSON" | "MACHINE";
-      invoicedHours: number;
-      hourlyRate: number;
-      vatRate: number;
-    }[];
-    extras: {
-      priceListItemId: number | null;
-      description: string;
-      quantity: number;
-      unit: string;
-      unitPrice: number;
-      vatRate: number;
-    }[];
-  }[];
+  uninvoicedDays: RegisteredDayDto[];
   laborVatRate: number;
+  /** Title of the todo being registered (heading when invoicing together). */
+  todoTitle: string;
+  /** Other finished, not yet invoiced work of this customer that may go on the same invoice. */
+  otherJobs: UninvoicedJobDto[];
+  /** Other blocks of this customer planned the same day (invoice together at the last one). */
+  otherBlocksToday: { todoId: number; title: string; startAt: string }[];
+}
+
+/** A registered day as input for the invoice preview (buildInvoice). */
+export interface RegisteredDayDto {
+  date: string;
+  labor: {
+    resourceId: number | null;
+    name: string;
+    type: "PERSON" | "MACHINE";
+    invoicedHours: number;
+    hourlyRate: number;
+    vatRate: number;
+  }[];
+  extras: {
+    priceListItemId: number | null;
+    description: string;
+    quantity: number;
+    unit: string;
+    unitPrice: number;
+    vatRate: number;
+  }[];
+}
+
+/** A finished todo of the customer with work that is not invoiced yet. */
+export interface UninvoicedJobDto {
+  todoId: number;
+  title: string;
+  /** Work date of its last registered (uninvoiced) day, ISO. */
+  lastRegisteredOn: string;
+  days: RegisteredDayDto[];
+  /** Its linked quote lines that are not invoiced yet. */
+  quoteLines: TodoQuoteLineDto[];
 }
 
 export interface InvoiceDto {
