@@ -96,3 +96,22 @@ Bij de registratie met **Nu factureren** (laatste dag van een job; zie
 
 Afgedwongen EF-limieten: `quantity` max 2 decimalen, `unit` max 10 tekens,
 btw-tarieven beperkt tot 0/6/12/21, geldrekenwerk in centen.
+
+## Offertes (offertelijnen koppelen aan een todo)
+
+- **Ophalen**: `GET /quotes` (gepagineerd, met regels). Per klant met
+  `filter=client_id=<id>` — **zonder spaties**, met spaties geeft EF stil 0 rijen.
+  Geldbedragen komen als strings (`"45.00"`), statussen zijn `open`, `accepted`,
+  `expired` en `rejected` (vastgesteld tegen de live API).
+- **Wanneer**: elke nacht om 03:00 (en bij het opstarten) voor alle klanten, en
+  meteen voor één klant met **"↻ Offertes ophalen"** op de klantfiche of
+  **"↻ Ophalen uit EF"** in de todo-editor. Alleen lezen — de app wijzigt nooit
+  iets aan offertes in EF.
+- **Lokaal** (`EfQuote`/`EfQuoteLine`): enkel geprijsde regels (tekstregels,
+  aantal 0 en btw-tarieven buiten 0/6/12/21 vallen weg), eenheidsprijs na
+  lijnkorting, eenheid ingekort tot 10 tekens. Een korting op de hele offerte
+  wordt **niet** doorgerekend.
+- **Gebruik**: lijnen van open/aanvaarde offertes koppel je aan een todo; bij het
+  klaarmelden met "Nu factureren" kies je welke mee op de conceptfactuur gaan
+  (als gewone regel, zoals in de offerte). Een gefactureerde lijn wordt nooit
+  opnieuw voorgesteld.

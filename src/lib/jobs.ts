@@ -1,4 +1,5 @@
 import { Cron } from "croner";
+import { runQuoteSyncJob } from "./services/quotes";
 import { runRecurringGenerationJob } from "./services/recurring";
 import { runReminderJob } from "./services/reminders";
 import { getSettings } from "./services/settings";
@@ -42,9 +43,15 @@ export function startCronJobs(): void {
     runRecurringGenerationJob().catch((e) => console.error("Recurring-job faalde:", e));
   });
 
+  // Quotes (offertes) from EenvoudigFactureren: daily at 03:00.
+  new Cron("0 3 * * *", { timezone: ZONE, name: "quotes" }, () => {
+    runQuoteSyncJob().catch((e) => console.error("Offerte-sync faalde:", e));
+  });
+
   // Inhaalruns bij het opstarten (bv. server was offline om 02:00/18:00).
   runRecurringGenerationJob().catch((e) => console.error("Recurring-inhaalrun faalde:", e));
   reminderTick().catch((e) => console.error("Reminder-inhaalrun faalde:", e));
+  runQuoteSyncJob().catch((e) => console.error("Offerte-inhaalrun faalde:", e));
 
   console.log(`⏰ Cron-jobs gestart (tijdzone ${ZONE})`);
 }

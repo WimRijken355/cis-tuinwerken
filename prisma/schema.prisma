@@ -176,6 +176,7 @@ model Todo {
   appointments    Appointment[]
   resources       TodoResource[]
   tasks           TodoTask[]
+  quoteLines      TodoQuoteLine[]
 
   @@unique([recurringWindowId, occurrenceYear])
   @@index([customerId])
@@ -487,6 +488,8 @@ model Invoice {
   customer    Customer     @relation(fields: [customerId], references: [id])
   /// All registrations (days) charged on this invoice.
   completions Completion[] @relation("InvoiceCompletions")
+  /// Quote lines charged on this invoice.
+  quoteLines  TodoQuoteLine[]
 
   @@index([customerId])
   @@index([pushStatus])
@@ -546,4 +549,66 @@ model AuditLog {
 
   @@index([tableName, recordId])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Quotes (offertes) from EenvoudigFactureren
+// ---------------------------------------------------------------------------
+
+/// Read-only mirror of an EF quote, synced daily and on demand per customer
+/// (services/quotes.ts). Linked to a customer through Customer.efClientId.
+/// Not audited: it is a copy of EF data, rewritten by every sync.
+model EfQuote {
+  id           Int      @id @default(autoincrement())
+  efQuoteId    Int      @unique
+  efClientId   Int
+  number       String
+  reference    String?
+  date         DateTime @db.Date
+  /// EF status: open | accepted | expired | rejected.
+  status       String
+  totalExclVat Decimal  @db.Decimal(10, 2)
+  syncedAt     DateTime
+
+  lines EfQuoteLine[]
+
+  @@index([efClientId])
+}
+
+/// A priced line of an EF quote (EF text lines are not mirrored).
+model EfQuoteLine {
+  id          Int     @id @default(autoincrement())
+  quoteId     Int
+  efItemId    Int     @unique
+  sortOrder   Int
+  description String
+  quantity    Decimal @db.Decimal(10, 2)
+  /// Max 10 characters (EF limit on invoice lines).
+  unit        String
+  /// Unit price excl. VAT, after the line discount.
+  amount      Decimal @db.Decimal(10, 2)
+  taxRate     Decimal @db.Decimal(4, 2)
+
+  quote     EfQuote         @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  todoLinks TodoQuoteLine[]
+
+  @@index([quoteId])
+}
+
+/// Quote line linked to a todo; proposed in the invoice step of the
+/// registration. `invoiceId` is set once it is charged, so it is never
+/// invoiced twice.
+model TodoQuoteLine {
+  id          Int  @id @default(autoincrement())
+  todoId      Int
+  quoteLineId Int
+  invoiceId   Int?
+
+  todo      Todo        @relation(fields: [todoId], references: [id], onDelete: Cascade)
+  quoteLine EfQuoteLine @relation(fields: [quoteLineId], references: [id])
+  invoice   Invoice?    @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@unique([todoId, quoteLineId])
+  @@index([quoteLineId])
+  @@index([invoiceId])
 }

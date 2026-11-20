@@ -18,6 +18,7 @@ export const AUDITED_MODELS = new Set([
   "Resource",
   "TodoResource",
   "TodoTask",
+  "TodoQuoteLine",
   "ChecklistItem",
   "LooseTodoPreset",
   "RecurringTemplateTask",

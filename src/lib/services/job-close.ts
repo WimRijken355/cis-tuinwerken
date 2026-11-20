@@ -4,6 +4,7 @@ import { buildJobInvoice } from "../registration";
 import { initialSyncAction, syncSkipMessage } from "./invoice-sync";
 import { markInvoiceNotSynced, pushInvoiceToEf } from "./invoices";
 import { loadUninvoicedDays } from "./registration";
+import { loadTodoQuoteLines } from "./todo-quote-lines";
 import { getSettings } from "./settings";
 
 /**
@@ -39,11 +40,16 @@ export async function createJobInvoiceInTx(
     triggerCompletionId: number;
     remarks?: Record<string, string>;
     notes?: string[];
+    /** TodoQuoteLine ids to charge too (only this todo's, not invoiced yet). */
+    quoteLinkIds?: number[];
   },
 ): Promise<CreatedJobInvoice | null> {
   const days = await loadUninvoicedDays(input.todoId, tx);
   if (days.length === 0) return null;
-  const built = buildJobInvoice({ days, remarks: input.remarks ?? {}, notes: input.notes ?? [] });
+  const quoteLines = (await loadTodoQuoteLines(input.todoId, tx)).filter(
+    (l) => l.invoiceId === null && (input.quoteLinkIds ?? []).includes(l.linkId),
+  );
+  const built = buildJobInvoice({ days, remarks: input.remarks ?? {}, notes: input.notes ?? [], quoteLines });
   const invoice = await tx.invoice.create({
     data: {
       completionId: input.triggerCompletionId,
@@ -59,6 +65,12 @@ export async function createJobInvoiceInTx(
     where: { invoiceId: null, appointment: { todoId: input.todoId } },
     data: { invoiceId: invoice.id },
   });
+  if (quoteLines.length > 0) {
+    await tx.todoQuoteLine.updateMany({
+      where: { id: { in: quoteLines.map((l) => l.linkId) }, invoiceId: null },
+      data: { invoiceId: invoice.id },
+    });
+  }
   return { id: invoice.id, totalExclVat: built.totalExclVat, totalInclVat: vatSummary(built.items).inclVat };
 }
 

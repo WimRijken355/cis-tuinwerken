@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ceilToQuarterHour } from "../registration";
+import type { TodoQuoteLineDto } from "./quotes";
 
 /**
  * Contract for registering a day's work on an appointment ("klaarmelden",
@@ -78,6 +79,8 @@ export const completionInputSchema = z
     lineRemarks: z.record(z.string().max(200), z.string().max(500)).default({}),
     /** Only with invoiceNow: extra note lines at the bottom of the invoice. */
     invoiceNotes: z.array(z.string().trim().max(1000)).max(20).default([]),
+    /** Only with invoiceNow: linked quote lines (TodoQuoteLine ids) to invoice too. */
+    quoteLinkIds: z.array(z.number().int().positive()).max(200).default([]),
   })
   .refine(
     (c) => c.resources.some((r) => r.registeredHours > 0 || r.invoicedHours > 0),
@@ -122,6 +125,8 @@ export interface RegistrationContextDto {
   defaultInvoiceNow: boolean;
   /** Project todo: hours only, invoiced directly in EF (no invoice step). */
   isProject: boolean;
+  /** Quote lines linked to the todo that are not invoiced yet. */
+  quoteLines: TodoQuoteLineDto[];
   /** Earlier registered days of this todo that are not invoiced yet. */
   uninvoicedDays: {
     date: string;

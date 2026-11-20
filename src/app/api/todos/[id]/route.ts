@@ -6,6 +6,7 @@ import { checklistNames, syncTodoTasks } from "@/lib/services/checklist-tasks";
 import { canEditInvoice } from "@/lib/invoice-content";
 import { formatAddress } from "@/lib/schemas/customers";
 import { todoStatusActions } from "@/lib/todo-list";
+import { loadTodoQuoteLines, replaceTodoQuoteLines } from "@/lib/services/todo-quote-lines";
 import {
   CONTACT_KEYS,
   resolveTodoOwner,
@@ -99,6 +100,7 @@ export async function GET(
       customerAddress: todo.customer ? formatAddress(todo.customer) : "",
       resources: toTodoResourceDtos(todo.resources),
       tasks: toTodoTaskDtos(todo.tasks),
+      quoteLines: await loadTodoQuoteLines(id),
       customer: undefined,
     });
   } catch (error) {
@@ -123,6 +125,7 @@ export async function PATCH(
     const {
       resources,
       taskIds,
+      quoteLineIds,
       customerId,
       contactName,
       contactStreet,
@@ -182,6 +185,10 @@ export async function PATCH(
     });
     if (resources) await replaceTodoResources(id, resources);
     if (taskIds && names) await syncTodoTasks(id, taskIds, names);
+    // A new owner never keeps the previous customer's (uninvoiced) quote lines.
+    if (quoteLineIds || owner.ownerChanged) {
+      await replaceTodoQuoteLines(id, owner.customerId, owner.ownerChanged ? (quoteLineIds ?? []) : quoteLineIds!);
+    }
     const todo = await db.todo.findUniqueOrThrow({ where: { id }, include: todoResourcesInclude });
     return NextResponse.json({
       ...todo,

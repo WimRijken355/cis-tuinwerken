@@ -10,6 +10,8 @@ import {
   periodToWindow,
   proposeHours,
   searchArticles,
+  selectQuoteLines,
+  toggleId,
   windowLabel,
 } from "./registration";
 
@@ -84,6 +86,25 @@ describe("buildJobInvoice", () => {
       { type: "item", description: "Minigraver op 08/12/2026", quantity: 4, unit: "uur", amount: 55, tax_rate: 21 },
     ]);
     expect(built.totalExclVat).toBe(21.5 * 45 + 12 * 55);
+  });
+
+  it("adds the chosen quote lines after the work, each as offered, with remarks by key", () => {
+    const built = buildJobInvoice({
+      days: [{ date: day1, labor: [{ ...cis, invoicedHours: 2 }], extras: [] }],
+      quoteLines: [
+        { linkId: 7, description: "Gazon aanleggen", quantity: 80, unit: "m²", amount: 12.5, taxRate: 6 },
+        { linkId: 8, description: "Sproeiers", quantity: 5, unit: "sproeierkop-xl", amount: 36, taxRate: 21 },
+      ],
+      remarks: { "quote|7": "Zie offerte OFF-2026-012" },
+    });
+    expect(built.items).toEqual([
+      { type: "item", description: "Werkuren op 07/12/2026", quantity: 2, unit: "uur", amount: 45, tax_rate: 21 },
+      { type: "item", description: "Gazon aanleggen", quantity: 80, unit: "m²", amount: 12.5, tax_rate: 6 },
+      { type: "text", description: "Zie offerte OFF-2026-012" },
+      { type: "item", description: "Sproeiers", quantity: 5, unit: "sproeierko", amount: 36, tax_rate: 21 },
+    ]);
+    expect(built.lines.filter((l) => l.kind === "quote").map((l) => l.key)).toEqual(["quote|7", "quote|8"]);
+    expect(built.totalExclVat).toBe(2 * 45 + 80 * 12.5 + 5 * 36);
   });
 
   it("keeps the per-person composition for consultation (not sent to EF)", () => {
@@ -281,5 +302,23 @@ describe("followUpTodoInitial", () => {
     const init = followUpTodoInitial(todo);
     expect(init.tasks.map((t) => t.checklistItemId)).toEqual([10, 11, 12]);
     expect(init.tasks.every((t) => !t.done && !t.unplanned)).toBe(true);
+  });
+});
+
+describe("quote lines in the invoice step", () => {
+  const lines = [
+    { linkId: 1, invoiceId: null },
+    { linkId: 2, invoiceId: null },
+    { linkId: 3, invoiceId: 40 },
+  ];
+  it("invoices only the ticked lines that are not on an invoice yet", () => {
+    expect(selectQuoteLines(lines, new Set([1, 3])).map((l) => l.linkId)).toEqual([1]);
+    expect(selectQuoteLines(lines, new Set())).toEqual([]);
+  });
+  it("toggleId adds and removes without mutating the original set", () => {
+    const ids = new Set([1]);
+    expect([...toggleId(ids, 2)]).toEqual([1, 2]);
+    expect([...toggleId(ids, 1)]).toEqual([]);
+    expect([...ids]).toEqual([1]);
   });
 });

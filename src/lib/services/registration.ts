@@ -4,6 +4,7 @@ import { remainingMinutes, plannedMinutes } from "../planning";
 import { defaultInvoiceNow, proposeHours, type RegisteredDay } from "../registration";
 import type { RegistrationContextDto } from "../schemas/completions";
 import { getSettings } from "./settings";
+import { loadTodoQuoteLines } from "./todo-quote-lines";
 
 type Tx = Prisma.TransactionClient | typeof db;
 
@@ -103,6 +104,7 @@ export async function loadRegistrationContext(appointmentId: number): Promise<Re
     remainingUnplannedMinutes: remainingUnplanned,
     defaultInvoiceNow: defaultInvoiceNow({ otherPlannedBlocks, remainingUnplannedMinutes: remainingUnplanned }),
     isProject: todo.isProject,
+    quoteLines: (await loadTodoQuoteLines(todo.id)).filter((l) => l.invoiceId === null),
     uninvoicedDays: (await loadUninvoicedDays(todo.id)).map((d) => ({
       ...d,
       date: String(d.date),

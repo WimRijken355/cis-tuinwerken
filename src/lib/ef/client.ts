@@ -6,6 +6,7 @@ import type {
   EfInvoiceResult,
   EfStockItem,
 } from "./types";
+import type { EfQuote } from "./quotes";
 
 /**
  * HTTP-client voor de EenvoudigFactureren API (v1).
@@ -134,6 +135,27 @@ export async function listAllStockItems(): Promise<EfStockItem[]> {
   const take = 100;
   for (let skip = 0; ; skip += take) {
     const page = await efFetch<EfStockItem[]>(`/stockitems?skip=${skip}&take=${take}`);
+    if (!page || page.length === 0) break;
+    all.push(...page);
+    if (page.length < take) break;
+  }
+  return all;
+}
+
+// ---------------------------------------------------------------------------
+// Offertes (quotes)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetches all quotes with their lines, paginated (take 100 per page);
+ * `clientId` limits it to one EF client (filter syntax without spaces).
+ */
+export async function listAllQuotes(clientId?: number): Promise<EfQuote[]> {
+  const all: EfQuote[] = [];
+  const take = 100;
+  const filter = clientId ? `&filter=${encodeURIComponent(`client_id=${clientId}`)}` : "";
+  for (let skip = 0; ; skip += take) {
+    const page = await efFetch<EfQuote[]>(`/quotes?skip=${skip}&take=${take}${filter}`);
     if (!page || page.length === 0) break;
     all.push(...page);
     if (page.length < take) break;

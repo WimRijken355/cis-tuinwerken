@@ -15,7 +15,7 @@ import { todoInputSchema, todoUpdateSchema } from "./todos";
  */
 
 /** Body fields the routes handle themselves instead of passing them to Prisma. */
-const ROUTE_HANDLED = new Set(["resources", "taskIds", "preferredFrom", "preferredTo"]);
+const ROUTE_HANDLED = new Set(["resources", "taskIds", "quoteLineIds", "preferredFrom", "preferredTo"]);
 const todoColumns = new Set(Object.keys(Prisma.TodoScalarFieldEnum));
 
 function unknownColumns(fields: string[]): string[] {

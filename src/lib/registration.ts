@@ -147,7 +147,7 @@ export interface BuiltInvoiceLine {
    * used to attach a remark to a line chosen in the preview.
    */
   key: string;
-  kind: "labor" | "machine" | "extra";
+  kind: "labor" | "machine" | "extra" | "quote";
   item: EfInvoiceItem;
   /** Remark shown as a text line right below the item (sent to EF). */
   remark?: string;
@@ -156,6 +156,32 @@ export interface BuiltInvoiceLine {
    * e.g. "Werkuren op 07/12/2026" = Cis 8 u + Ken 7,5 u.
    */
   details: { name: string; hours: number }[];
+}
+
+/**
+ * Quote lines to invoice now: the ticked ones that are not on an invoice yet,
+ * in their original order.
+ */
+export function selectQuoteLines<T extends { linkId: number; invoiceId: number | null }>(lines: T[], ticked: Set<number>): T[] {
+  return lines.filter((l) => l.invoiceId === null && ticked.has(l.linkId));
+}
+
+/** Adds the id when absent, removes it when present (new Set, for React state). */
+export function toggleId(ids: Set<number>, id: number): Set<number> {
+  const next = new Set(ids);
+  if (next.has(id)) next.delete(id);
+  else next.add(id);
+  return next;
+}
+
+/** A quote line linked to the job (TodoQuoteLine), to put on the invoice. */
+export interface InvoiceQuoteLine {
+  linkId: number;
+  description: string;
+  quantity: number;
+  unit: string;
+  amount: number;
+  taxRate: number;
 }
 
 export interface BuiltInvoice {
@@ -180,6 +206,7 @@ const dayKeyOf = (d: Date | string) =>
  *   rates differ; the per-person split is kept in `details` (not sent to EF);
  * - per day and machine "<machine> op dd/MM/yyyy";
  * - extras (artikels) summed over the job per article/description/price/VAT/unit;
+ * - the chosen quote lines (EF offertes), one line each, as offered;
  * - lines with 0 invoiced hours / quantity are left out;
  * - `remarks` (by line key) become a text line right below their line;
  *   remarks for unknown keys are not lost but added as notes;
@@ -191,6 +218,8 @@ export function buildJobInvoice(params: {
   days: RegisteredDay[];
   remarks?: Record<string, string>;
   notes?: string[];
+  /** Quote lines (EF offertes) of the job chosen to invoice now; key "quote|<linkId>". */
+  quoteLines?: InvoiceQuoteLine[];
 }): BuiltInvoice {
   const lines: BuiltInvoiceLine[] = [];
   let totalCents = 0;
@@ -264,6 +293,11 @@ export function buildJobInvoice(params: {
   }
   for (const [key, { extra, quantity }] of extras) {
     addLine(key, "extra", extra.description, quantity, extra.unit, extra.unitPrice, extra.vatRate, []);
+  }
+
+  // Quote lines as they were offered (after the registered work).
+  for (const q of params.quoteLines ?? []) {
+    addLine(`quote|${q.linkId}`, "quote", q.description, q.quantity, q.unit.slice(0, 10), q.amount, q.taxRate, []);
   }
 
   // Remarks below their line; remarks whose line no longer exists become notes.

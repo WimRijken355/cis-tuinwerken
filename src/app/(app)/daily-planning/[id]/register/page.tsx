@@ -20,6 +20,8 @@ import {
   followUpTodoInitial,
   hoursFromTimeRange,
   searchArticles,
+  selectQuoteLines,
+  toggleId,
 } from "@/lib/registration";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 import type { PriceListItemDto } from "@/lib/schemas/catalog";
@@ -288,16 +290,27 @@ function RegisterFlow({
   const [lineRemarks, setLineRemarks] = useState<Record<string, string>>({});
   const [openRemark, setOpenRemark] = useState<string | null>(null);
   const [invoiceNotes, setInvoiceNotes] = useState<string[]>([]);
+  // Linked quote lines (EF offertes) still to invoice: all ticked by default.
+  const [quoteLinkIds, setQuoteLinkIds] = useState<Set<number>>(() => new Set(context.quoteLines.map((l) => l.linkId)));
+  const chosenQuoteLines = useMemo(
+    () => selectQuoteLines(context.quoteLines, quoteLinkIds),
+    [context.quoteLines, quoteLinkIds],
+  );
   const preview = useMemo(() => {
     try {
       return {
-        ...buildJobInvoice({ days: [...context.uninvoicedDays, todayDay], remarks: lineRemarks, notes: invoiceNotes }),
+        ...buildJobInvoice({
+          days: [...context.uninvoicedDays, todayDay],
+          remarks: lineRemarks,
+          notes: invoiceNotes,
+          quoteLines: chosenQuoteLines,
+        }),
         error: null as string | null,
       };
     } catch (e) {
       return { items: [], lines: [], notes: [], totalExclVat: 0, error: (e as Error).message };
     }
-  }, [context.uninvoicedDays, todayDay, lineRemarks, invoiceNotes]);
+  }, [context.uninvoicedDays, todayDay, lineRemarks, invoiceNotes, chosenQuoteLines]);
 
   const [result, setResult] = useState<CompleteResult | null>(null);
   const completeMutation = useMutation({
@@ -321,6 +334,7 @@ function RegisterFlow({
         closeJob,
         lineRemarks: invoiceNow ? lineRemarks : {},
         invoiceNotes: invoiceNow ? invoiceNotes.map((n) => n.trim()).filter(Boolean) : [],
+        quoteLinkIds: invoiceNow ? chosenQuoteLines.map((l) => l.linkId) : [],
       };
       return apiSend<CompleteResult>(`/api/appointments/${appointment.id}/complete`, "POST", input);
     },
@@ -698,6 +712,39 @@ function RegisterFlow({
               </p>
             )}
           </Card>
+
+          {invoiceNow && context.quoteLines.length > 0 && (
+            <Card title="Offertelijnen">
+              <p className="mb-2 text-xs text-gray-500">
+                Gekoppeld aan deze todo vanuit EenvoudigFactureren. Vink aan wat je nu mee wilt factureren; de rest blijft
+                openstaan voor later.
+              </p>
+              <ul className="divide-y divide-gray-100">
+                {context.quoteLines.map((l) => (
+                  <li key={l.linkId}>
+                    <label className="flex min-h-11 items-start gap-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-5 w-5 shrink-0"
+                        checked={quoteLinkIds.has(l.linkId)}
+                        onChange={() => setQuoteLinkIds((ids) => toggleId(ids, l.linkId))}
+                      />
+                      <span className="min-w-0 flex-1 text-sm">
+                        <span className="block leading-snug">{l.description}</span>
+                        <span className="block text-xs text-gray-500">
+                          Offerte {l.quoteNumber} · {String(l.quantity).replace(".", ",")} {l.unit} ×{" "}
+                          {euro.format(l.amount)} · {l.taxRate}% btw
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-sm font-medium tabular-nums">
+                        {euro.format(l.quantity * l.amount)}
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           {invoiceNow ? (
             <Card title="Dit wordt gefactureerd">

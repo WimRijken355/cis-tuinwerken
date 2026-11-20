@@ -7,6 +7,7 @@ import { useState } from "react";
 import { ActionButton } from "@/components/action-button";
 import { ACTION_ICONS } from "@/components/action-icons";
 import { CustomerForm } from "@/components/customer-form";
+import { CustomerQuotes } from "@/components/customer-quotes";
 import { RecurringSection } from "@/components/recurring-section";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { ResourceSummary, TodoChecklist } from "@/components/work-pickers";
@@ -134,6 +135,8 @@ export default function CustomerDetailPage() {
               </p>
             )}
           </div>
+
+          <CustomerQuotes customerId={customer.id} efLinked={Boolean(customer.efClientId) && !customer.isDemo} />
 
           <RecurringSection
             customerId={customer.id}

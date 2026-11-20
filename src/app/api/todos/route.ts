@@ -3,6 +3,7 @@ import { handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-resources";
 import { checklistNames, syncTodoTasks } from "@/lib/services/checklist-tasks";
+import { replaceTodoQuoteLines } from "@/lib/services/todo-quote-lines";
 import {
   contactForTodo,
   todoInputSchema,
@@ -115,6 +116,7 @@ export async function POST(request: NextRequest) {
     const {
       resources,
       taskIds,
+      quoteLineIds,
       contactName,
       contactStreet,
       contactPostalCode,
@@ -136,6 +138,7 @@ export async function POST(request: NextRequest) {
     });
     await replaceTodoResources(created.id, resources);
     await syncTodoTasks(created.id, taskIds, names);
+    await replaceTodoQuoteLines(created.id, created.customerId, quoteLineIds);
     const todo = await db.todo.findUniqueOrThrow({
       where: { id: created.id },
       include: { customer: { select: { name: true } }, ...todoResourcesInclude },

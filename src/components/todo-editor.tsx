@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { CustomerPicker, type PickedCustomer } from "@/components/customer-picker";
+import { QuoteLinePicker } from "@/components/quote-line-picker";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { ErrorNote, Field, FieldGroup, TextInput } from "@/components/ui";
 import { apiGet } from "@/lib/api-client";
@@ -24,7 +25,7 @@ export const EMPTY_CONTACT: TodoContactFields = {
 };
 
 /** What the editor submits: the TodoForm values plus the owner. */
-export type TodoEditorPayload = TodoFormValues & { customerId: number | null } & Partial<TodoContactFields>;
+export type TodoEditorPayload = TodoFormValues & { customerId: number | null; quoteLineIds: number[] } & Partial<TodoContactFields>;
 
 export interface TodoEditorInitial {
   kind: "customer" | "loose";
@@ -35,6 +36,8 @@ export interface TodoEditorInitial {
   resources: TodoResourceDto[];
   tasks: TodoTaskDto[];
   isProject?: boolean;
+  /** Linked EF quote lines (EfQuoteLine ids). */
+  quoteLineIds?: number[];
 }
 
 /**
@@ -50,6 +53,7 @@ export function TodoEditor({
   onSubmit,
   onCancel,
   ownerLocked = false,
+  todoId,
 }: {
   initial: TodoEditorInitial;
   submitLabel: string;
@@ -59,9 +63,17 @@ export function TodoEditor({
   onCancel?: () => void;
   /** Work already registered: the customer can no longer change. */
   ownerLocked?: boolean;
+  /** The todo being edited (undefined for a new one). */
+  todoId?: number;
 }) {
   const [kind, setKind] = useState(initial.kind);
   const [customer, setCustomer] = useState<PickedCustomer | null>(initial.customer);
+  const [quoteLineIds, setQuoteLineIds] = useState<number[]>(initial.quoteLineIds ?? []);
+  // Quote lines belong to one customer: picking another one starts empty.
+  const pickCustomer = (c: PickedCustomer | null) => {
+    if (c?.id !== customer?.id) setQuoteLineIds([]);
+    setCustomer(c);
+  };
   const [contact, setContact] = useState<TodoContactFields>(initial.contact);
   const [localError, setLocalError] = useState<string | null>(null);
   const setContactField = (key: keyof TodoContactFields, value: string) =>
@@ -81,6 +93,7 @@ export function TodoEditor({
     onSubmit({
       ...values,
       customerId: kind === "customer" ? customer!.id : null,
+      quoteLineIds: kind === "customer" ? quoteLineIds : [],
       // Always send all four for a losse todo, so emptied fields are cleared too.
       ...(kind === "loose" ? contact : {}),
     });
@@ -120,8 +133,13 @@ export function TodoEditor({
       {!ownerLocked && kind === "customer" && (
         <div className="mb-3">
           <FieldGroup label="Klant">
-            <CustomerPicker value={customer} onChange={setCustomer} />
+            <CustomerPicker value={customer} onChange={pickCustomer} />
           </FieldGroup>
+        </div>
+      )}
+      {kind === "customer" && customer && (
+        <div className="mb-3">
+          <QuoteLinePicker customerId={customer.id} todoId={todoId} value={quoteLineIds} onChange={setQuoteLineIds} />
         </div>
       )}
       {kind === "loose" && (

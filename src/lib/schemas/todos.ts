@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { checklistItemIdsSchema } from "./checklist";
+import { quoteLineIdsSchema, type TodoQuoteLineDto } from "./quotes";
 import type { ResourceType } from "./resources";
 
 /** Contracten voor /api/todos. */
@@ -65,6 +66,8 @@ export const todoInputSchema = z.object({
   resources: resourcesSchema.default([]),
   /** Checklist item ids (ordered) that make up this todo's checklist. */
   taskIds: checklistItemIdsSchema.default([]),
+  /** Quote lines (EF offertes) of this customer to propose when invoicing. */
+  quoteLineIds: quoteLineIdsSchema.default([]),
   ...contactFields,
   /** Project: invoiced directly in EF; registrations never create an invoice. */
   isProject: z.boolean().default(false),
@@ -86,6 +89,7 @@ export const todoUpdateSchema = z.object({
   estimatedHours: hoursField("Geschatte uren").optional(),
   resources: resourcesSchema.optional(),
   taskIds: checklistItemIdsSchema.optional(),
+  quoteLineIds: quoteLineIdsSchema.optional(),
   ...contactFields,
   isProject: z.boolean().optional(),
   status: z.enum(["OPEN", "PLANNED", "DONE", "CANCELLED"]).optional(),
@@ -121,6 +125,8 @@ export interface TodoDto {
   resources?: TodoResourceDto[];
   /** Checklist of tasks to carry out, in order. */
   tasks?: TodoTaskDto[];
+  /** Linked quote lines (GET /api/todos/:id). */
+  quoteLines?: TodoQuoteLineDto[];
   /** Free-text name/address of a losse todo (null for customer todos). */
   contactName?: string | null;
   contactStreet?: string | null;
