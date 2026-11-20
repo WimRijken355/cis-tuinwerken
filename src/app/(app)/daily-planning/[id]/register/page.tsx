@@ -6,7 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
 import { HoursStepper } from "@/components/hours-stepper";
 import { VatTotals } from "@/components/vat-totals";
-import { vatSummary } from "@/lib/invoice-content";
+import { VAT_RATES, vatSummary } from "@/lib/invoice-content";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { ActionButton } from "@/components/action-button";
 import { ACTION_ICONS } from "@/components/action-icons";
@@ -300,6 +300,8 @@ function RegisterFlow({
   );
   // Remarks per invoice line (by line key) and extra note lines — both go to EF.
   const [lineRemarks, setLineRemarks] = useState<Record<string, string>>({});
+  // VAT rate changed per invoice line (by line key); the others keep their own rate.
+  const [lineVatRates, setLineVatRates] = useState<Record<string, number>>({});
   const [openRemark, setOpenRemark] = useState<string | null>(null);
   const [invoiceNotes, setInvoiceNotes] = useState<string[]>([]);
   // Other finished, uninvoiced work of this customer on the same invoice
@@ -345,13 +347,13 @@ function RegisterFlow({
   const preview = useMemo(() => {
     try {
       return {
-        ...buildInvoice({ jobs, remarks: lineRemarks, notes: invoiceNotes }),
+        ...buildInvoice({ jobs, remarks: lineRemarks, notes: invoiceNotes, vatRates: lineVatRates }),
         error: null as string | null,
       };
     } catch (e) {
       return { items: [], lines: [], notes: [], totalExclVat: 0, error: (e as Error).message };
     }
-  }, [jobs, lineRemarks, invoiceNotes]);
+  }, [jobs, lineRemarks, invoiceNotes, lineVatRates]);
 
   const [result, setResult] = useState<CompleteResult | null>(null);
   const completeMutation = useMutation({
@@ -379,6 +381,7 @@ function RegisterFlow({
         invoiceNow,
         closeJob,
         lineRemarks: invoiceNow ? lineRemarks : {},
+        lineVatRates: invoiceNow ? lineVatRates : {},
         invoiceNotes: invoiceNow ? invoiceNotes.map((n) => n.trim()).filter(Boolean) : [],
         quoteLinkIds: invoiceNow ? jobs.flatMap((j) => j.quoteLines.map((l) => l.linkId)) : [],
         alsoInvoiceTodoIds: invoiceNow ? chosenJobs.map((j) => j.todoId) : [],
@@ -856,9 +859,22 @@ function RegisterFlow({
                         )}
                         <p className="font-medium leading-snug">{item.description}</p>
                         <p className="flex justify-between text-xs text-gray-500">
-                          <span>
-                            {String(item.quantity).replace(".", ",")} {item.unit} × {euro.format(item.amount ?? 0)} ·{" "}
-                            {item.tax_rate}% btw
+                          <span className="flex flex-wrap items-center gap-1">
+                            {String(item.quantity).replace(".", ",")} {item.unit} × {euro.format(item.amount ?? 0)} ·
+                            <select
+                              aria-label={`Btw-tarief ${item.description}`}
+                              value={item.tax_rate}
+                              onChange={(e) =>
+                                setLineVatRates((rates) => ({ ...rates, [line.key]: Number(e.target.value) }))
+                              }
+                              className="min-h-9 rounded border border-gray-300 bg-white px-1 text-xs text-gray-700"
+                            >
+                              {VAT_RATES.map((rate) => (
+                                <option key={rate} value={rate}>
+                                  {rate}% btw
+                                </option>
+                              ))}
+                            </select>
                           </span>
                           <span className="font-medium text-gray-800">
                             {euro.format((item.quantity ?? 0) * (item.amount ?? 0))}

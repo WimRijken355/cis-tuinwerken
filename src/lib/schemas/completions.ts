@@ -84,6 +84,13 @@ export const completionInputSchema = z
      * sent to EF as a text line right below that line.
      */
     lineRemarks: z.record(z.string().max(200), z.string().max(500)).default({}),
+    /** Only with invoiceNow: a VAT rate per invoice line (key from buildInvoice), 0/6/12/21. */
+    lineVatRates: z
+      .record(
+        z.string().max(200),
+        z.number().refine((v) => [0, 6, 12, 21].includes(v), "Btw: 0, 6, 12 of 21"),
+      )
+      .default({}),
     /** Only with invoiceNow: extra note lines at the bottom of the invoice. */
     invoiceNotes: z.array(z.string().trim().max(1000)).max(20).default([]),
     /** Only with invoiceNow: linked quote lines (TodoQuoteLine ids) to invoice too. */

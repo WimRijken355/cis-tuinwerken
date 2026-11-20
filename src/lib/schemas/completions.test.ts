@@ -81,3 +81,14 @@ describe("invoicedHoursUpdateSchema", () => {
   });
 });
 
+
+describe("lineVatRates (VAT per line in the invoice step)", () => {
+  const base = { resources: [{ resourceId: 1, registeredHours: 1, invoicedHours: 1 }], invoiceNow: true };
+  it("accepts the supported rates and defaults to none", () => {
+    expect(completionInputSchema.parse(base).lineVatRates).toEqual({});
+    expect(completionInputSchema.parse({ ...base, lineVatRates: { "labor|x": 6 } }).lineVatRates).toEqual({ "labor|x": 6 });
+  });
+  it("rejects another rate", () => {
+    expect(() => completionInputSchema.parse({ ...base, lineVatRates: { "labor|x": 15 } })).toThrow();
+  });
+});

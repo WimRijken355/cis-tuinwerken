@@ -116,6 +116,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
               customerId: customer.id,
               triggerCompletionId: completion.id,
               remarks: input.lineRemarks,
+              vatRates: input.lineVatRates,
               notes: input.invoiceNotes,
               quoteLinkIds: input.quoteLinkIds,
               alsoTodoIds: input.alsoInvoiceTodoIds,

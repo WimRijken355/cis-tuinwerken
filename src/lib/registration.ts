@@ -256,8 +256,11 @@ export function buildJobInvoice(params: {
   quoteLines?: InvoiceQuoteLine[];
   /** The todo's invoice description for the labour lines (laborDescription()). */
   invoiceDescription?: string | null;
+  /** VAT rate per line key (invoice step). */
+  vatRates?: Record<string, number>;
 }): BuiltInvoice {
   return buildInvoice({
+    vatRates: params.vatRates,
     jobs: [
       {
         todoId: 0,
@@ -283,6 +286,8 @@ export function buildInvoice(params: {
   jobs: InvoiceJob[];
   remarks?: Record<string, string>;
   notes?: string[];
+  /** VAT rate chosen per line key in the invoice step (overrides the line's own rate). */
+  vatRates?: Record<string, number>;
 }): BuiltInvoice {
   const grouped = params.jobs.length > 1;
   const lines: BuiltInvoiceLine[] = [];
@@ -306,6 +311,9 @@ export function buildInvoice(params: {
       const unitPrice = round2(amount);
       if (qty <= 0) return;
       if (unit.length > 10) throw new Error(`Eenheid "${unit}" is langer dan 10 tekens (limiet EenvoudigFactureren)`);
+      // A rate picked in the invoice step wins (only the supported rates).
+      const chosen = params.vatRates?.[prefix + key];
+      if (chosen !== undefined && [0, 6, 12, 21].includes(chosen)) taxRate = chosen;
       if (![0, 6, 12, 21].includes(taxRate)) throw new Error(`Ongeldig btw-tarief: ${taxRate}`);
       jobLines.push({
         key: prefix + key,

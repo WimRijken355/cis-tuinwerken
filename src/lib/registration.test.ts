@@ -487,3 +487,39 @@ describe("day rate (machines)", () => {
     expect(ceilToHalfDay(1.2)).toBe(1.5);
   });
 });
+
+describe("VAT rate per line in the invoice step", () => {
+  const cis = { resourceId: 1, name: "Cis", type: "PERSON" as const, hourlyRate: 45, vatRate: 21 };
+  const day = "2027-05-12T07:00:00Z";
+  const days = [
+    {
+      date: day,
+      labor: [{ ...cis, invoicedHours: 4 }],
+      extras: [{ priceListItemId: 3, description: "Graszaad", quantity: 2, unit: "kg", unitPrice: 8, vatRate: 21 }],
+    },
+  ];
+
+  it("a rate chosen for a line key overrides that line only", () => {
+    const built = buildJobInvoice({ days, vatRates: { "labor|2027-05-12|45|21": 6 } });
+    expect(built.items.map((i) => [i.description, i.tax_rate])).toEqual([
+      ["Werkuren op 12/05/2027", 6],
+      ["Graszaad", 21],
+    ]);
+  });
+
+  it("ignores unsupported rates and unknown keys", () => {
+    const built = buildJobInvoice({ days, vatRates: { "labor|2027-05-12|45|21": 15, "nope": 6 } });
+    expect(built.items.map((i) => i.tax_rate)).toEqual([21, 21]);
+  });
+
+  it("works with grouped invoices (prefixed keys)", () => {
+    const built = buildInvoice({
+      jobs: [
+        { todoId: 1, title: "Haag", days },
+        { todoId: 2, title: "Gras", days },
+      ],
+      vatRates: { "todo2|labor|2027-05-12|45|21": 6 },
+    });
+    expect(built.items.filter((i) => i.type === "item").map((i) => i.tax_rate)).toEqual([21, 21, 6, 21]);
+  });
+});

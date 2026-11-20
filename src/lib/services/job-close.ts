@@ -42,6 +42,8 @@ export async function createJobInvoiceInTx(
     triggerCompletionId: number;
     remarks?: Record<string, string>;
     notes?: string[];
+    /** VAT rate per line key chosen in the invoice step. */
+    vatRates?: Record<string, number>;
     /** TodoQuoteLine ids to charge too (of the todos on this invoice, not invoiced yet). */
     quoteLinkIds?: number[];
     /** Other finished todos of this customer to put on the same invoice. */
@@ -74,7 +76,7 @@ export async function createJobInvoiceInTx(
   }
   if (jobs.every((j) => j.days.length === 0)) return null;
 
-  const built = buildInvoice({ jobs, remarks: input.remarks ?? {}, notes: input.notes ?? [] });
+  const built = buildInvoice({ jobs, remarks: input.remarks ?? {}, notes: input.notes ?? [], vatRates: input.vatRates ?? {} });
   const invoice = await tx.invoice.create({
     data: {
       completionId: input.triggerCompletionId,
