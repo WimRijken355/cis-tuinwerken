@@ -12,6 +12,7 @@ import { TodoChecklist } from "@/components/work-pickers";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours, partLabel, todoColor } from "@/lib/planning";
 import { todoChangedQueryKeys } from "@/lib/query-keys";
+import { registerHref } from "@/lib/register-link";
 import { type AppointmentDto, wazeUrl } from "@/lib/schemas/appointments";
 import type { TodoTaskDto } from "@/lib/schemas/todos";
 import { formatDate, formatTime, isIsoDay, shiftDay, todayBrussels } from "@/lib/time";
@@ -209,7 +210,7 @@ function DailyPlanning() {
                 )}
                 {a.status === "PLANNED" && !a.isLoose && (
                   <Link
-                    href={`/daily-planning/${a.id}/register${day !== today ? `?date=${day}` : ""}`}
+                    href={registerHref(a.id, { date: day !== today ? day : undefined })}
                     className="flex-1 rounded-md bg-brand-600 py-2.5 text-center text-sm font-semibold text-white active:bg-brand-700"
                   >
                     ✓ Klaarmelden

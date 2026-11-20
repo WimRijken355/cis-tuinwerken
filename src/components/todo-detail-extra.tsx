@@ -1,7 +1,9 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
+import { DateTime } from "luxon";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { HoursStepper } from "@/components/hours-stepper";
 import { SendToEfButton } from "@/components/invoice-detail";
@@ -10,7 +12,8 @@ import { Button, ErrorNote, StatusBadge } from "@/components/ui";
 import { apiSend } from "@/lib/api-client";
 import { closeJobCheck } from "@/lib/registration";
 import type { TodoRegistrationDto } from "@/lib/schemas/todos";
-import { formatDateShort, formatTime } from "@/lib/time";
+import { adHocBlockMinutes, registerHref } from "@/lib/register-link";
+import { formatDateShort, formatTime, ZONE } from "@/lib/time";
 import { todoStatusActions } from "@/lib/todo-list";
 
 const euro = new Intl.NumberFormat("nl-BE", { style: "currency", currency: "EUR" });
@@ -53,6 +56,20 @@ export function TodoDetailExtra({
   const canInvoice = closeJobCheck(closeInput, true).allowed;
   const canCloseOnly = closeJobCheck(closeInput, false).allowed;
   const [closeResult, setCloseResult] = useState<CloseResult | null>(null);
+  const router = useRouter();
+  // Registering (same wizard as the Dagplanning): customer todos only, never closed ones.
+  const registrable = todo.customerId !== null && (todo.status === "OPEN" || todo.status === "PLANNED");
+  const hasPlannedBlock = todo.appointments.some((a) => a.status === "PLANNED");
+  // Unplanned work: first a block today (08:00), then the wizard.
+  const adHocMutation = useMutation({
+    mutationFn: () =>
+      apiSend<{ id: number }>("/api/appointments", "POST", {
+        todoId: todo.id,
+        startAt: DateTime.now().setZone(ZONE).set({ hour: 8, minute: 0, second: 0, millisecond: 0 }).toISO(),
+        durationMinutes: adHocBlockMinutes(todo.estimatedHours, todo.appointments),
+      }),
+    onSuccess: (block) => router.push(registerHref(block.id, { back: "/todos" })),
+  });
   // Distinct invoices of this todo (a multi-day job usually has one).
   const invoices = [
     ...new Map(registrations.flatMap((r) => (r.invoice ? [[r.invoice.id, r.invoice] as const] : []))).values(),
@@ -102,13 +119,36 @@ export function TodoDetailExtra({
                   <span className="tabular-nums">
                     {formatDateShort(b.startAt)} {formatTime(b.startAt)}–{formatTime(end)}
                   </span>
-                  <StatusBadge status={b.status} />
+                  <span className="flex items-center gap-2">
+                    {registrable && b.status === "PLANNED" && (
+                      <Link
+                        href={registerHref(b.id, { back: "/todos" })}
+                        className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white active:bg-brand-700"
+                      >
+                        ✓ Klaarmelden
+                      </Link>
+                    )}
+                    <StatusBadge status={b.status} />
+                  </span>
                 </li>
               );
             })}
           </ul>
         )}
       </div>
+
+      {registrable && !hasPlannedBlock && (
+        <div className="rounded-md bg-gray-50 px-3 py-2">
+          <Button className="w-full py-2.5" disabled={adHocMutation.isPending} onClick={() => adHocMutation.mutate()}>
+            {adHocMutation.isPending ? "Bezig…" : "✓ Klaarmelden (vandaag)"}
+          </Button>
+          <p className="mt-1 text-xs text-gray-500">
+            Er staat geen blok gepland: er wordt een blok voor vandaag aangemaakt, daarna geef je de uren in zoals in
+            de Dagplanning.
+          </p>
+          {adHocMutation.error && <ErrorNote message={(adHocMutation.error as Error).message} />}
+        </div>
+      )}
 
       {registrations.length > 0 && (
         <div>

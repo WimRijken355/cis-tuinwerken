@@ -24,6 +24,7 @@ import type { ChecklistItemDto } from "@/lib/schemas/checklist";
 import type { CompletionInput, RegistrationContextDto } from "@/lib/schemas/completions";
 import type { ResourceDto } from "@/lib/schemas/resources";
 import type { TodoDto } from "@/lib/schemas/todos";
+import { registerBackHref, registerBackLabel } from "@/lib/register-link";
 import { formatTime, toBrussels } from "@/lib/time";
 
 /**
@@ -97,7 +98,8 @@ export default function RegisterPage() {
 function Register() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
-  const backHref = `/daily-planning${searchParams.get("date") ? `?date=${searchParams.get("date")}` : ""}`;
+  // Back to where the wizard was opened from: the Dagplanning (of that day) or Todo's.
+  const backHref = registerBackHref(searchParams);
 
   const { data: appointment, isLoading } = useQuery({
     queryKey: ["appointment", id],
@@ -123,7 +125,7 @@ function Blocked({ backHref, message }: { backHref: string; message: string }) {
     <div className="p-4">
       <ErrorNote message={message} />
       <Link href={backHref} className="mt-3 inline-block text-sm text-brand-600 hover:underline">
-        ← Terug naar de dagplanning
+        ← Terug naar {registerBackLabel(backHref)}
       </Link>
     </div>
   );
@@ -338,7 +340,7 @@ function RegisterFlow({
   return (
     <div className="mx-auto max-w-lg p-3 pb-6 sm:p-4">
       <Link href={backHref} className="text-sm text-brand-600 hover:underline">
-        ← Dagplanning
+        ← {registerBackLabel(backHref)}
       </Link>
       <h1 className="mt-1 text-lg font-bold leading-tight text-brand-900">{appointment.todoTitle}</h1>
       <p className="text-sm text-gray-500">
@@ -1107,7 +1109,7 @@ function ResultAndFollowUp({
       </section>
 
       <Button className="w-full py-3" onClick={() => router.replace(backHref)}>
-        {created ? "Naar de dagplanning" : "Overslaan — naar de dagplanning"}
+        {created ? `Naar ${registerBackLabel(backHref)}` : `Overslaan — naar ${registerBackLabel(backHref)}`}
       </Button>
     </div>
   );

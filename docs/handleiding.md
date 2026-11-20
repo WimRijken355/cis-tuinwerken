@@ -139,6 +139,11 @@ gefactureerd", "Factuur niet in EF", "Factuur in EF ✓", …).
   planning, met daaronder de geplande blokken en, waar het mag,
   **Annuleren** (zolang er niets ingepland of geregistreerd is), **Heropenen**
   (een geannuleerde todo) of **Verwijderen** (zolang er nog geen blokken zijn).
+- **Klaarmelden** kan ook vanuit het detail: naast elk gepland blok staat
+  **✓ Klaarmelden** (dezelfde stappen als in de Dagplanning; daarna keer je
+  terug naar Todo's). Werk dat nooit ingepland werd, meld je klaar met
+  **✓ Klaarmelden (vandaag)**: er wordt dan eerst een blok voor vandaag
+  aangemaakt.
 - Bij werk dat al klaargemeld is, zie je onder **Geregistreerd** per dag de
   uren per persoon/machine (gewerkt en gefactureerd), de artikels, de notitie
   en of die dag al op een factuur staat. Staat er niets meer gepland, dan kan
