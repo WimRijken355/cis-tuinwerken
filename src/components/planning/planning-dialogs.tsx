@@ -335,6 +335,8 @@ export interface TodoDetail extends TodoDto {
   appointments: { id: number; status: "PLANNED" | "DONE" | "CANCELLED"; startAt: string; durationMinutes: number }[];
   /** Registered days (hours per resource, articles, invoice), oldest first. */
   registrations: TodoRegistrationDto[];
+  /** Demo customer: never sent to EenvoudigFactureren. */
+  customerIsDemo: boolean;
 }
 
 /**

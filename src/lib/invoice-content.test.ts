@@ -5,6 +5,7 @@ import {
   contentFromItems,
   invoiceContentSchema,
   itemsFromContent,
+  rebuildContentKeepingNotes,
   totalOfContent,
   type InvoiceContent,
   vatSummary,
@@ -116,3 +117,27 @@ describe("vatSummary (totaal incl. btw)", () => {
     expect(vatSummary([])).toEqual({ exclVat: 0, perRate: [], vat: 0, inclVat: 0 });
   });
 });
+
+describe("rebuildContentKeepingNotes", () => {
+  const previous: InvoiceContent = {
+    lines: [
+      { item: { ...werkuren, quantity: 2 }, remark: "Inclusief afvoer" },
+      { item: mini, remark: "Minigraver halve dag" },
+    ],
+    notes: ["Bedankt!"],
+  };
+  it("takes the new amounts and keeps the remark of the line with the same description", () => {
+    const content = rebuildContentKeepingNotes({ lines: [{ item: { type: "item", ...werkuren } }], notes: [] }, previous);
+    expect(content.lines).toHaveLength(1);
+    expect(content.lines[0].item.quantity).toBe(15.5);
+    expect(content.lines[0].remark).toBe("Inclusief afvoer");
+  });
+  it("a remark whose line disappeared and the free notes stay as notes (once)", () => {
+    const content = rebuildContentKeepingNotes(
+      { lines: [{ item: { type: "item", ...werkuren } }], notes: ["Bedankt!"] },
+      previous,
+    );
+    expect(content.notes).toEqual(["Bedankt!", "Minigraver halve dag"]);
+  });
+});
+

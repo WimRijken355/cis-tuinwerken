@@ -3,6 +3,7 @@ import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-resources";
 import { checklistNames, syncTodoTasks } from "@/lib/services/checklist-tasks";
+import { canEditInvoice } from "@/lib/invoice-content";
 import { formatAddress } from "@/lib/schemas/customers";
 import {
   CONTACT_KEYS,
@@ -31,7 +32,7 @@ export async function GET(
     const todo = await db.todo.findUnique({
       where: { id },
       include: {
-        customer: { select: { name: true, street: true, postalCode: true, city: true } },
+        customer: { select: { name: true, street: true, postalCode: true, city: true, isDemo: true } },
         appointments: {
           orderBy: { startAt: "desc" },
           include: {
@@ -39,7 +40,9 @@ export async function GET(
               include: {
                 laborEntries: { orderBy: { id: "asc" } },
                 extraCharges: { orderBy: { id: "asc" } },
-                includedInInvoice: { select: { id: true, pushStatus: true, totalExclVat: true } },
+                includedInInvoice: {
+                  select: { id: true, pushStatus: true, totalExclVat: true, efInvoiceId: true, syncExcluded: true },
+                },
               },
             },
           },
@@ -58,6 +61,7 @@ export async function GET(
           date: a.startAt.toISOString(),
           note: c.note,
           labor: c.laborEntries.map((l) => ({
+            id: l.id,
             name: l.workerName ?? "Zaakvoerder",
             type: l.resourceType ?? "PERSON",
             registeredHours: Number(l.registeredHours),
@@ -73,7 +77,10 @@ export async function GET(
             ? {
                 id: c.includedInInvoice.id,
                 pushStatus: c.includedInInvoice.pushStatus,
+                efInvoiceId: c.includedInInvoice.efInvoiceId,
+                syncExcluded: c.includedInInvoice.syncExcluded,
                 totalExclVat: Number(c.includedInInvoice.totalExclVat),
+                editable: canEditInvoice(c.includedInInvoice),
               }
             : null,
         };
@@ -83,6 +90,7 @@ export async function GET(
       ...todo,
       appointments: todo.appointments.map(({ completion: _completion, ...a }) => a),
       registrations,
+      customerIsDemo: todo.customer?.isDemo ?? false,
       estimatedHours: Number(todo.estimatedHours),
       customerName: todo.customer?.name ?? todo.contactName ?? "",
       /** Address of the linked customer (for the editor's customer picker). */

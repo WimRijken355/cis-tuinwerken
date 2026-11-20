@@ -140,6 +140,12 @@ op tekst (titel, klant, gemeente), op soort (klant of losse todo) en op resource
   uren per persoon/machine (gewerkt en gefactureerd), de artikels, de notitie
   en of die dag al op een factuur staat. Staat er niets meer gepland, dan kan
   je de job hier ook **Factureren en afsluiten** of **Afsluiten zonder factuur**.
+- Zolang een dag niet in EenvoudigFactureren staat, kan je met **✏️ Te
+  factureren uren aanpassen** de gefactureerde uren nog wijzigen (bv. als ze bij
+  het klaarmelden op 0 stonden). Staat die dag al op een factuur die nog niet
+  verstuurd is, dan wordt die factuur opnieuw opgebouwd (opmerkingen en
+  notities blijven). Daarna factureer je met **Nu factureren** en stuur je de
+  factuur door met **→ Naar EenvoudigFactureren sturen**.
 
 ## Terugkerend werk (bv. haag 2×/jaar)
 

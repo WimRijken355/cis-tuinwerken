@@ -145,6 +145,7 @@ export function StatusBadge({ status }: { status: string }) {
     CONCEPT_CREATED: { label: "Concept in EF", cls: "bg-green-100 text-green-800" },
     FAILED: { label: "Push mislukt", cls: "bg-red-100 text-red-800" },
     NOT_SYNCED: { label: "Niet gesynchroniseerd", cls: "bg-gray-100 text-gray-600" },
+    EXCLUDED: { label: "Niet versturen", cls: "bg-gray-100 text-gray-500" },
   };
   const { label, cls } = map[status] ?? { label: status, cls: "bg-gray-100 text-gray-600" };
   return (

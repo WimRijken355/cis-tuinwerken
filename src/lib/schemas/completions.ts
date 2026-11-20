@@ -85,6 +85,20 @@ export const completionInputSchema = z
   );
 export type CompletionInput = z.infer<typeof completionInputSchema>;
 
+/**
+ * PATCH /api/todos/:id/invoiced-hours — change the hours to invoice of
+ * registered days afterwards (from the todo's details), as long as those days
+ * are not on an invoice that is already in EenvoudigFactureren.
+ */
+export const invoicedHoursUpdateSchema = z.object({
+  entries: z
+    .array(z.object({ laborEntryId: z.number().int().positive(), invoicedHours: quarterHours }))
+    .min(1)
+    .max(100)
+    .refine((list) => new Set(list.map((e) => e.laborEntryId)).size === list.length, "Elke lijn kan maar één keer voorkomen"),
+});
+export type InvoicedHoursUpdate = z.infer<typeof invoicedHoursUpdateSchema>;
+
 /** Planned resource of the todo, with the hours proposal for today. */
 export interface RegistrationResourceDto {
   resourceId: number;

@@ -56,7 +56,15 @@ export function InvoiceDetailDialog({ invoiceId, onClose }: { invoiceId: number;
  * as the button in the invoices list); disabled with the reason when it may
  * not be sent. Hidden once the invoice is in EF.
  */
-function SendToEfButton({ invoice: inv }: { invoice: InvoiceDetailDto }) {
+/** Sends one invoice to EF (same rules as the list: canSendToEf). Also used in the todo details. */
+export function SendToEfButton({
+  invoice: inv,
+  onSent,
+}: {
+  invoice: Pick<InvoiceDetailDto, "id" | "efInvoiceId" | "pushStatus" | "syncExcluded" | "customerIsDemo">;
+  /** Extra queries to refresh afterwards (e.g. the todo). */
+  onSent?: () => void;
+}) {
   const queryClient = useQueryClient();
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -67,6 +75,7 @@ function SendToEfButton({ invoice: inv }: { invoice: InvoiceDetailDto }) {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: ["invoice", inv.id] });
       void queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      onSent?.();
     },
   });
   if (inv.efInvoiceId || !settings) return null;

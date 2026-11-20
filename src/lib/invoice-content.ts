@@ -169,3 +169,31 @@ export function vatSummary(
   const vatCents = perRate.reduce((s, r) => s + Math.round(r.vat * 100), 0);
   return { exclVat: exclCents / 100, perRate, vat: vatCents / 100, inclVat: (exclCents + vatCents) / 100 };
 }
+
+/**
+ * Content of a rebuilt job invoice (e.g. after changing the invoiced hours
+ * from the todo's details) that keeps what was added by hand: the remark of a
+ * line moves along with the line of the same description, remarks whose line
+ * disappeared and the free notes stay as notes. Line amounts/quantities always
+ * come from the rebuilt invoice.
+ */
+export function rebuildContentKeepingNotes(
+  built: { lines: { item: EfInvoiceItem }[]; notes: string[] },
+  previous: InvoiceContent,
+): InvoiceContent {
+  const fresh = contentFromBuilt(built);
+  const remarkByDescription = new Map<string, string>();
+  for (const line of previous.lines) {
+    const remark = line.remark?.trim();
+    if (remark) remarkByDescription.set(line.item.description, remark);
+  }
+  for (const line of fresh.lines) {
+    const remark = remarkByDescription.get(line.item.description);
+    if (remark) {
+      line.remark = remark;
+      remarkByDescription.delete(line.item.description);
+    }
+  }
+  const notes = [...fresh.notes, ...remarkByDescription.values(), ...previous.notes];
+  return { lines: fresh.lines, notes: [...new Set(notes.map((n) => n.trim()).filter(Boolean))] };
+}

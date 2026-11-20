@@ -3,6 +3,8 @@
 import { useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
+import { HoursStepper } from "@/components/hours-stepper";
+import { SendToEfButton } from "@/components/invoice-detail";
 import type { TodoDetail } from "@/components/planning/planning-dialogs";
 import { Button, ErrorNote, StatusBadge } from "@/components/ui";
 import { apiSend } from "@/lib/api-client";
@@ -22,8 +24,9 @@ interface CloseResult {
 
 /**
  * Below the todo editor in the Todo's overview: status, the blocks, what was
- * registered per day, and the actions that are allowed (close with/without
- * invoice, cancel, reopen, delete).
+ * registered per day (invoiced hours still editable while the day is not in
+ * EenvoudigFactureren), the invoices of the todo with a send button, and the
+ * actions that are allowed (close with/without invoice, cancel, reopen, delete).
  */
 export function TodoDetailExtra({
   todo,
@@ -50,6 +53,10 @@ export function TodoDetailExtra({
   const canInvoice = closeJobCheck(closeInput, true).allowed;
   const canCloseOnly = closeJobCheck(closeInput, false).allowed;
   const [closeResult, setCloseResult] = useState<CloseResult | null>(null);
+  // Distinct invoices of this todo (a multi-day job usually has one).
+  const invoices = [
+    ...new Map(registrations.flatMap((r) => (r.invoice ? [[r.invoice.id, r.invoice] as const] : []))).values(),
+  ];
 
   const statusMutation = useMutation({
     mutationFn: (status: "OPEN" | "CANCELLED") => apiSend(`/api/todos/${todo.id}`, "PATCH", { status }),
@@ -108,7 +115,36 @@ export function TodoDetailExtra({
           <h3 className="mb-1 text-sm font-medium text-gray-700">Geregistreerd ({registrations.length})</h3>
           <ul className="space-y-2">
             {registrations.map((r) => (
-              <RegistrationCard key={r.completionId} registration={r} />
+              <RegistrationCard key={r.completionId} todoId={todo.id} registration={r} onChanged={onChanged} />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {invoices.length > 0 && (
+        <div>
+          <h3 className="mb-1 text-sm font-medium text-gray-700">Factuur</h3>
+          <ul className="space-y-2">
+            {invoices.map((inv) => (
+              <li key={inv.id} className="rounded-md border border-gray-200 px-2 py-1.5 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Link href="/invoices" className="text-gray-700 hover:underline">
+                    {euro.format(inv.totalExclVat)} excl. btw
+                  </Link>
+                  <StatusBadge status={inv.syncExcluded ? "EXCLUDED" : inv.pushStatus} />
+                </div>
+                {!inv.efInvoiceId && (
+                  <div className="mt-2 flex flex-wrap justify-end gap-2">
+                    <SendToEfButton
+                      invoice={{ ...inv, customerIsDemo: todo.customerIsDemo }}
+                      onSent={() => {
+                        setCloseResult(null);
+                        onChanged();
+                      }}
+                    />
+                  </div>
+                )}
+              </li>
             ))}
           </ul>
         </div>
@@ -174,16 +210,45 @@ export function TodoDetailExtra({
   );
 }
 
-/** One registered day: hours per resource (worked / invoiced), articles, remark, invoice state. */
-function RegistrationCard({ registration: r }: { registration: TodoRegistrationDto }) {
+/**
+ * One registered day: hours per resource (worked / invoiced), articles, remark,
+ * invoice state. While the day is not in EF (no invoice, or one that is still
+ * editable) the invoiced hours can be changed; an existing invoice is rebuilt.
+ */
+function RegistrationCard({
+  todoId,
+  registration: r,
+  onChanged,
+}: {
+  todoId: number;
+  registration: TodoRegistrationDto;
+  onChanged: () => void;
+}) {
+  const editable = r.invoice === null || r.invoice.editable;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<number, number>>({});
+  const saveMutation = useMutation({
+    mutationFn: () =>
+      apiSend(`/api/todos/${todoId}/invoiced-hours`, "PATCH", {
+        entries: r.labor
+          .filter((l) => draft[l.id] !== undefined && draft[l.id] !== l.invoicedHours)
+          .map((l) => ({ laborEntryId: l.id, invoicedHours: draft[l.id] })),
+      }),
+    onSuccess: () => {
+      setEditing(false);
+      onChanged();
+    },
+  });
+  const changed = r.labor.some((l) => draft[l.id] !== undefined && draft[l.id] !== l.invoicedHours);
+
   return (
     <li className="rounded-md border border-gray-200 px-2 py-1.5 text-sm">
       <div className="flex items-center justify-between gap-2">
         <span className="font-medium tabular-nums">{formatDateShort(r.date)}</span>
         {r.invoice ? (
-          <Link href="/invoices" className="flex items-center gap-1 text-xs text-gray-600 hover:underline">
-            Factuur {euro.format(r.invoice.totalExclVat)} excl. <StatusBadge status={r.invoice.pushStatus} />
-          </Link>
+          <span className="flex items-center gap-1 text-xs text-gray-600">
+            Op factuur <StatusBadge status={r.invoice.pushStatus} />
+          </span>
         ) : (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
             Nog niet gefactureerd
@@ -191,14 +256,25 @@ function RegistrationCard({ registration: r }: { registration: TodoRegistrationD
         )}
       </div>
       <ul className="mt-1 text-gray-700">
-        {r.labor.map((l, i) => (
-          <li key={i} className="flex justify-between gap-2">
+        {r.labor.map((l) => (
+          <li key={l.id} className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 py-0.5">
             <span>
               {l.type === "PERSON" ? "👷" : "🚜"} {l.name}
             </span>
-            <span className="tabular-nums text-gray-600">
-              {hours(l.registeredHours)} gewerkt · {hours(l.invoicedHours)} gefactureerd
-            </span>
+            {editing ? (
+              <span className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">{hours(l.registeredHours)} gewerkt · factureren:</span>
+                <HoursStepper
+                  value={draft[l.id] ?? l.invoicedHours}
+                  onChange={(h) => setDraft((d) => ({ ...d, [l.id]: h }))}
+                  label={`Te factureren ${l.name}`}
+                />
+              </span>
+            ) : (
+              <span className="tabular-nums text-gray-600">
+                {hours(l.registeredHours)} gewerkt · {hours(l.invoicedHours)} gefactureerd
+              </span>
+            )}
           </li>
         ))}
         {r.extras.map((e, i) => (
@@ -211,6 +287,37 @@ function RegistrationCard({ registration: r }: { registration: TodoRegistrationD
         ))}
       </ul>
       {r.note && <p className="mt-1 text-xs italic text-gray-500">{r.note}</p>}
+
+      {editable && r.labor.length > 0 && !editing && (
+        <button
+          type="button"
+          onClick={() => {
+            setDraft({});
+            setEditing(true);
+          }}
+          className="mt-1 min-h-9 text-xs font-medium text-brand-700 hover:underline"
+        >
+          ✏️ Te factureren uren aanpassen
+        </button>
+      )}
+      {editing && (
+        <div className="mt-2 space-y-2">
+          {r.invoice && (
+            <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800">
+              De factuur wordt opnieuw opgebouwd met deze uren (opmerkingen en notities blijven behouden).
+            </p>
+          )}
+          {saveMutation.error && <ErrorNote message={(saveMutation.error as Error).message} />}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => setEditing(false)}>
+              Annuleren
+            </Button>
+            <Button type="button" disabled={!changed || saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+              {saveMutation.isPending ? "Bezig…" : "Uren bewaren"}
+            </Button>
+          </div>
+        </div>
+      )}
     </li>
   );
 }

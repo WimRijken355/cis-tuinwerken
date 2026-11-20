@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completionInputSchema } from "./completions";
+import { completionInputSchema, invoicedHoursUpdateSchema } from "./completions";
 
 const line = (resourceId: number, registeredHours: number | string, invoicedHours: number | string) => ({
   resourceId,
@@ -65,3 +65,19 @@ describe("invoice remarks and note lines", () => {
     ).toThrow();
   });
 });
+
+describe("invoicedHoursUpdateSchema", () => {
+  it("rounds up per started quarter and allows 0", () => {
+    const r = invoicedHoursUpdateSchema.parse({ entries: [{ laborEntryId: 1, invoicedHours: 1.1 }, { laborEntryId: 2, invoicedHours: 0 }] });
+    expect(r.entries.map((e) => e.invoicedHours)).toEqual([1.25, 0]);
+  });
+  it("refuses empty lists, duplicates and negative hours", () => {
+    expect(invoicedHoursUpdateSchema.safeParse({ entries: [] }).success).toBe(false);
+    expect(
+      invoicedHoursUpdateSchema.safeParse({ entries: [{ laborEntryId: 1, invoicedHours: 1 }, { laborEntryId: 1, invoicedHours: 2 }] })
+        .success,
+    ).toBe(false);
+    expect(invoicedHoursUpdateSchema.safeParse({ entries: [{ laborEntryId: 1, invoicedHours: -1 }] }).success).toBe(false);
+  });
+});
+

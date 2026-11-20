@@ -137,10 +137,25 @@ export interface TodoRegistrationDto {
   /** Start of the registered block (ISO). */
   date: string;
   note: string | null;
-  labor: { name: string; type: "PERSON" | "MACHINE"; registeredHours: number; invoicedHours: number }[];
+  labor: {
+    /** LaborEntry id (to change the invoiced hours afterwards). */
+    id: number;
+    name: string;
+    type: "PERSON" | "MACHINE";
+    registeredHours: number;
+    invoicedHours: number;
+  }[];
   extras: { description: string; quantity: number; unit: string; unitPrice: number }[];
   /** The invoice this day is on; null = not invoiced (yet). */
-  invoice: { id: number; pushStatus: string; totalExclVat: number } | null;
+  invoice: {
+    id: number;
+    pushStatus: "PENDING" | "CONCEPT_CREATED" | "FAILED" | "NOT_SYNCED";
+    efInvoiceId: number | null;
+    syncExcluded: boolean;
+    totalExclVat: number;
+    /** Not in EF yet: hours can still change (the invoice is rebuilt). */
+    editable: boolean;
+  } | null;
 }
 
 export interface TodoTaskDto {

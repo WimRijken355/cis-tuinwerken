@@ -9,8 +9,17 @@ type Tx = Prisma.TransactionClient | typeof db;
 
 /** Registered days of a todo that are not on an invoice yet, as input for buildJobInvoice. */
 export async function loadUninvoicedDays(todoId: number, client: Tx = db): Promise<RegisteredDay[]> {
+  return loadDays({ invoiceId: null, appointment: { todoId } }, client);
+}
+
+/** All registered days on one invoice (to rebuild it after its hours changed). */
+export async function loadInvoiceDays(invoiceId: number, client: Tx = db): Promise<RegisteredDay[]> {
+  return loadDays({ invoiceId }, client);
+}
+
+async function loadDays(where: Prisma.CompletionWhereInput, client: Tx): Promise<RegisteredDay[]> {
   const completions = await client.completion.findMany({
-    where: { invoiceId: null, appointment: { todoId } },
+    where,
     include: { appointment: { select: { startAt: true } }, laborEntries: true, extraCharges: true },
     orderBy: { appointment: { startAt: "asc" } },
   });
