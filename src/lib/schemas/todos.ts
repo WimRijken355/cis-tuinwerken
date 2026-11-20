@@ -127,6 +127,8 @@ export interface TodoDto {
   tasks?: TodoTaskDto[];
   /** Linked quote lines (GET /api/todos/:id). */
   quoteLines?: TodoQuoteLineDto[];
+  /** Linked quote line ids (EfQuoteLine ids; GET /api/customers/:id todos). */
+  quoteLineIds?: number[];
   /** Free-text name/address of a losse todo (null for customer todos). */
   contactName?: string | null;
   contactStreet?: string | null;

@@ -29,7 +29,11 @@ export async function GET(
       include: {
         todos: {
           orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-          include: { recurringWindow: { select: { label: true } }, ...todoResourcesInclude },
+          include: {
+            recurringWindow: { select: { label: true } },
+            quoteLines: { select: { quoteLineId: true }, orderBy: { id: "asc" } },
+            ...todoResourcesInclude,
+          },
         },
         recurringTemplates: {
           include: { windows: { orderBy: { sortOrder: "asc" } }, ...recurringExtrasInclude },
@@ -47,6 +51,8 @@ export async function GET(
         windowLabel: t.recurringWindow?.label ?? windowLabel(t.windowStart, t.windowEnd),
         resources: toTodoResourceDtos(t.resources),
         tasks: toTodoTaskDtos(t.tasks),
+        quoteLineIds: t.quoteLines.map((l) => l.quoteLineId),
+        quoteLines: undefined,
         recurringWindow: undefined,
       })),
       recurringTemplates: customer.recurringTemplates.map((rt) => ({

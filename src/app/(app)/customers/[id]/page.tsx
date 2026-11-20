@@ -8,6 +8,7 @@ import { ActionButton } from "@/components/action-button";
 import { ACTION_ICONS } from "@/components/action-icons";
 import { CustomerForm } from "@/components/customer-form";
 import { CustomerQuotes } from "@/components/customer-quotes";
+import { QuoteLinePicker } from "@/components/quote-line-picker";
 import { RecurringSection } from "@/components/recurring-section";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
 import { ResourceSummary, TodoChecklist } from "@/components/work-pickers";
@@ -193,12 +194,20 @@ function TodoSection({
   // Bumped after a successful create to remount (= reset) the form.
   const [formKey, setFormKey] = useState(0);
   const [editing, setEditing] = useState<TodoDto | null>(null);
+  // Linked EF quote lines of the new todo and of the todo being edited.
+  const [newQuoteLineIds, setNewQuoteLineIds] = useState<number[]>([]);
+  const [editQuoteLineIds, setEditQuoteLineIds] = useState<number[]>([]);
+  const startEditing = (t: TodoDto) => {
+    setEditQuoteLineIds(t.quoteLineIds ?? []);
+    setEditing(t);
+  };
 
   const addMutation = useMutation({
     mutationFn: (values: TodoFormValues) =>
-      apiSend("/api/todos", "POST", { customerId: customer.id, ...values }),
+      apiSend("/api/todos", "POST", { customerId: customer.id, ...values, quoteLineIds: newQuoteLineIds }),
     onSuccess: () => {
       setFormError(null);
+      setNewQuoteLineIds([]);
       setFormKey((k) => k + 1);
       onChanged();
     },
@@ -207,7 +216,7 @@ function TodoSection({
 
   const editMutation = useMutation({
     mutationFn: ({ todoId, values }: { todoId: number; values: TodoFormValues }) =>
-      apiSend(`/api/todos/${todoId}`, "PATCH", values),
+      apiSend(`/api/todos/${todoId}`, "PATCH", { ...values, quoteLineIds: editQuoteLineIds }),
     onSuccess: () => {
       setEditing(null);
       onChanged();
@@ -243,6 +252,7 @@ function TodoSection({
         <TodoForm
           key={formKey}
           showProject
+          extra={<QuoteLinePicker customerId={customer.id} value={newQuoteLineIds} onChange={setNewQuoteLineIds} />}
           submitLabel="Toevoegen"
           busy={addMutation.isPending}
           error={formError}
@@ -279,7 +289,7 @@ function TodoSection({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <StatusBadge status={t.status} />
-                  <ActionButton action="edit" onClick={() => setEditing(t)} />
+                  <ActionButton action="edit" onClick={() => startEditing(t)} />
                   {t.status === "OPEN" && (
                     <ActionButton action="delete" iconOnly label="Todo verwijderen" onClick={() => deleteTodo.mutate(t.id)} />
                   )}
@@ -329,6 +339,14 @@ function TodoSection({
               isProject: editing.isProject,
             }}
             showProject
+            extra={
+              <QuoteLinePicker
+                customerId={customer.id}
+                todoId={editing.id}
+                value={editQuoteLineIds}
+                onChange={setEditQuoteLineIds}
+              />
+            }
             submitLabel="Bewaren"
             busy={editMutation.isPending}
             error={editMutation.error ? (editMutation.error as Error).message : null}

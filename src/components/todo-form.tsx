@@ -43,6 +43,7 @@ export function TodoForm({
   titleSuggestions = [],
   showPeriod = false,
   showProject = false,
+  extra,
 }: {
   initial?: {
     title: string;
@@ -66,6 +67,8 @@ export function TodoForm({
   showPeriod?: boolean;
   /** Offer the "Project" toggle (customer todos only; a losse todo is never invoiced). */
   showProject?: boolean;
+  /** Extra controls shown above the buttons (e.g. the quote line picker). */
+  extra?: React.ReactNode;
 }) {
   const initialTasks = (initial?.tasks ?? [])
     .filter((t): t is TodoTaskDto & { checklistItemId: number } => t.checklistItemId !== null)
@@ -168,6 +171,7 @@ export function TodoForm({
       )}
       {showChecklist && <ChecklistPicker value={taskIds} onChange={setTaskIds} initial={initialTasks} />}
       <ResourcePicker value={resources} onChange={setResources} totalHours={hours} initial={initial?.resources} />
+      {extra}
 
       <div className="flex justify-end gap-2">
         {onCancel && (
