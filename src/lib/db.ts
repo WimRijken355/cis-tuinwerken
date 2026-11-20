@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@/generated/prisma/client";
+import { Prisma, PrismaClient } from "@/generated/prisma/client";
+import { canReuseCachedClient, schemaFingerprint, type CachedClient } from "./prisma-cache";
 import { AUDITED_MODELS, isUniqueConstraintError, recordIdOf, toCamelModel, toJsonSafe } from "./audit";
 import { getAuditUserId } from "./audit-context";
 import { config } from "./config";
@@ -190,10 +191,21 @@ function withAuditTrail(base: PrismaClient): PrismaClient {
   return db;
 }
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+// The dev cache is keyed on the generated schema: after `prisma generate` a
+// client built from the old generated code is replaced instead of reused
+// (it would reject new fields until a restart). See prisma-cache.ts.
+const globalForPrisma = globalThis as unknown as { prismaCache?: CachedClient<PrismaClient> };
+const fingerprint = schemaFingerprint(Prisma as unknown as Record<string, unknown>);
+const cached = globalForPrisma.prismaCache;
 
-export const db: PrismaClient = globalForPrisma.prisma ?? withAuditTrail(createBaseClient());
+function freshClient(): PrismaClient {
+  // Close the stale client's connections before replacing it.
+  if (cached) void cached.client.$disconnect().catch(() => {});
+  return withAuditTrail(createBaseClient());
+}
+
+export const db: PrismaClient = canReuseCachedClient(cached, fingerprint) ? cached.client : freshClient();
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = db;
+  globalForPrisma.prismaCache = { client: db, fingerprint };
 }

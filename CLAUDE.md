@@ -96,4 +96,6 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 
 ## Overig
 
+- **Prisma-client in dev**: `src/lib/db.ts` cachet de client op `globalThis`, gesleuteld op `schemaFingerprint()` (`src/lib/prisma-cache.ts`). Na een schemawijziging + `prisma generate` wordt een verouderde client dus automatisch vervangen (vóór v0.43.1 bleef hij hangen tot een herstart: `Unknown argument ...` bij nieuwe velden).
+
 Zie ook de technische afspraken/valkuilen die in projectgeheugen zijn vastgelegd (Prisma 7-config, TS 5.9-pin, FullCalendar v7-imports, dev-poort 5433, `.next`-conflict tussen dev/build, 2FA-reset-SQL).
