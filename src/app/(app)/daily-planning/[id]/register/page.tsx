@@ -323,6 +323,8 @@ function RegisterFlow({
       setResult(r);
       void queryClient.invalidateQueries({ queryKey: ["appointments"] });
       void queryClient.invalidateQueries({ queryKey: ["todos"] });
+      // The todo itself changed too (status, registrations) — e.g. its details in Todo's.
+      void queryClient.invalidateQueries({ queryKey: ["todo", appointment.todoId] });
     },
   });
 

@@ -146,3 +146,9 @@ describe("registeredOn", () => {
     expect(registeredOn([], null)).toBeNull();
   });
 });
+
+describe("todoStatusActions — server guard on cancelling", () => {
+  it("a closed (DONE) todo with registered work can never be cancelled", () => {
+    expect(todoStatusActions("DONE", [{ status: "DONE" }]).canCancel).toBe(false);
+  });
+});

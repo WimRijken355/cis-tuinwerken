@@ -5,6 +5,7 @@ import { assertResourcesExist, replaceTodoResources } from "@/lib/services/todo-
 import { checklistNames, syncTodoTasks } from "@/lib/services/checklist-tasks";
 import { canEditInvoice } from "@/lib/invoice-content";
 import { formatAddress } from "@/lib/schemas/customers";
+import { todoStatusActions } from "@/lib/todo-list";
 import {
   CONTACT_KEYS,
   resolveTodoOwner,
@@ -120,8 +121,24 @@ export async function PATCH(
     const body = (await request.json()) as Record<string, unknown>;
     const { resources, taskIds, customerId, contactName, contactStreet, contactPostalCode, contactCity, ...input } =
       todoUpdateSchema.parse(body);
-    const current = await db.todo.findUnique({ where: { id }, select: { customerId: true } });
+    const current = await db.todo.findUnique({
+      where: { id },
+      select: { customerId: true, status: true, appointments: { select: { status: true } } },
+    });
     if (!current) throw new ApiError("Todo niet gevonden", 404);
+    // Cancelling follows the same rule as the button in the todo details
+    // (todoStatusActions): never once work is planned or registered — a
+    // (possibly stale) client cannot cancel registered, still to invoice work.
+    if (input.status === "CANCELLED" && current.status !== "CANCELLED") {
+      if (!todoStatusActions(current.status, current.appointments).canCancel) {
+        throw new ApiError(
+          current.appointments.some((a) => a.status === "DONE")
+            ? "Er is al werk geregistreerd op deze todo; annuleren kan niet meer. Sluit de job af in plaats daarvan."
+            : "Deze todo heeft nog geplande blokken; haal die eerst uit de planning.",
+          409,
+        );
+      }
+    }
 
     // Owner + contact (see resolveTodoOwner for the rules).
     const contactTouched = CONTACT_KEYS.some((key) => key in body);
