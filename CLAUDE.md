@@ -96,6 +96,6 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 
 ## Overig
 
-- **Prisma-client in dev**: `src/lib/db.ts` cachet de client op `globalThis`, gesleuteld op `schemaFingerprint()` (`src/lib/prisma-cache.ts`). Na een schemawijziging + `prisma generate` wordt een verouderde client dus automatisch vervangen (vóór v0.43.1 bleef hij hangen tot een herstart: `Unknown argument ...` bij nieuwe velden).
+- **Na een schemawijziging (`prisma migrate`/`generate`) de dev-server herstarten.** Een `npm run dev` die al draaide houdt het oude Prisma-schema in het geheugen (ook een nieuwe client in hetzelfde proces helpt niet) → `Unknown argument ...` bij nieuwe velden. `src/lib/schemas/todos.prisma.test.ts` controleert wel dat de Zod-schema's van de todo-routes enkel bestaande kolommen doorgeven.
 
 Zie ook de technische afspraken/valkuilen die in projectgeheugen zijn vastgelegd (Prisma 7-config, TS 5.9-pin, FullCalendar v7-imports, dev-poort 5433, `.next`-conflict tussen dev/build, 2FA-reset-SQL).
