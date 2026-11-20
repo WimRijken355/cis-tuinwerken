@@ -1,6 +1,12 @@
 import { DateTime } from "luxon";
 import { db } from "../db";
-import { generatedTodoExtras, recurringExtrasInclude } from "../schemas/recurring";
+import { dueOccurrences } from "../recurrence";
+import {
+  generatedTodoExtras,
+  recurringExtrasInclude,
+  toRecurrencePattern,
+  toRecurrenceRule,
+} from "../schemas/recurring";
 import { nowBrussels, ZONE } from "../time";
 
 /**
@@ -14,6 +20,11 @@ import { nowBrussels, ZONE } from "../time";
  * het onmogelijk om dezelfde beurt twee keer te genereren — hoe vaak de job
  * ook draait (dagelijks 02:00 + bij elke serverstart). A unique-constraint
  * error (P2002) on create means "already generated" and is skipped.
+ *
+ * WEEKLY/MONTHLY templates (Outlook style, src/lib/recurrence.ts) produce one
+ * todo per occurrence, visible `leadTimeDays` ahead, with the preferred window
+ * running until the day before the next occurrence. Their idempotency key is
+ * the unique (recurringTemplateId, occurrenceDate).
  *
  * Every generated todo gets a copy of the template's resources (with hours)
  * and checklist tasks, so the todo can be adjusted on its own afterwards.
@@ -48,17 +59,18 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
     where: { active: true, customer: { active: true } },
     include: { windows: true, ...recurringExtrasInclude },
   });
-  const templateByWindowId = new Map(
-    templates.flatMap((t) => t.windows.map((w) => [w.id, t] as const)),
-  );
+  const templateById = new Map(templates.map((t) => [t.id, t] as const));
 
   const toCreate: {
+    templateId: number;
     customerId: number;
     title: string;
     description: string | null;
     estimatedHours: unknown;
-    recurringWindowId: number;
-    occurrenceYear: number;
+    recurringWindowId?: number;
+    occurrenceYear?: number;
+    recurringTemplateId?: number;
+    occurrenceDate?: Date;
     windowStart: Date;
     windowEnd: Date;
   }[] = [];
@@ -66,6 +78,25 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
   let windowsChecked = 0;
 
   for (const template of templates) {
+    // Outlook-style pattern: one todo per due occurrence.
+    const rule = template.recurrence === "PERIODS" ? null : toRecurrenceRule(toRecurrencePattern(template));
+    if (rule) {
+      windowsChecked++;
+      for (const o of dueOccurrences(rule, today.toISODate()!, template.leadTimeDays)) {
+        toCreate.push({
+          templateId: template.id,
+          customerId: template.customerId,
+          title: template.title,
+          description: template.description,
+          estimatedHours: template.estimatedHours,
+          recurringTemplateId: template.id,
+          occurrenceDate: new Date(`${o.date}T00:00:00Z`),
+          windowStart: new Date(`${o.windowStart}T00:00:00Z`),
+          windowEnd: new Date(`${o.windowEnd}T00:00:00Z`),
+        });
+      }
+      continue;
+    }
     for (const window of template.windows) {
       windowsChecked++;
       // Dit jaar én volgend jaar bekijken: een venster in januari moet al in
@@ -76,6 +107,7 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
 
         if (today >= visibleFrom && today <= end) {
           toCreate.push({
+            templateId: template.id,
             customerId: template.customerId,
             title: template.title,
             description: template.description,
@@ -92,7 +124,7 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
   }
 
   let todosCreated = 0;
-  for (const data of toCreate) {
+  for (const { templateId, ...data } of toCreate) {
     let todoId: number;
     try {
       const todo = await db.todo.create({
@@ -100,13 +132,13 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
       });
       todoId = todo.id;
     } catch (error) {
-      // Existing (windowId, year) occurrence: already generated earlier.
+      // Existing (windowId, year) or (templateId, date) occurrence: already generated earlier.
       if (isUniqueConstraintError(error)) continue;
       throw error;
     }
     todosCreated++;
 
-    const template = templateByWindowId.get(data.recurringWindowId);
+    const template = templateById.get(templateId);
     if (template) {
       const extras = generatedTodoExtras(todoId, template);
       if (extras.resources.length > 0) {

@@ -1,9 +1,12 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { handleApiError, requireUser } from "@/lib/api";
+import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import {
+  patternData,
   recurringExtrasInclude,
   recurringTemplateInputSchema,
+  templateProblems,
+  toRecurrencePattern,
   toRecurringExtrasDto,
 } from "@/lib/schemas/recurring";
 import { checklistNames, replaceTemplateTasks } from "@/lib/services/checklist-tasks";
@@ -18,7 +21,8 @@ const include = {
 type TemplateWithRelations = {
   estimatedHours: unknown;
   customer: { name: string };
-} & Parameters<typeof toRecurringExtrasDto>[0];
+} & Parameters<typeof toRecurringExtrasDto>[0] &
+  Parameters<typeof toRecurrencePattern>[0];
 
 function toDto(t: TemplateWithRelations) {
   return {
@@ -26,6 +30,7 @@ function toDto(t: TemplateWithRelations) {
     estimatedHours: Number(t.estimatedHours),
     customerName: t.customer.name,
     customer: undefined,
+    ...toRecurrencePattern(t),
     ...toRecurringExtrasDto(t),
   };
 }
@@ -51,6 +56,8 @@ export async function POST(request: NextRequest) {
   try {
     await requireUser();
     const input = recurringTemplateInputSchema.parse(await request.json());
+    const problems = templateProblems({ ...input, windowCount: input.windows.length });
+    if (problems.length > 0) throw new ApiError(problems.join(" "), 400);
     await assertResourcesExist(input.resources);
     await checklistNames(input.taskIds);
 
@@ -62,6 +69,7 @@ export async function POST(request: NextRequest) {
         estimatedHours: input.estimatedHours,
         leadTimeDays: input.leadTimeDays,
         active: input.active,
+        ...patternData(input),
         windows: {
           create: input.windows.map((w, i) => ({
             label: w.label,

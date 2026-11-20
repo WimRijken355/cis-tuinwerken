@@ -206,6 +206,15 @@ describe("preferred period", () => {
     expect(windowLabel(winter.windowStart, winter.windowEnd)).toBe("nov 2026–feb 2027");
     expect(windowLabel(null, null)).toBeNull();
   });
+
+  it("shows days for a weekly/monthly occurrence window", () => {
+    expect(windowLabel("2027-05-12", "2027-05-18")).toBe("12–18 mei 2027");
+    expect(windowLabel("2027-04-28", "2027-05-04")).toBe("28 apr–4 mei 2027");
+    expect(windowLabel("2027-12-28", "2028-01-03")).toBe("28 dec 2027–3 jan 2028");
+    expect(windowLabel("2027-05-12", "2027-05-12")).toBe("12 mei 2027");
+    // A monthly occurrence from the 1st to the last day still reads as the month.
+    expect(windowLabel("2027-06-01", "2027-06-30")).toBe("jun 2027");
+  });
 });
 
 describe("searchArticles", () => {

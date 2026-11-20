@@ -75,6 +75,12 @@ Richtlijnen voor Claude (en andere bijdragers) bij het werken aan Tuinwerken Cis
 - Week/maand-toggle (`dayGridMonth`): bezetting per dag via `minutesPerDay()`/`dayLoad()`, respecteert de filter. **Valkuil**: de datum van een maandcel is een echte lokale `Date` (middernacht Brussel) — gebruik `dayKey()`, nooit `toISOString().slice(0,10)` (geeft de vorige dag).
 - In v7 heten event-kleuren `color`/`className` (geen `backgroundColor`); de blokken worden volledig getekend door `PlanningEventContent` (`src/components/planning/`).
 
+## Terugkerend werk
+
+- Drie soorten (`RecurringTemplate.recurrence`): **PERIODS** (zoals vroeger: periodes per jaar, bv. haag mei + sep–okt; per periode per jaar één todo, sleutel `(recurringWindowId, occurrenceYear)`), **WEEKLY** (om de N weken op weekdagen) en **MONTHLY** (om de N maanden op dag X — 31 = laatste dag — of de Nde/laatste weekdag). WEEKLY/MONTHLY in Outlook-stijl: begindatum, einde nooit / op datum / na N keer, optioneel **seizoen** per jaar (`seasonStartMonth..seasonEndMonth`, mag over de jaargrens; "N keer" telt enkel beurten binnen het seizoen).
+- Pure logica in `src/lib/recurrence.ts` (`occurrencesUntil()`, `withWindows()`, `dueOccurrences()`, `recurrenceProblems()`, `describeRecurrence()`); generatie in `src/lib/services/recurring.ts`. Per keer één todo in "In te plannen", `leadTimeDays` vooraf (standaard 7 / 14 / 30 per soort), voorkeur = die dag t/m de dag vóór de volgende keer (max. één interval); idempotent via unieke `(Todo.recurringTemplateId, occurrenceDate)`. Verlopen beurten van vóór vandaag worden nooit alsnog aangemaakt.
+- `windowLabel()` toont hele maanden als "apr 2027" en dagvensters als "12–18 mei 2027".
+
 ## Dashboard
 
 - Pagina `/dashboard` (menu "Dashboard", enkel desktop-sidebar). Uren per resource voor **Gepland / Geregistreerd / Gefactureerd** (meerdere tegelijk: `toggleMetric()`; kleur = resource, soort = arcering: geregistreerd vol, gepland 45°, gefactureerd 135°; gestapeld = één stapel per soort), per week (staven per dag), maand (per week, geknipt op de maand) of jaar (per maand); resources aan/uit (onthouden in localStorage), staven naast elkaar of gestapeld, plus een tabel met dezelfde cijfers.

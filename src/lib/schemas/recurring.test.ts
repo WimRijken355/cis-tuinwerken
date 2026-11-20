@@ -4,6 +4,11 @@ import {
   recurringTemplateInputSchema,
   recurringTemplateUpdateSchema,
   toRecurringExtrasDto,
+  patternData,
+  pickPatternFields,
+  templateProblems,
+  toRecurrencePattern,
+  toRecurrenceRule,
 } from "./recurring";
 
 const window = { label: "Mei", startMonth: 5, endMonth: 5 };
@@ -70,5 +75,59 @@ describe("recurring extras", () => {
         { todoId: 42, checklistItemId: 3, label: "Snoeiafval afvoeren", sortOrder: 1 },
       ],
     });
+  });
+});
+
+describe("Outlook-style pattern on a template", () => {
+  const base = { customerId: 1, title: "Gras afrijden", estimatedHours: 1.5 };
+
+  it("a new template defaults to the yearly periods, which need at least one period", () => {
+    const parsed = recurringTemplateInputSchema.parse(base);
+    expect(parsed.recurrence).toBe("PERIODS");
+    expect(templateProblems({ ...parsed, windowCount: 0 })).toEqual(["Minstens één periode per jaar."]);
+    expect(templateProblems({ ...parsed, windowCount: 2 })).toEqual([]);
+  });
+
+  it("a weekly template needs a start date and weekdays, not periods", () => {
+    const parsed = recurringTemplateInputSchema.parse({
+      ...base,
+      recurrence: "WEEKLY",
+      weekdays: [2],
+      startDate: "2027-03-01",
+      seasonStartMonth: 4,
+      seasonEndMonth: 10,
+    });
+    expect(templateProblems({ ...parsed, windowCount: 0 })).toEqual([]);
+    expect(templateProblems({ ...parsed, weekdays: [], windowCount: 0 })).toEqual(["Kies minstens één weekdag."]);
+    expect(toRecurrenceRule(parsed)).toMatchObject({ kind: "WEEKLY", weekdays: [2], startDate: "2027-03-01" });
+  });
+
+  it("a PATCH only touches the pattern fields it sends (no defaults sneak in)", () => {
+    const patch = recurringTemplateUpdateSchema.parse({ title: "Maaien", interval: 2 });
+    expect(pickPatternFields(patch)).toEqual({ interval: 2 });
+    expect(patch.recurrence).toBeUndefined();
+  });
+
+  it("stores dates as calendar days and reads them back as yyyy-MM-dd", () => {
+    const data = patternData({ startDate: "2027-03-01", endDate: null });
+    expect(data.startDate?.toISOString()).toBe("2027-03-01T00:00:00.000Z");
+    expect(data.endDate).toBeNull();
+    expect(data.interval).toBeUndefined();
+    const back = toRecurrencePattern({
+      recurrence: "MONTHLY",
+      interval: 1,
+      weekdays: [],
+      monthlyMode: "NTH_WEEKDAY",
+      monthDay: null,
+      monthWeek: 5,
+      monthWeekday: 5,
+      startDate: new Date("2027-03-01T00:00:00Z"),
+      endDate: null,
+      maxOccurrences: 6,
+      seasonStartMonth: null,
+      seasonEndMonth: null,
+    });
+    expect(back.startDate).toBe("2027-03-01");
+    expect(toRecurrenceRule({ ...back, recurrence: "PERIODS" })).toBeNull();
   });
 });

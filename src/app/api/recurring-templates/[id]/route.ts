@@ -2,8 +2,12 @@ import { type NextRequest, NextResponse } from "next/server";
 import { ApiError, handleApiError, requireUser } from "@/lib/api";
 import { db } from "@/lib/db";
 import {
+  patternData,
+  pickPatternFields,
   recurringExtrasInclude,
   recurringTemplateUpdateSchema,
+  templateProblems,
+  toRecurrencePattern,
   toRecurringExtrasDto,
 } from "@/lib/schemas/recurring";
 import { checklistNames, replaceTemplateTasks } from "@/lib/services/checklist-tasks";
@@ -37,6 +41,14 @@ export async function PATCH(
       include: { windows: true },
     });
     if (!existing) throw new ApiError("Sjabloon niet gevonden", 404);
+    // Validate the template as it will be after this PATCH (current values + changes).
+    const patternInput = pickPatternFields(input);
+    const merged = { ...toRecurrencePattern(existing), ...patternInput };
+    const problems = templateProblems({
+      ...merged,
+      windowCount: input.windows ? input.windows.length : existing.windows.length,
+    });
+    if (problems.length > 0) throw new ApiError(problems.join(" "), 400);
     if (input.resources) await assertResourcesExist(input.resources);
     if (input.taskIds) await checklistNames(input.taskIds);
 
@@ -49,6 +61,7 @@ export async function PATCH(
           estimatedHours: input.estimatedHours,
           leadTimeDays: input.leadTimeDays,
           active: input.active,
+          ...patternData(patternInput),
         },
       });
 
@@ -87,6 +100,7 @@ export async function PATCH(
     return NextResponse.json({
       ...updated,
       estimatedHours: Number(updated.estimatedHours),
+      ...toRecurrencePattern(updated),
       ...toRecurringExtrasDto(updated),
     });
   } catch (error) {

@@ -345,15 +345,27 @@ export function periodToWindow(from: string, to?: string | null): { windowStart:
 
 const MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
 
-/** "apr 2027", "apr–jun 2027" or "nov 2026–feb 2027"; null without window. */
+/**
+ * "apr 2027", "apr–jun 2027" or "nov 2026–feb 2027" for whole months; with
+ * specific days "12–18 mei 2027" (weekly/monthly recurrence). Null without window.
+ */
 export function windowLabel(start: Date | string | null, end: Date | string | null): string | null {
   if (!start) return null;
   const s = DateTime.fromJSDate(new Date(start), { zone: "utc" });
   const e = end ? DateTime.fromJSDate(new Date(end), { zone: "utc" }) : s;
   const m = (d: DateTime) => MONTHS[d.month - 1];
-  if (s.year === e.year && s.month === e.month) return `${m(s)} ${s.year}`;
-  if (s.year === e.year) return `${m(s)}–${m(e)} ${s.year}`;
-  return `${m(s)} ${s.year}–${m(e)} ${e.year}`;
+  // Whole months (yearly periods, preferred months): "apr 2027", "apr–jun 2027".
+  const wholeMonths = s.day === 1 && e.day === e.daysInMonth;
+  if (wholeMonths) {
+    if (s.year === e.year && s.month === e.month) return `${m(s)} ${s.year}`;
+    if (s.year === e.year) return `${m(s)}–${m(e)} ${s.year}`;
+    return `${m(s)} ${s.year}–${m(e)} ${e.year}`;
+  }
+  // Specific days (weekly/monthly recurrence): "12 mei 2027", "12–18 mei 2027", "28 apr–4 mei 2027".
+  if (s.hasSame(e, "day")) return `${s.day} ${m(s)} ${s.year}`;
+  if (s.year === e.year && s.month === e.month) return `${s.day}–${e.day} ${m(s)} ${s.year}`;
+  if (s.year === e.year) return `${s.day} ${m(s)}–${e.day} ${m(e)} ${s.year}`;
+  return `${s.day} ${m(s)} ${s.year}–${e.day} ${m(e)} ${e.year}`;
 }
 
 // ---------------------------------------------------------------------------

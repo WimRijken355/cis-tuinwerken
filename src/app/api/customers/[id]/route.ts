@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { windowLabel } from "@/lib/registration";
 import { customerInputSchema } from "@/lib/schemas/customers";
 import { partialWithoutDefaults } from "@/lib/schemas/partial";
-import { recurringExtrasInclude, toRecurringExtrasDto } from "@/lib/schemas/recurring";
+import { recurringExtrasInclude, toRecurrencePattern, toRecurringExtrasDto } from "@/lib/schemas/recurring";
 import { todoResourcesInclude, toTodoResourceDtos, toTodoTaskDtos } from "@/lib/schemas/todos";
 
 async function parseId(params: Promise<{ id: string }>): Promise<number> {
@@ -58,6 +58,7 @@ export async function GET(
       recurringTemplates: customer.recurringTemplates.map((rt) => ({
         ...rt,
         estimatedHours: Number(rt.estimatedHours),
+        ...toRecurrencePattern(rt),
         ...toRecurringExtrasDto(rt),
       })),
     });
