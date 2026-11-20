@@ -13,6 +13,7 @@ import { ACTION_ICONS } from "@/components/action-icons";
 import { Button, ErrorNote, Spinner, TextArea, TextInput, Toggle } from "@/components/ui";
 import { apiGet, apiSend } from "@/lib/api-client";
 import { formatMinutesAsHours } from "@/lib/planning";
+import { keepInputFocus } from "@/lib/pointer";
 import {
   buildJobInvoice,
   ceilToQuarterHour,
@@ -523,6 +524,7 @@ function RegisterFlow({
                 <li key={p.id}>
                   <button
                     type="button"
+                    onMouseDown={keepInputFocus}
                     onClick={() => addArticle(p)}
                     className="flex w-full items-center justify-between gap-3 py-2.5 text-left text-sm active:bg-gray-50"
                   >

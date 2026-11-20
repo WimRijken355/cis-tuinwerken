@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { isBackdropDismiss } from "@/lib/pointer";
 
 /** Kleine gedeelde UI-kit — bewust simpel gehouden, alles Tailwind. */
 
@@ -83,11 +84,16 @@ export function Modal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Only a press that starts on the backdrop may dismiss: on a phone the content
+  // can jump (keyboard closing) between press and click, see isBackdropDismiss().
+  const pressOnBackdrop = useRef(false);
+
   if (!open) return null;
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 md:items-center md:p-4"
-      onClick={onClose}
+      onPointerDown={(e) => (pressOnBackdrop.current = e.target === e.currentTarget)}
+      onClick={(e) => isBackdropDismiss(pressOnBackdrop.current, e.target, e.currentTarget) && onClose()}
     >
       <div
         className={`max-h-[90dvh] w-full overflow-y-auto rounded-t-xl bg-white p-5 shadow-xl md:rounded-xl ${

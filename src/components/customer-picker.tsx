@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { apiGet } from "@/lib/api-client";
 import { formatAddress, type CustomerListResponse } from "@/lib/schemas/customers";
+import { keepInputFocus } from "@/lib/pointer";
 import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { TextInput } from "./ui";
 
@@ -60,6 +61,7 @@ export function CustomerPicker({
           <li key={c.id}>
             <button
               type="button"
+              onMouseDown={keepInputFocus}
               onClick={() => onChange({ id: c.id, name: c.name, address: formatAddress(c) })}
               className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
             >
