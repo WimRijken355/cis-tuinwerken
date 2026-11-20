@@ -9,7 +9,8 @@ import {
 
 describe("parseCustomerTab", () => {
   it("opens the requested tab, falling back to the details", () => {
-    expect(CUSTOMER_TABS).toEqual(["details", "recurring", "new-todo", "history"]);
+    expect(CUSTOMER_TABS).toEqual(["details", "recurring", "new-todo", "history", "invoices"]);
+    expect(parseCustomerTab("invoices")).toBe("invoices");
     expect(parseCustomerTab("history")).toBe("history");
     expect(parseCustomerTab("new-todo")).toBe("new-todo");
     expect(parseCustomerTab("bogus")).toBe("details");
@@ -23,8 +24,9 @@ describe("customerTabCounts (record counts on the tab headers)", () => {
       todos: [{ status: "OPEN" }, { status: "PLANNED" }, { status: "DONE" }, { status: "CANCELLED" }],
       recurringTemplates: [{}, {}],
       quotes: 3,
+      invoices: 5,
     });
-    expect(counts).toEqual({ quotes: 3, recurring: 2, openTodos: 2, allTodos: 4 });
+    expect(counts).toEqual({ quotes: 3, recurring: 2, openTodos: 2, allTodos: 4, invoices: 5 });
   });
   it("shows no quote count for a customer that is not linked to EF, and zeros when empty", () => {
     expect(customerTabCounts({ todos: [], recurringTemplates: [] })).toEqual({
@@ -32,6 +34,7 @@ describe("customerTabCounts (record counts on the tab headers)", () => {
       recurring: 0,
       openTodos: 0,
       allTodos: 0,
+      invoices: null,
     });
   });
 });

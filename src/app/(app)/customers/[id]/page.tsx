@@ -8,6 +8,8 @@ import { ActionButton } from "@/components/action-button";
 import { ACTION_ICONS } from "@/components/action-icons";
 import { CustomerForm } from "@/components/customer-form";
 import { CustomerInvoiceDialog } from "@/components/customer-invoice-dialog";
+import { CustomerInvoices } from "@/components/customer-invoices";
+import { CustomerNotes } from "@/components/customer-notes";
 import { CustomerQuotes } from "@/components/customer-quotes";
 import { QuoteLinePicker } from "@/components/quote-line-picker";
 import { FilterBar, FilterField, selectClass } from "@/components/pagination";
@@ -36,6 +38,7 @@ import {
   type CustomerHistoryFilter,
   type CustomerTab,
 } from "@/lib/customer-tabs";
+import type { InvoiceDto } from "@/lib/schemas/completions";
 import type { CustomerQuotesResponse } from "@/lib/schemas/quotes";
 import type { TodoStateFilter } from "@/lib/todo-list";
 import { formatAddress, type CustomerDto, type CustomerInput } from "@/lib/schemas/customers";
@@ -81,9 +84,17 @@ function CustomerDetailView() {
     enabled: efLinked,
   });
 
+  // The customer's invoices: the "Facturen" tab and its count on the tab header.
+  const invoicesKey = ["invoices", { customerId: Number(id) }];
+  const { data: invoices } = useQuery({
+    queryKey: invoicesKey,
+    queryFn: () => apiGet<InvoiceDto[]>(`/api/invoices?customerId=${id}`),
+  });
+
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey });
     void queryClient.invalidateQueries({ queryKey: ["customers"] });
+    void queryClient.invalidateQueries({ queryKey: invoicesKey });
   };
 
   const updateMutation = useMutation({
@@ -157,6 +168,7 @@ function CustomerDetailView() {
           todos: customer.todos,
           recurringTemplates: customer.recurringTemplates,
           quotes: efLinked ? (quotes?.quotes.length ?? null) : null,
+          invoices: invoices?.length ?? null,
         });
         return (
           <Tabs
@@ -181,6 +193,7 @@ function CustomerDetailView() {
                 count: counts.allTodos,
                 badge: counts.openTodos > 0 ? `${counts.openTodos} open` : undefined,
               },
+              { id: "invoices", label: CUSTOMER_TAB_LABELS.invoices, count: counts.invoices ?? undefined },
             ]}
           />
         );
@@ -201,11 +214,6 @@ function CustomerDetailView() {
                   value={customer.efClientId ? `Gekoppeld (#${customer.efClientId})` : "Nog niet gekoppeld"}
                 />
               </dl>
-              {customer.notes && (
-                <p className="mt-3 whitespace-pre-wrap rounded bg-gray-50 p-2 text-sm text-gray-600">
-                  {customer.notes}
-                </p>
-              )}
               <div className="mt-4">
                 <Button
                   variant="danger"
@@ -218,7 +226,10 @@ function CustomerDetailView() {
                 </Button>
               </div>
             </div>
-            <CustomerQuotes customerId={customer.id} efLinked={efLinked} />
+            <CustomerNotes key={customer.notes ?? ""} customerId={customer.id} notes={customer.notes} onSaved={invalidate} />
+            <div className="lg:col-span-2">
+              <CustomerQuotes customerId={customer.id} efLinked={efLinked} />
+            </div>
           </div>
         </TabPanel>
       )}
@@ -244,6 +255,12 @@ function CustomerDetailView() {
       {tab === "history" && (
         <TabPanel id="history">
           <HistoryPanel customer={customer} onChanged={invalidate} onToast={setToast} />
+        </TabPanel>
+      )}
+
+      {tab === "invoices" && (
+        <TabPanel id="invoices">
+          <CustomerInvoices invoices={invoices ?? []} onChanged={invalidate} />
         </TabPanel>
       )}
 
@@ -473,6 +490,8 @@ function HistoryPanel({
               resources: editing.resources ?? [],
               tasks: editing.tasks ?? [],
               isProject: editing.isProject,
+              description: editing.description,
+              invoiceDescription: editing.invoiceDescription,
             }}
             showProject
             extra={

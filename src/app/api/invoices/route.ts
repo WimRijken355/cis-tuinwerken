@@ -5,16 +5,19 @@ import type { Prisma } from "@/generated/prisma/client";
 import type { EfInvoiceItem } from "@/lib/ef/types";
 import { vatSummary } from "@/lib/invoice-content";
 
-/** GET /api/invoices?status= — overzicht met pushstatus naar EenvoudigFactureren. */
+/** GET /api/invoices?status=&customerId= — overzicht met pushstatus naar EenvoudigFactureren. */
 export async function GET(request: NextRequest) {
   try {
     await requireUser();
     const status = request.nextUrl.searchParams.get("status");
+    const customerId = Number(request.nextUrl.searchParams.get("customerId")) || null;
 
     const invoices = await db.invoice.findMany({
-      where: status
-        ? { pushStatus: status as Prisma.InvoiceWhereInput["pushStatus"] }
-        : undefined,
+      where: {
+        ...(status ? { pushStatus: status as Prisma.InvoiceWhereInput["pushStatus"] } : {}),
+        // One customer (customer page → Facturen): all of them, not just the latest 200 overall.
+        ...(customerId ? { customerId } : {}),
+      },
       include: {
         customer: { select: { name: true, isDemo: true } },
         completion: {
@@ -25,7 +28,7 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 200,
+      take: customerId ? undefined : 200,
     });
 
     return NextResponse.json(

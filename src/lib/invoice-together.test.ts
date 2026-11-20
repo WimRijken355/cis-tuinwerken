@@ -7,6 +7,7 @@ describe("Factuur maken (customer page)", () => {
   const job = (todoId: number, title: string, hours: number) => ({
     todoId,
     title,
+    invoiceDescription: null,
     lastRegisteredOn: "2027-05-12T07:00:00Z",
     days: [{ date: "2027-05-12T07:00:00Z", labor: [{ ...cis, invoicedHours: hours }], extras: [] }],
     quoteLines: [],

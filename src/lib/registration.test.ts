@@ -4,6 +4,7 @@ import {
   buildJobInvoice,
   defaultTogetherTodoIds,
   invoiceTogetherProblem,
+  laborDescription,
   ceilToQuarterHour,
   closeJobCheck,
   defaultInvoiceNow,
@@ -395,5 +396,49 @@ describe("samen factureren (several todos on one invoice)", () => {
     expect(invoiceTogetherProblem({ ...ok, isProject: true }, 7)).toMatch(/project/);
     expect(invoiceTogetherProblem({ ...ok, status: "OPEN" }, 7)).toMatch(/afgewerkte/);
     expect(invoiceTogetherProblem({ ...ok, uninvoicedDays: 0 }, 7)).toMatch(/niets meer/);
+  });
+});
+
+describe("facturatieomschrijving (todo's own description for the labour lines)", () => {
+  const cis = { resourceId: 1, name: "Cis", type: "PERSON" as const, hourlyRate: 45, vatRate: 21 };
+  const mini = { resourceId: 9, name: "Minigraver", type: "MACHINE" as const, hourlyRate: 55, vatRate: 21 };
+  const d1 = "2027-05-12T07:00:00Z";
+  const d2 = "2027-05-13T07:00:00Z";
+
+  it("empty = the default; set = used as is for a single day, with the date for several days", () => {
+    expect(laborDescription(null, "12/05/2027", false)).toBe("Werkuren op 12/05/2027");
+    expect(laborDescription("  ", "12/05/2027", true)).toBe("Werkuren op 12/05/2027");
+    expect(laborDescription("Tuinonderhoud", "12/05/2027", false)).toBe("Tuinonderhoud");
+    expect(laborDescription("Tuinonderhoud", "12/05/2027", true)).toBe("Tuinonderhoud (12/05/2027)");
+  });
+
+  it("replaces 'Werkuren op' on the invoice, but never the machine lines", () => {
+    const oneDay = buildJobInvoice({
+      days: [{ date: d1, labor: [{ ...cis, invoicedHours: 3 }, { ...mini, invoicedHours: 2 }], extras: [] }],
+      invoiceDescription: "Tuinonderhoud volgens afspraak",
+    });
+    expect(oneDay.items.map((i) => i.description)).toEqual(["Tuinonderhoud volgens afspraak", "Minigraver op 12/05/2027"]);
+
+    const twoDays = buildJobInvoice({
+      days: [
+        { date: d1, labor: [{ ...cis, invoicedHours: 3 }], extras: [] },
+        { date: d2, labor: [{ ...cis, invoicedHours: 2 }], extras: [] },
+      ],
+      invoiceDescription: "Tuinonderhoud",
+    });
+    expect(twoDays.items.map((i) => i.description)).toEqual(["Tuinonderhoud (12/05/2027)", "Tuinonderhoud (13/05/2027)"]);
+  });
+
+  it("each todo keeps its own description when invoicing together", () => {
+    const built = buildInvoice({
+      jobs: [
+        { todoId: 1, title: "Haag", invoiceDescription: "Haag scheren", days: [{ date: d1, labor: [{ ...cis, invoicedHours: 2 }], extras: [] }] },
+        { todoId: 2, title: "Gras", days: [{ date: d1, labor: [{ ...cis, invoicedHours: 1 }], extras: [] }] },
+      ],
+    });
+    expect(built.items.filter((i) => i.type === "item").map((i) => i.description)).toEqual([
+      "Haag scheren",
+      "Werkuren op 12/05/2027",
+    ]);
   });
 });

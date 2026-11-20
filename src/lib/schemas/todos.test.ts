@@ -198,3 +198,18 @@ describe("resolveTodoOwner (editing a todo like a new one)", () => {
     expect(todoUpdateSchema.parse({}).customerId).toBeUndefined();
   });
 });
+
+describe("todo note and invoice description", () => {
+  const base = { customerId: 1, title: "Tuin", estimatedHours: 2 };
+  it("keeps a multi-line note and trims the invoice description; empty means the default", () => {
+    const parsed = todoInputSchema.parse({ ...base, description: "Poort links\nHond!", invoiceDescription: "  Onderhoud  " });
+    expect(parsed.description).toBe("Poort links\nHond!");
+    expect(parsed.invoiceDescription).toBe("Onderhoud");
+    expect(todoInputSchema.parse({ ...base, invoiceDescription: "   " }).invoiceDescription).toBeNull();
+  });
+  it("a PATCH without it keeps the stored value; with an empty string it clears it", () => {
+    expect(todoUpdateSchema.parse({ title: "Tuin" }).invoiceDescription).toBeUndefined();
+    expect(todoUpdateSchema.parse({ invoiceDescription: "" }).invoiceDescription).toBeNull();
+    expect(() => todoUpdateSchema.parse({ invoiceDescription: "x".repeat(201) })).toThrow();
+  });
+});

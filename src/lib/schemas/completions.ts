@@ -134,6 +134,8 @@ export interface RegistrationContextDto {
   laborVatRate: number;
   /** Title of the todo being registered (heading when invoicing together). */
   todoTitle: string;
+  /** The todo's description for its labour lines on the invoice (null = "Werkuren op …"). */
+  invoiceDescription: string | null;
   /** Other finished, not yet invoiced work of this customer that may go on the same invoice. */
   otherJobs: UninvoicedJobDto[];
   /** Other blocks of this customer planned the same day (invoice together at the last one). */
@@ -165,6 +167,7 @@ export interface RegisteredDayDto {
 export interface UninvoicedJobDto {
   todoId: number;
   title: string;
+  invoiceDescription: string | null;
   /** Work date of its last registered (uninvoiced) day, ISO. */
   lastRegisteredOn: string;
   days: RegisteredDayDto[];

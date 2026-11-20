@@ -36,6 +36,8 @@ export interface TodoEditorInitial {
   resources: TodoResourceDto[];
   tasks: TodoTaskDto[];
   isProject?: boolean;
+  description?: string | null;
+  invoiceDescription?: string | null;
   /** Linked EF quote lines (EfQuoteLine ids). */
   quoteLineIds?: number[];
 }
@@ -185,6 +187,8 @@ export function TodoEditor({
           resources: initial.resources,
           tasks: initial.tasks,
           isProject: initial.isProject,
+          description: initial.description,
+          invoiceDescription: initial.invoiceDescription,
         }}
         submitLabel={submitLabel}
         busy={busy}

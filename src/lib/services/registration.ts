@@ -25,7 +25,10 @@ export async function loadInvoiceDays(invoiceId: number, client: Tx = db): Promi
 export async function loadInvoiceJobs(invoiceId: number, client: Tx = db): Promise<InvoiceJob[]> {
   const completions = await client.completion.findMany({
     where: { invoiceId },
-    select: { id: true, appointment: { select: { todoId: true, todo: { select: { title: true } } } } },
+    select: {
+      id: true,
+      appointment: { select: { todoId: true, todo: { select: { title: true, invoiceDescription: true } } } },
+    },
   });
   const days = await loadDays({ invoiceId }, client);
   const quoteLinks = await client.todoQuoteLine.findMany({
@@ -34,9 +37,16 @@ export async function loadInvoiceJobs(invoiceId: number, client: Tx = db): Promi
     include: { quoteLine: true },
   });
   const jobs = new Map<number, InvoiceJob>();
-  const titleOf = new Map(completions.map((c) => [c.appointment.todoId, c.appointment.todo.title]));
+  const todoOf = new Map(completions.map((c) => [c.appointment.todoId, c.appointment.todo]));
   for (const day of days) {
-    const job = jobs.get(day.todoId) ?? { todoId: day.todoId, title: titleOf.get(day.todoId) ?? "", days: [], quoteLines: [] };
+    const todo = todoOf.get(day.todoId);
+    const job = jobs.get(day.todoId) ?? {
+      todoId: day.todoId,
+      title: todo?.title ?? "",
+      invoiceDescription: todo?.invoiceDescription ?? null,
+      days: [],
+      quoteLines: [],
+    };
     job.days.push(day);
     jobs.set(day.todoId, job);
   }
@@ -57,9 +67,15 @@ export async function loadInvoiceJobs(invoiceId: number, client: Tx = db): Promi
 
 /** One todo's uninvoiced part (days + not yet invoiced quote lines) for an invoice. */
 export async function loadUninvoicedJob(todoId: number, client: Tx = db): Promise<InvoiceJob> {
-  const todo = await client.todo.findUniqueOrThrow({ where: { id: todoId }, select: { title: true } });
+  const todo = await client.todo.findUniqueOrThrow({ where: { id: todoId }, select: { title: true, invoiceDescription: true } });
   const quoteLines = (await loadTodoQuoteLines(todoId, client)).filter((l) => l.invoiceId === null);
-  return { todoId, title: todo.title, days: await loadUninvoicedDays(todoId, client), quoteLines };
+  return {
+    todoId,
+    title: todo.title,
+    invoiceDescription: todo.invoiceDescription,
+    days: await loadUninvoicedDays(todoId, client),
+    quoteLines,
+  };
 }
 
 const toDayDto = (d: RegisteredDay): RegisteredDayDto => ({
@@ -82,7 +98,7 @@ export async function loadUninvoicedJobs(customerId: number, excludeTodoId?: num
       ...(excludeTodoId ? { id: { not: excludeTodoId } } : {}),
       appointments: { some: { completion: { invoiceId: null } } },
     },
-    select: { id: true, title: true },
+    select: { id: true, title: true, invoiceDescription: true },
   });
   const jobs: UninvoicedJobDto[] = [];
   for (const t of todos) {
@@ -92,6 +108,7 @@ export async function loadUninvoicedJobs(customerId: number, excludeTodoId?: num
     jobs.push({
       todoId: t.id,
       title: t.title,
+      invoiceDescription: t.invoiceDescription,
       lastRegisteredOn: String(days[days.length - 1].date),
       days: days.map(toDayDto),
       quoteLines,
@@ -192,6 +209,7 @@ export async function loadRegistrationContext(appointmentId: number): Promise<Re
     uninvoicedDays: (await loadUninvoicedDays(todo.id)).map(toDayDto),
     laborVatRate: settings.laborVatRate,
     todoTitle: todo.title,
+    invoiceDescription: todo.invoiceDescription,
     otherJobs: todo.customerId && !todo.isProject ? await loadUninvoicedJobs(todo.customerId, todo.id) : [],
     otherBlocksToday: todo.customerId ? await loadOtherBlocksSameDay(todo.customerId, todo.id, appointment.startAt) : [],
   };

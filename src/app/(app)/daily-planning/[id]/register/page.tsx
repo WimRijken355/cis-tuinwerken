@@ -318,17 +318,19 @@ function RegisterFlow({
       {
         todoId: appointment.todoId,
         title: context.todoTitle,
+        invoiceDescription: context.invoiceDescription,
         days: [...context.uninvoicedDays, todayDay],
         quoteLines: selectQuoteLines(context.quoteLines, quoteLinkIds),
       },
       ...chosenJobs.map((j) => ({
         todoId: j.todoId,
         title: j.title,
+        invoiceDescription: j.invoiceDescription,
         days: j.days,
         quoteLines: selectQuoteLines(j.quoteLines, quoteLinkIds),
       })),
     ],
-    [appointment.todoId, context.todoTitle, context.uninvoicedDays, context.quoteLines, todayDay, chosenJobs, quoteLinkIds],
+    [appointment.todoId, context.todoTitle, context.invoiceDescription, context.uninvoicedDays, context.quoteLines, todayDay, chosenJobs, quoteLinkIds],
   );
   const preview = useMemo(() => {
     try {

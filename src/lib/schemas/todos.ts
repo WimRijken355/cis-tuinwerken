@@ -48,6 +48,16 @@ const contactFields = {
   contactCity: optionalText(100),
 };
 
+/**
+ * Invoice description for the labour lines; "" clears it (back to the default
+ * "Werkuren op <date>"). Undefined = not sent (PATCH keeps the stored value).
+ */
+const invoiceDescriptionField = z
+  .string()
+  .max(200, "Facturatieomschrijving max. 200 tekens")
+  .optional()
+  .transform((v) => (v === undefined ? undefined : v.trim() || null));
+
 /** "yyyy-MM" (from <input type="month">); "" = none. */
 const monthField = z
   .string()
@@ -60,7 +70,9 @@ export const todoInputSchema = z.object({
   /** null/omitted = "losse todo" (holiday, doctor, ...): no customer, never invoiced. */
   customerId: z.number().int().positive().nullable().default(null),
   title: z.string().trim().min(1, "Titel is verplicht").max(200),
+  /** Free (multi-line) note on the todo. */
   description: z.string().max(5000).optional(),
+  invoiceDescription: invoiceDescriptionField,
   /** Total estimated time of the job. */
   estimatedHours: hoursField("Geschatte uren"),
   resources: resourcesSchema.default([]),
@@ -86,6 +98,7 @@ export const todoUpdateSchema = z.object({
   customerId: z.number().int().positive().nullable().optional(),
   title: z.string().trim().min(1, "Titel is verplicht").max(200).optional(),
   description: z.string().max(5000).optional(),
+  invoiceDescription: invoiceDescriptionField,
   estimatedHours: hoursField("Geschatte uren").optional(),
   resources: resourcesSchema.optional(),
   taskIds: checklistItemIdsSchema.optional(),
@@ -110,6 +123,8 @@ export interface TodoDto {
   customerName?: string;
   title: string;
   description: string | null;
+  /** Description for the labour lines on the invoice; null = "Werkuren op <date>". */
+  invoiceDescription: string | null;
   /** Als number geserialiseerd (Prisma Decimal → number in de API-laag). */
   estimatedHours: number;
   status: "OPEN" | "PLANNED" | "DONE" | "CANCELLED";

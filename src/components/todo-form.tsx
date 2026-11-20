@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, ErrorNote, Field, TextInput, Toggle } from "@/components/ui";
+import { Button, ErrorNote, Field, TextArea, TextInput, Toggle } from "@/components/ui";
 import type { TodoResourceDto, TodoResourceInput, TodoTaskDto } from "@/lib/schemas/todos";
 import {
   ChecklistPicker,
@@ -23,6 +23,10 @@ export interface TodoFormValues {
   preferredTo?: string;
   /** Project: invoiced directly in EF (only when showProject). */
   isProject?: boolean;
+  /** Free note (multi-line). */
+  description?: string;
+  /** Invoice description for the labour lines ("" = default; only when showProject). */
+  invoiceDescription?: string;
 }
 
 /**
@@ -51,6 +55,8 @@ export function TodoForm({
     resources: TodoResourceDto[];
     tasks: TodoTaskDto[];
     isProject?: boolean;
+    description?: string | null;
+    invoiceDescription?: string | null;
   };
   submitLabel: string;
   busy?: boolean;
@@ -81,6 +87,8 @@ export function TodoForm({
   const [preferredFrom, setPreferredFrom] = useState("");
   const [preferredTo, setPreferredTo] = useState("");
   const [isProject, setIsProject] = useState(initial?.isProject ?? false);
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [invoiceDescription, setInvoiceDescription] = useState(initial?.invoiceDescription ?? "");
 
   return (
     <form
@@ -93,7 +101,8 @@ export function TodoForm({
           resources: resourceSelectionToInput(resources),
           taskIds: showChecklist ? taskIds : [],
           ...(showPeriod && preferredFrom ? { preferredFrom, preferredTo: preferredTo || undefined } : {}),
-          ...(showProject ? { isProject } : {}),
+          description,
+          ...(showProject ? { isProject, invoiceDescription: isProject ? "" : invoiceDescription } : {}),
         });
       }}
     >
@@ -131,6 +140,28 @@ export function TodoForm({
           </Field>
         </div>
       </div>
+
+      <Field label="Notitie (optioneel)">
+        <TextArea
+          rows={3}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Uitgebreide info, bv. toegang via de zijpoort, hond in de tuin…"
+        />
+      </Field>
+      {showProject && !isProject && (
+        <Field
+          label="Facturatieomschrijving (optioneel)"
+          hint="Vervangt &quot;Werkuren op <datum>&quot; op de factuur. Leeg = standaard; bij meerdere dagen komt de datum erachter."
+        >
+          <TextInput
+            value={invoiceDescription}
+            maxLength={200}
+            onChange={(e) => setInvoiceDescription(e.target.value)}
+            placeholder="bv. Tuinonderhoud volgens afspraak"
+          />
+        </Field>
+      )}
 
       {showPeriod && (
         <fieldset>

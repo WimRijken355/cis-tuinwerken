@@ -132,6 +132,7 @@ export async function POST(request: NextRequest) {
       data: {
         ...input,
         isProject: projectFlagForTodo(input.customerId, input.isProject),
+        invoiceDescription: input.customerId === null ? null : (input.invoiceDescription ?? null),
         ...contactForTodo(input.customerId, { contactName, contactStreet, contactPostalCode, contactCity }),
         ...(preferredFrom ? periodToWindow(preferredFrom, preferredTo) : {}),
       },

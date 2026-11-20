@@ -3,12 +3,12 @@ import { matchesTodoState, type TodoStateFilter } from "./todo-list";
 
 /**
  * Tabs of the customer page (`/customers/:id?tab=`): details, recurring work,
- * a new one-off todo for this customer, and the history of its todos. Pure
- * logic (tab ids, counts on the tab headers, history filter) so it can be
- * tested without the page.
+ * a new one-off todo for this customer, the history of its todos and its
+ * invoices. Pure logic (tab ids, counts on the tab headers, history filter)
+ * so it can be tested without the page.
  */
 
-export const CUSTOMER_TABS = ["details", "recurring", "new-todo", "history"] as const;
+export const CUSTOMER_TABS = ["details", "recurring", "new-todo", "history", "invoices"] as const;
 export type CustomerTab = (typeof CUSTOMER_TABS)[number];
 
 export const CUSTOMER_TAB_LABELS: Record<CustomerTab, string> = {
@@ -16,6 +16,7 @@ export const CUSTOMER_TAB_LABELS: Record<CustomerTab, string> = {
   recurring: "Terugkerend werk",
   "new-todo": "Nieuwe todo",
   history: "Historiek",
+  invoices: "Facturen",
 };
 
 /** `?tab=` value → tab; anything unknown opens the details. */
@@ -32,6 +33,8 @@ export interface CustomerTabCounts {
   openTodos: number;
   /** All todos, open and closed. */
   allTodos: number;
+  /** Invoices of the customer; null while not loaded yet. */
+  invoices: number | null;
 }
 
 /** The record counts on the tab headers, so you see whether a tab has data without opening it. */
@@ -39,12 +42,14 @@ export function customerTabCounts(customer: {
   todos: Pick<TodoDto, "status">[];
   recurringTemplates: unknown[];
   quotes?: number | null;
+  invoices?: number | null;
 }): CustomerTabCounts {
   return {
     quotes: customer.quotes ?? null,
     recurring: customer.recurringTemplates.length,
     openTodos: customer.todos.filter((t) => matchesTodoState(t.status, "ACTIVE")).length,
     allTodos: customer.todos.length,
+    invoices: customer.invoices ?? null,
   };
 }
 

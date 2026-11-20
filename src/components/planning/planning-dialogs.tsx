@@ -393,6 +393,8 @@ export function TodoEditDialog({
             resources: todo.resources ?? [],
             tasks: todo.tasks ?? [],
             isProject: todo.isProject,
+            description: todo.description,
+            invoiceDescription: todo.invoiceDescription,
             quoteLineIds: (todo.quoteLines ?? []).map((l) => l.quoteLineId),
           }}
           todoId={todo.id}

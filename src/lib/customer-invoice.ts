@@ -20,7 +20,13 @@ export function previewCustomerInvoice(jobs: UninvoicedJobDto[], todoIds: Set<nu
   return buildInvoice({
     jobs: jobs
       .filter((j) => todoIds.has(j.todoId))
-      .map((j) => ({ todoId: j.todoId, title: j.title, days: j.days, quoteLines: selectQuoteLines(j.quoteLines, quoteLinkIds) })),
+      .map((j) => ({
+        todoId: j.todoId,
+        title: j.title,
+        invoiceDescription: j.invoiceDescription,
+        days: j.days,
+        quoteLines: selectQuoteLines(j.quoteLines, quoteLinkIds),
+      })),
   });
 }
 

@@ -138,25 +138,28 @@ enum TodoStatus {
 }
 
 model Todo {
-  id                Int        @id @default(autoincrement())
+  id                 Int        @id @default(autoincrement())
   /// NULL = "losse todo" (holiday, doctor, ...): planned like any other todo, but
   /// never registered, invoiced or e-mailed.
-  customerId        Int?
-  title             String
-  description       String?
-  estimatedHours    Decimal    @db.Decimal(5, 2)
-  status            TodoStatus @default(OPEN)
+  customerId         Int?
+  title              String
+  /// Free note on the todo (shown on the day card and in the editor).
+  description        String?
+  /// Description for the labour lines on the invoice; empty = "Werkuren op <date>".
+  invoiceDescription String?
+  estimatedHours     Decimal    @db.Decimal(5, 2)
+  status             TodoStatus @default(OPEN)
   /// Free-text name/address for a losse todo (customerId NULL); not a customer
   /// record, so never invoiced/synced. Always NULL when customerId is set.
-  contactName       String?
-  contactStreet     String?
-  contactPostalCode String?
-  contactCity       String?
+  contactName        String?
+  contactStreet      String?
+  contactPostalCode  String?
+  contactCity        String?
   /// Project: invoiced directly in EenvoudigFactureren, outside this app.
   /// Hours are registered, but a registration never creates an invoice.
   /// Always false for a losse todo.
-  isProject         Boolean    @default(false)
-  completedAt       DateTime?
+  isProject          Boolean    @default(false)
+  completedAt        DateTime?
 
   // --- Koppeling met terugkerend werk -------------------------------------
   /// Gezet wanneer deze todo gegenereerd is uit een RecurringWindow.

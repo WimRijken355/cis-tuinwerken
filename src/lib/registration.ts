@@ -197,6 +197,8 @@ export interface InvoiceJob {
   title: string;
   days: RegisteredDay[];
   quoteLines?: InvoiceQuoteLine[];
+  /** The todo's own description for its labour lines (laborDescription()). */
+  invoiceDescription?: string | null;
 }
 
 export interface BuiltInvoice {
@@ -235,9 +237,19 @@ export function buildJobInvoice(params: {
   notes?: string[];
   /** Quote lines (EF offertes) of the job chosen to invoice now; key "quote|<linkId>". */
   quoteLines?: InvoiceQuoteLine[];
+  /** The todo's invoice description for the labour lines (laborDescription()). */
+  invoiceDescription?: string | null;
 }): BuiltInvoice {
   return buildInvoice({
-    jobs: [{ todoId: 0, title: "", days: params.days, quoteLines: params.quoteLines }],
+    jobs: [
+      {
+        todoId: 0,
+        title: "",
+        days: params.days,
+        quoteLines: params.quoteLines,
+        invoiceDescription: params.invoiceDescription,
+      },
+    ],
     remarks: params.remarks,
     notes: params.notes,
   });
@@ -289,6 +301,9 @@ export function buildInvoice(params: {
     };
 
     const sortedDays = [...job.days].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const laborDays = new Set(
+      sortedDays.filter((d) => d.labor.some((l) => l.type !== "MACHINE" && l.invoicedHours > 0)).map((d) => dayKeyOf(d.date).toISODate()),
+    ).size;
 
     // Per day: people summed per rate, then each machine.
     type Group = { description: string; kind: "labor" | "machine"; hours: number; rate: number; vat: number; details: Map<string, number> };
@@ -304,7 +319,7 @@ export function buildInvoice(params: {
           ? `machine|${l.resourceId ?? l.name}|${iso}|${l.hourlyRate}|${l.vatRate}`
           : `labor|${iso}|${l.hourlyRate}|${l.vatRate}`;
         const group = groups.get(key) ?? {
-          description: isMachine ? `${l.name} op ${label}` : `Werkuren op ${label}`,
+          description: isMachine ? `${l.name} op ${label}` : laborDescription(job.invoiceDescription, label, laborDays > 1),
           kind: isMachine ? ("machine" as const) : ("labor" as const),
           hours: 0,
           rate: l.hourlyRate,
@@ -368,6 +383,17 @@ export function buildInvoice(params: {
   for (const note of notes) items.push({ type: "text", description: note.slice(0, 1000) });
 
   return { items, lines, notes, totalExclVat: totalCents / 100 };
+}
+
+/**
+ * Description of a labour line: "Werkuren op dd/MM/yyyy", or the todo's own
+ * invoice description when set — with the date in brackets when the job has
+ * labour on several days (otherwise the lines could not be told apart).
+ */
+export function laborDescription(custom: string | null | undefined, dateLabel: string, severalDays: boolean): string {
+  const text = custom?.trim();
+  if (!text) return `Werkuren op ${dateLabel}`;
+  return severalDays ? `${text} (${dateLabel})` : text;
 }
 
 /**
