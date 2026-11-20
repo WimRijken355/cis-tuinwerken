@@ -190,6 +190,11 @@ export function selectQuoteLines<T extends { linkId: number; invoiceId: number |
   return lines.filter((l) => l.invoiceId === null && ticked.has(l.linkId));
 }
 
+/** Total excl. VAT of the chosen articles (registration step "Artikels"), in cents. */
+export function extrasTotal(extras: { quantity: number; unitPrice: number }[]): number {
+  return extras.reduce((cents, e) => cents + Math.round(round2(e.quantity) * Math.round(round2(e.unitPrice) * 100)), 0) / 100;
+}
+
 /** Adds the id when absent, removes it when present (new Set, for React state). */
 export function toggleId(ids: Set<number>, id: number): Set<number> {
   const next = new Set(ids);

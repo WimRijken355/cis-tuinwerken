@@ -21,6 +21,7 @@ import {
   followUpTodoInitial,
   hoursFromTimeRange,
   searchArticles,
+  extrasTotal,
   selectQuoteLines,
   toggleId,
 } from "@/lib/registration";
@@ -511,83 +512,6 @@ function RegisterFlow({
 
       {step === 1 && (
         <div className="space-y-3">
-          {extras.length > 0 && (
-            <Card title={`Gekozen artikels (${extras.length})`}>
-              <ul className="divide-y divide-gray-100">
-                {extras.map((x) => {
-                  const lineTotal = parseNum(x.quantity) * parseNum(x.unitPrice);
-                  return (
-                    <li key={x.priceListItemId} className="py-2">
-                      <div className="flex items-start justify-between gap-2">
-                        <label className="block min-w-0 flex-1">
-                          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
-                            Omschrijving (op de factuur)
-                          </span>
-                          <TextInput
-                            aria-label={`Omschrijving ${x.originalName}`}
-                            value={x.description}
-                            maxLength={200}
-                            onChange={(e) => updateArticle(x.priceListItemId, { description: e.target.value })}
-                            className="text-base"
-                          />
-                        </label>
-                        <ActionButton
-                          action="delete"
-                          iconOnly
-                          label="Artikel verwijderen"
-                          className="mt-5 min-h-10 text-base"
-                          onClick={() => setExtras((list) => list.filter((y) => y.priceListItemId !== x.priceListItemId))}
-                        />
-                      </div>
-                      {x.description.trim() !== x.originalName && (
-                        <p className="mt-0.5 text-xs text-gray-400">
-                          Artikel: {x.originalName} ·{" "}
-                          <button
-                            type="button"
-                            className="text-brand-600"
-                            onClick={() => updateArticle(x.priceListItemId, { description: x.originalName })}
-                          >
-                            ↩ origineel
-                          </button>
-                        </p>
-                      )}
-                      <div className="mt-1.5 flex flex-wrap items-end gap-2">
-                        <label className="block">
-                          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
-                            Aantal ({x.unit})
-                          </span>
-                          <TextInput
-                            inputMode="decimal"
-                            aria-label={`Aantal ${x.description}`}
-                            value={x.quantity}
-                            onChange={(e) => updateArticle(x.priceListItemId, { quantity: e.target.value })}
-                            onFocus={(e) => e.target.select()}
-                            className="!w-24 text-base"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
-                            Prijs/{x.unit} (€, excl. btw)
-                          </span>
-                          <TextInput
-                            inputMode="decimal"
-                            aria-label={`Prijs ${x.description}`}
-                            value={x.unitPrice}
-                            onChange={(e) => updateArticle(x.priceListItemId, { unitPrice: e.target.value })}
-                            onFocus={(e) => e.target.select()}
-                            className="!w-28 text-base"
-                          />
-                        </label>
-                        <span className="pb-2 text-sm text-gray-600">
-                          = {Number.isFinite(lineTotal) ? euro.format(lineTotal) : "–"}
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Card>
-          )}
           <Card title="Artikel toevoegen (optioneel)">
             <TextInput
               type="search"
@@ -624,6 +548,89 @@ function RegisterFlow({
               <p className="mt-2 text-sm text-gray-500">Geen artikels voor &quot;{articleSearch}&quot;.</p>
             )}
           </Card>
+          {extras.length > 0 && (
+            <Card title={`Gekozen artikels (${extras.length})`}>
+              <ul className="space-y-2">
+                {extras.map((x) => {
+                  const lineTotal = parseNum(x.quantity) * parseNum(x.unitPrice);
+                  return (
+                    <li key={x.priceListItemId} className="rounded-lg border border-gray-200 p-2.5">
+                      <div className="flex items-center gap-2">
+                        <TextInput
+                          aria-label={`Omschrijving ${x.originalName} (op de factuur)`}
+                          value={x.description}
+                          maxLength={200}
+                          onChange={(e) => updateArticle(x.priceListItemId, { description: e.target.value })}
+                          className="min-w-0 flex-1 text-base font-medium"
+                        />
+                        <ActionButton
+                          action="delete"
+                          iconOnly
+                          label="Artikel verwijderen"
+                          className="min-h-11 shrink-0 text-base"
+                          onClick={() => setExtras((list) => list.filter((y) => y.priceListItemId !== x.priceListItemId))}
+                        />
+                      </div>
+                      {x.description.trim() !== x.originalName && (
+                        <p className="mt-1 text-xs text-gray-400">
+                          Artikel: {x.originalName} ·{" "}
+                          <button
+                            type="button"
+                            className="text-brand-600"
+                            onClick={() => updateArticle(x.priceListItemId, { description: x.originalName })}
+                          >
+                            ↩ origineel
+                          </button>
+                        </p>
+                      )}
+                      <div className="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] items-end gap-2">
+                        <label className="block">
+                          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Aantal</span>
+                          <span className="flex items-center rounded-md border border-gray-300 focus-within:border-brand-500">
+                            <input
+                              inputMode="decimal"
+                              aria-label={`Aantal ${x.description}`}
+                              value={x.quantity}
+                              onChange={(e) => updateArticle(x.priceListItemId, { quantity: e.target.value })}
+                              onFocus={(e) => e.target.select()}
+                              className="min-h-10 w-full min-w-0 rounded-md px-2 text-right text-base tabular-nums focus:outline-none"
+                            />
+                            <span className="shrink-0 pr-2 text-sm text-gray-500">{x.unit}</span>
+                          </span>
+                        </label>
+                        <label className="block">
+                          <span className="text-[11px] font-medium uppercase tracking-wide text-gray-500">
+                            Prijs/{x.unit}
+                          </span>
+                          <span className="flex items-center rounded-md border border-gray-300 focus-within:border-brand-500">
+                            <span className="shrink-0 pl-2 text-sm text-gray-500">€</span>
+                            <input
+                              inputMode="decimal"
+                              aria-label={`Prijs ${x.description} (excl. btw)`}
+                              value={x.unitPrice}
+                              onChange={(e) => updateArticle(x.priceListItemId, { unitPrice: e.target.value })}
+                              onFocus={(e) => e.target.select()}
+                              className="min-h-10 w-full min-w-0 rounded-md px-2 text-right text-base tabular-nums focus:outline-none"
+                            />
+                          </span>
+                        </label>
+                        <div className="min-w-[5.5rem] text-right">
+                          <span className="block text-[11px] font-medium uppercase tracking-wide text-gray-500">Totaal</span>
+                          <span className="block min-h-10 py-2 text-base font-semibold tabular-nums">
+                            {Number.isFinite(lineTotal) ? euro.format(lineTotal) : "–"}
+                          </span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-sm">
+                <span className="text-gray-500">Totaal artikels (excl. btw)</span>
+                <span className="font-semibold tabular-nums">{euro.format(extrasTotal(todayDay.extras))}</span>
+              </p>
+            </Card>
+          )}
           <Nav onBack={() => setStep(0)} onNext={() => setStep(2)} />
         </div>
       )}

@@ -5,6 +5,7 @@ import {
   defaultTogetherTodoIds,
   invoiceTogetherProblem,
   ceilToHalfDay,
+  extrasTotal,
   isBillableLabor,
   laborDescription,
   ceilToQuarterHour,
@@ -521,5 +522,12 @@ describe("VAT rate per line in the invoice step", () => {
       vatRates: { "todo2|labor|2027-05-12|45|21": 6 },
     });
     expect(built.items.filter((i) => i.type === "item").map((i) => i.tax_rate)).toEqual([21, 21, 6, 21]);
+  });
+});
+
+describe("extrasTotal (articles step)", () => {
+  it("sums quantity × price in cents, without float drift", () => {
+    expect(extrasTotal([])).toBe(0);
+    expect(extrasTotal([{ quantity: 3, unitPrice: 0.1 }, { quantity: 2.5, unitPrice: 8.99 }])).toBe(22.78);
   });
 });
