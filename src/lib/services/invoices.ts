@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { createClient, createInvoice, EfApiError, efIsConfigured } from "../ef/client";
+import { buildEfInvoiceInput } from "../ef/invoice-input";
 import type { EfInvoiceItem } from "../ef/types";
 import { nowBrussels } from "../time";
 import { DEMO_CUSTOMER_MESSAGE, SYNC_EXCLUDED_MESSAGE } from "./invoice-sync";
@@ -85,16 +86,14 @@ export async function pushInvoiceToEf(invoiceId: number): Promise<{
 
     // 2. Conceptfactuur aanmaken
     const settings = await getSettings();
-    const efInvoiceId = await createInvoice({
-      client_id: efClientId,
-      status: "concept",
-      date: nowBrussels().toFormat("yyyy-MM-dd"),
-      days_due: settings.invoiceDaysDue,
-      currency: "EUR",
-      language: "nl",
-      tax_included: "no",
-      items: invoice.linesJson as unknown as EfInvoiceItem[],
-    });
+    const efInvoiceId = await createInvoice(
+      buildEfInvoiceInput({
+        clientId: efClientId,
+        date: nowBrussels().toFormat("yyyy-MM-dd"),
+        daysDue: settings.invoiceDaysDue,
+        items: invoice.linesJson as unknown as EfInvoiceItem[],
+      }),
+    );
 
     await db.invoice.update({
       where: { id: invoiceId },

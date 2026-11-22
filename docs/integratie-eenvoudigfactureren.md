@@ -87,7 +87,7 @@ Bij de registratie met **Nu factureren** (laatste dag van een job; zie
    `items`-payload als `linesJson`-audittrail en het totaal excl. btw).
 3. Daarna de push: ontbreekt de EF-koppeling van de klant, dan wordt die eerst
    aangemaakt; vervolgens `POST /invoices` met `status: "concept"`,
-   `language: "nl"`, `tax_included: "no"` en `days_due` uit Instellingen.
+   `language: "dutch"` (EF verwacht een taalnaam, geen ISO-code), `tax_included: "no"` en `days_due` uit Instellingen.
 4. Slaagt de push → status `CONCEPT_CREATED` + `efInvoiceId`. Faalt hij →
    `FAILED` + foutboodschap, zichtbaar op de Facturen-pagina met een
    retry-knop. **De registratie zelf is dan al veilig bewaard** — een
