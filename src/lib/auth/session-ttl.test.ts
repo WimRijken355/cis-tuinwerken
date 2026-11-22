@@ -3,11 +3,21 @@ import {
   SESSION_REFRESH_INTERVAL_MS,
   SESSION_TTL_SECONDS,
   shouldRefreshSession,
+  TRUSTED_DEVICE_DAYS,
+  trustedDeviceExpiry,
 } from "./session-ttl";
 
 describe("session TTL", () => {
   it("expires after 7 days", () => {
     expect(SESSION_TTL_SECONDS).toBe(7 * 24 * 60 * 60);
+  });
+
+  it("a trusted device is trusted 7 days from its last use", () => {
+    const now = new Date(Date.UTC(2026, 10, 22, 12));
+    expect(trustedDeviceExpiry(now).getTime() - now.getTime()).toBe(
+      TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000,
+    );
+    expect(TRUSTED_DEVICE_DAYS).toBe(7);
   });
 
   it("refreshes well within the TTL", () => {

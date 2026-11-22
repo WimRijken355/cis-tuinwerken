@@ -12,7 +12,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export const totpVerifySchema = z.object({
   /** 6-cijferige code uit de authenticator-app óf een herstelcode (XXXX-XXXX). */
   code: z.string().min(6, "Code is verplicht"),
-  /** "Vertrouw dit toestel 30 dagen" — slaat de TOTP-stap daarna over. */
+  /** "Vertrouw dit toestel 7 dagen" — slaat de TOTP-stap daarna over. */
   trustDevice: z.boolean().optional().default(false),
   /** Vrij label voor in het overzicht van vertrouwde toestellen. */
   deviceLabel: z.string().max(100).optional(),

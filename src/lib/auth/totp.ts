@@ -112,7 +112,6 @@ export function normalizeRecoveryCode(code: string): string {
 // Vertrouwde toestellen
 // ---------------------------------------------------------------------------
 
-export const TRUSTED_DEVICE_DAYS = 30;
 
 /** Willekeurig token voor de cookie; in de database komt alleen de hash. */
 export function generateTrustedDeviceToken(): { token: string; tokenHash: string } {

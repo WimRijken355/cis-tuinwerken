@@ -78,7 +78,7 @@ model RecoveryCode {
   @@index([userId])
 }
 
-/// "Vertrouw dit toestel 30 dagen": cookie-token (gehasht) waarmee de
+/// "Vertrouw dit toestel 7 dagen": cookie-token (gehasht) waarmee de
 /// TOTP-stap wordt overgeslagen op het eigen toestel.
 model TrustedDevice {
   id         Int      @id @default(autoincrement())

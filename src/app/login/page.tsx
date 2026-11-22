@@ -10,7 +10,7 @@ import { START_PATH } from "@/components/nav-items";
  * Aanmeldflow in stappen:
  *  1. password      — gebruikersnaam of e-mailadres + wachtwoord
  *  2. totp          — code uit de authenticator-app (of herstelcode),
- *                     met "vertrouw dit toestel 30 dagen"
+ *                     met "vertrouw dit toestel 7 dagen"
  *  3. setup-qr      — eerste keer: QR-code scannen
  *  4. setup-confirm — eerste code bevestigen
  *  5. recovery      — herstelcodes tonen (eenmalig!)
@@ -185,7 +185,7 @@ export default function LoginPage() {
                 checked={trustDevice}
                 onChange={(e) => setTrustDevice(e.target.checked)}
               />
-              Vertrouw dit toestel 30 dagen
+              Vertrouw dit toestel 7 dagen
             </label>
             <button
               type="submit"

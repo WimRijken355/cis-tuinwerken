@@ -3,7 +3,9 @@ import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, jsonError } from "@/lib/api";
 import { identifierWhere } from "@/lib/auth/password-reset";
 import { allowAttempt, clearAttempts } from "@/lib/auth/rate-limit";
+import { trustedDeviceExpiry } from "@/lib/auth/session-ttl";
 import { sha256 } from "@/lib/auth/totp";
+import { trustedDeviceCookieOptions } from "@/lib/auth/trusted-device";
 import { db } from "@/lib/db";
 import { loginSchema } from "@/lib/schemas/auth";
 import { getSession, TRUSTED_DEVICE_COOKIE } from "@/lib/session";
@@ -50,14 +52,20 @@ export async function POST(request: NextRequest) {
         where: { tokenHash: sha256(deviceToken) },
       });
       if (device && device.userId === user.id && device.expiresAt > new Date()) {
+        // Rolling: every use extends the trust by another TRUSTED_DEVICE_DAYS.
+        const now = new Date();
+        const expiresAt = trustedDeviceExpiry(now);
         await db.trustedDevice.update({
           where: { id: device.id },
-          data: { lastUsedAt: new Date() },
+          data: { lastUsedAt: now, expiresAt },
         });
         session.userId = user.id;
         session.pendingUserId = undefined;
+        session.refreshedAt = now.getTime();
         await session.save();
-        return NextResponse.json({ ok: true });
+        const response = NextResponse.json({ ok: true });
+        response.cookies.set(TRUSTED_DEVICE_COOKIE, deviceToken, trustedDeviceCookieOptions(expiresAt));
+        return response;
       }
     }
 

@@ -5,9 +5,10 @@ import {
   generateTrustedDeviceToken,
   normalizeRecoveryCode,
   sha256,
-  TRUSTED_DEVICE_DAYS,
   verifyTotpCode,
 } from "@/lib/auth/totp";
+import { trustedDeviceExpiry } from "@/lib/auth/session-ttl";
+import { trustedDeviceCookieOptions } from "@/lib/auth/trusted-device";
 import { db } from "@/lib/db";
 import { totpVerifySchema } from "@/lib/schemas/auth";
 import { getSession, TRUSTED_DEVICE_COOKIE } from "@/lib/session";
@@ -15,7 +16,7 @@ import { getSession, TRUSTED_DEVICE_COOKIE } from "@/lib/session";
 /**
  * Stap 2 van het aanmelden: TOTP-code (of herstelcode) controleren.
  * Bij succes wordt de sessie gepromoveerd naar volledig aangemeld en kan
- * het toestel optioneel 30 dagen vertrouwd worden (cookie + hash in DB).
+ * het toestel optioneel vertrouwd (rollend 7 dagen, zie session-ttl.ts) worden (cookie + hash in DB).
  */
 export async function POST(request: NextRequest) {
   try {
@@ -71,17 +72,11 @@ export async function POST(request: NextRequest) {
 
     if (trustDevice) {
       const { token, tokenHash } = generateTrustedDeviceToken();
-      const expiresAt = new Date(Date.now() + TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000);
+      const expiresAt = trustedDeviceExpiry(new Date());
       await db.trustedDevice.create({
         data: { userId, tokenHash, label: deviceLabel ?? null, expiresAt },
       });
-      response.cookies.set(TRUSTED_DEVICE_COOKIE, token, {
-        httpOnly: true,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        expires: expiresAt,
-        path: "/",
-      });
+      response.cookies.set(TRUSTED_DEVICE_COOKIE, token, trustedDeviceCookieOptions(expiresAt));
     }
 
     return response;
