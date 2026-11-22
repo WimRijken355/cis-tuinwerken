@@ -23,6 +23,12 @@ export interface SessionData {
   pendingTotpSecret?: string;
   /** Epoch ms of the last time the cookie was re-issued (rolling session, see middleware). */
   refreshedAt?: number;
+  /**
+   * Epoch ms of the 2FA verification this session rests on (a trusted-device
+   * login inherits the moment the device was trusted). After MAX_AUTH_AGE_DAYS
+   * the session is rejected, see isAuthTooOld().
+   */
+  twoFactorAt?: number;
 }
 
 export const SESSION_COOKIE = "tc_session";

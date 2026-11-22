@@ -1,3 +1,4 @@
+import { isAuthTooOld } from "@/lib/auth/session-ttl";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { beginAuditScope, setAuditUser } from "./audit-context";
@@ -33,7 +34,7 @@ export async function requireUser(): Promise<number> {
   // the calling route handler (see audit-context.ts for why).
   beginAuditScope();
   const session = await getSession();
-  if (!session.userId) {
+  if (!session.userId || isAuthTooOld(session.twoFactorAt, Date.now())) {
     throw new ApiError("Niet aangemeld", 401);
   }
   setAuditUser(session.userId);

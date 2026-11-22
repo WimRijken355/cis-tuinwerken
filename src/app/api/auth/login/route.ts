@@ -3,7 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { handleApiError, jsonError } from "@/lib/api";
 import { identifierWhere } from "@/lib/auth/password-reset";
 import { allowAttempt, clearAttempts } from "@/lib/auth/rate-limit";
-import { trustedDeviceExpiry } from "@/lib/auth/session-ttl";
+import { isAuthTooOld, trustedDeviceExpiry } from "@/lib/auth/session-ttl";
 import { sha256 } from "@/lib/auth/totp";
 import { trustedDeviceCookieOptions } from "@/lib/auth/trusted-device";
 import { db } from "@/lib/db";
@@ -51,10 +51,16 @@ export async function POST(request: NextRequest) {
       const device = await db.trustedDevice.findUnique({
         where: { tokenHash: sha256(deviceToken) },
       });
-      if (device && device.userId === user.id && device.expiresAt > new Date()) {
-        // Rolling: every use extends the trust by another TRUSTED_DEVICE_DAYS.
-        const now = new Date();
-        const expiresAt = trustedDeviceExpiry(now);
+      const now = new Date();
+      if (
+        device &&
+        device.userId === user.id &&
+        device.expiresAt > now &&
+        !isAuthTooOld(device.createdAt.getTime(), now.getTime())
+      ) {
+        // Rolling: every use extends the trust by another TRUSTED_DEVICE_DAYS
+        // (capped at MAX_AUTH_AGE_DAYS after the device was trusted).
+        const expiresAt = trustedDeviceExpiry(now, device.createdAt);
         await db.trustedDevice.update({
           where: { id: device.id },
           data: { lastUsedAt: now, expiresAt },
@@ -62,6 +68,8 @@ export async function POST(request: NextRequest) {
         session.userId = user.id;
         session.pendingUserId = undefined;
         session.refreshedAt = now.getTime();
+        // The 2FA this login rests on is the one done when trusting the device.
+        session.twoFactorAt = device.createdAt.getTime();
         await session.save();
         const response = NextResponse.json({ ok: true });
         response.cookies.set(TRUSTED_DEVICE_COOKIE, deviceToken, trustedDeviceCookieOptions(expiresAt));

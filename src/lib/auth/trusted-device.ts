@@ -31,7 +31,8 @@ export async function refreshTrustedDevice(
   if (!device || device.userId !== userId || device.expiresAt <= now) return null;
   if (!shouldRefreshSession(device.lastUsedAt.getTime(), now.getTime())) return null;
 
-  const expiresAt = trustedDeviceExpiry(now);
+  const expiresAt = trustedDeviceExpiry(now, device.createdAt);
+  if (expiresAt.getTime() === device.expiresAt.getTime()) return null; // hard limit reached
   await db.trustedDevice.update({
     where: { id: device.id },
     data: { lastUsedAt: now, expiresAt },

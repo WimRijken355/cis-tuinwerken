@@ -53,6 +53,8 @@ export async function POST(request: NextRequest) {
     session.userId = userId;
     session.pendingUserId = undefined;
     session.pendingTotpSecret = undefined;
+    session.refreshedAt = Date.now();
+    session.twoFactorAt = session.refreshedAt;
     await session.save();
 
     return NextResponse.json({ ok: true, recoveryCodes });

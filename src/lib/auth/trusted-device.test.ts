@@ -12,10 +12,13 @@ const { TRUSTED_DEVICE_DAYS, SESSION_REFRESH_INTERVAL_MS } = await import("./ses
 const DAY = 24 * 60 * 60 * 1000;
 const now = new Date(Date.UTC(2026, 10, 22, 12));
 
-function device(overrides: Partial<{ userId: number; lastUsedAt: Date; expiresAt: Date }> = {}) {
+function device(
+  overrides: Partial<{ userId: number; createdAt: Date; lastUsedAt: Date; expiresAt: Date }> = {},
+) {
   return {
     id: 7,
     userId: 1,
+    createdAt: new Date(now.getTime() - 20 * DAY),
     lastUsedAt: new Date(now.getTime() - 2 * DAY),
     expiresAt: new Date(now.getTime() + 5 * DAY),
     ...overrides,
@@ -58,6 +61,19 @@ describe("refreshTrustedDevice", () => {
     findUnique.mockResolvedValue(
       device({ lastUsedAt: new Date(now.getTime() - SESSION_REFRESH_INTERVAL_MS / 2) }),
     );
+    expect(await refreshTrustedDevice(1, "token", now)).toBeNull();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("stops extending at the 6-month hard limit", async () => {
+    const { MAX_AUTH_AGE_DAYS } = await import("./session-ttl");
+    const createdAt = new Date(now.getTime() - (MAX_AUTH_AGE_DAYS - 3) * DAY);
+    const hardLimit = new Date(createdAt.getTime() + MAX_AUTH_AGE_DAYS * DAY);
+    findUnique.mockResolvedValue(device({ createdAt, expiresAt: new Date(now.getTime() + 5 * DAY) }));
+    expect((await refreshTrustedDevice(1, "token", now))?.getTime()).toBe(hardLimit.getTime());
+
+    update.mockReset();
+    findUnique.mockResolvedValue(device({ createdAt, expiresAt: hardLimit }));
     expect(await refreshTrustedDevice(1, "token", now)).toBeNull();
     expect(update).not.toHaveBeenCalled();
   });

@@ -1,7 +1,7 @@
 import { getIronSession } from "iron-session";
 import { NextResponse, type NextRequest } from "next/server";
-import { shouldRefreshSession } from "@/lib/auth/session-ttl";
-import { sessionOptions, type SessionData } from "@/lib/session";
+import { isAuthTooOld, shouldRefreshSession } from "@/lib/auth/session-ttl";
+import { SESSION_COOKIE, sessionOptions, type SessionData } from "@/lib/session";
 
 /**
  * Toegangscontrole op pagina-niveau: wie geen geldige (volledig aangemelde)
@@ -29,11 +29,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Rolling session: re-issue the cookie (restarting its 7-day TTL) on use,
-  // at most once per SESSION_REFRESH_INTERVAL_MS.
   const now = Date.now();
-  if (shouldRefreshSession(session.refreshedAt, now)) {
+
+  // Hard limit: ± 6 months after the last 2FA a full login is required again.
+  if (isAuthTooOld(session.twoFactorAt, now)) {
+    const redirect = NextResponse.redirect(new URL("/login", request.url));
+    redirect.cookies.delete(SESSION_COOKIE);
+    return redirect;
+  }
+
+  // Rolling session: re-issue the cookie (restarting its 7-day TTL) on use,
+  // at most once per SESSION_REFRESH_INTERVAL_MS. Sessions from before the
+  // 6-month rule start counting now.
+  if (shouldRefreshSession(session.refreshedAt, now) || session.twoFactorAt === undefined) {
     session.refreshedAt = now;
+    session.twoFactorAt ??= now;
     await session.save();
   }
 

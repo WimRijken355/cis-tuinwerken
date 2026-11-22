@@ -7,6 +7,10 @@
  * SESSION_REFRESH_INTERVAL_MS. The trusted device (2FA skip) rolls the same
  * way: it is extended on use via /api/auth/me (see trusted-device.ts) with the
  * same throttle, applied to its `lastUsedAt`.
+ *
+ * Hard limit on top of the rolling rules: MAX_AUTH_AGE_DAYS (± 6 months) after
+ * the last 2FA code, both the session and the trusted device stop working, so
+ * the user has to log in again with username/e-mail, password AND 2FA.
  */
 
 /** Session expires after 7 days without use. */
@@ -18,9 +22,29 @@ export const SESSION_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
 /** A trusted device skips the 2FA step until it has been unused for 7 days. */
 export const TRUSTED_DEVICE_DAYS = 7;
 
-/** New expiry of a trusted device that is (re)used at `now` (rolling). */
-export function trustedDeviceExpiry(now: Date): Date {
-  return new Date(now.getTime() + TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Full login (incl. 2FA) required at least every ± 6 months. */
+export const MAX_AUTH_AGE_DAYS = 183;
+
+/**
+ * Whether the last 2FA verification (epoch ms) is older than MAX_AUTH_AGE_DAYS.
+ * Unknown (sessions from before this rule) → false; the middleware then starts
+ * counting from now.
+ */
+export function isAuthTooOld(twoFactorAt: number | undefined, now: number): boolean {
+  if (twoFactorAt === undefined || !Number.isFinite(twoFactorAt)) return false;
+  return now - twoFactorAt >= MAX_AUTH_AGE_DAYS * DAY_MS;
+}
+
+/**
+ * New expiry of a trusted device that is (re)used at `now` (rolling), but
+ * never later than MAX_AUTH_AGE_DAYS after it was trusted (= its 2FA moment).
+ */
+export function trustedDeviceExpiry(now: Date, trustedAt: Date = now): Date {
+  const rolling = now.getTime() + TRUSTED_DEVICE_DAYS * DAY_MS;
+  const hardLimit = trustedAt.getTime() + MAX_AUTH_AGE_DAYS * DAY_MS;
+  return new Date(Math.min(rolling, hardLimit));
 }
 
 /**
