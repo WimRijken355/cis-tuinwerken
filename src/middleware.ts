@@ -1,5 +1,6 @@
 import { getIronSession } from "iron-session";
 import { NextResponse, type NextRequest } from "next/server";
+import { shouldRefreshSession } from "@/lib/auth/session-ttl";
 import { sessionOptions, type SessionData } from "@/lib/session";
 
 /**
@@ -26,6 +27,14 @@ export async function middleware(request: NextRequest) {
   if (!session.userId) {
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Rolling session: re-issue the cookie (restarting its 7-day TTL) on use,
+  // at most once per SESSION_REFRESH_INTERVAL_MS.
+  const now = Date.now();
+  if (shouldRefreshSession(session.refreshedAt, now)) {
+    session.refreshedAt = now;
+    await session.save();
   }
 
   return response;

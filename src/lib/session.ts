@@ -1,5 +1,6 @@
 import { getIronSession, type SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
+import { SESSION_TTL_SECONDS } from "./auth/session-ttl";
 import { config } from "./config";
 
 /**
@@ -20,6 +21,8 @@ export interface SessionData {
    * Veilig: de hele sessiecookie is versleuteld met SESSION_SECRET.
    */
   pendingTotpSecret?: string;
+  /** Epoch ms of the last time the cookie was re-issued (rolling session, see middleware). */
+  refreshedAt?: number;
 }
 
 export const SESSION_COOKIE = "tc_session";
@@ -30,7 +33,8 @@ export function sessionOptions(): SessionOptions {
   return {
     cookieName: SESSION_COOKIE,
     password: config().SESSION_SECRET,
-    ttl: 60 * 60 * 24 * 30, // 30 dagen, rollend
+    // 7 days, rolling: the middleware re-saves the session on use (see session-ttl.ts).
+    ttl: SESSION_TTL_SECONDS,
     cookieOptions: {
       httpOnly: true,
       sameSite: "lax",
