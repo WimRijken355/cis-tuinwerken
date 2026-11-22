@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
         customerId: input.customerId,
         title: input.title,
         description: input.description,
+        invoiceDescription: input.invoiceDescription ?? null,
         estimatedHours: input.estimatedHours,
         leadTimeDays: input.leadTimeDays,
         active: input.active,

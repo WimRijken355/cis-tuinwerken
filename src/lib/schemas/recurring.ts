@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { checklistItemIdsSchema } from "./checklist";
 import { recurrenceProblems, type MonthlyMode, type RecurrenceKind, type RecurrenceRule } from "../recurrence";
-import { resourcesSchema, type TodoResourceDto } from "./todos";
+import { invoiceDescriptionField, resourcesSchema, type TodoResourceDto } from "./todos";
 
 /** Contracten voor terugkerend werk. */
 
@@ -42,6 +42,8 @@ export const recurringTemplateInputSchema = z.object({
   customerId: z.number().int().positive(),
   title: z.string().trim().min(1, "Titel is verplicht").max(200),
   description: z.string().max(5000).optional(),
+  /** Copied onto every generated todo; "" / omitted = default "Werkuren op <date>". */
+  invoiceDescription: invoiceDescriptionField,
   estimatedHours: z.coerce.number().positive().max(999),
   /** Zoveel dagen vóór het venster verschijnt de todo als "in te plannen". */
   leadTimeDays: z.coerce.number().int().min(0).max(365).default(30),
@@ -75,6 +77,7 @@ export type RecurringTemplateInput = z.infer<typeof recurringTemplateInputSchema
 export const recurringTemplateUpdateSchema = z.object({
   title: z.string().trim().min(1, "Titel is verplicht").max(200).optional(),
   description: z.string().max(5000).optional(),
+  invoiceDescription: invoiceDescriptionField,
   estimatedHours: z.coerce.number().positive().max(999).optional(),
   leadTimeDays: z.coerce.number().int().min(0).max(365).optional(),
   active: z.boolean().optional(),
@@ -206,6 +209,7 @@ export interface RecurringTemplateDto extends RecurrencePattern {
   customerName?: string;
   title: string;
   description: string | null;
+  invoiceDescription: string | null;
   estimatedHours: number;
   leadTimeDays: number;
   active: boolean;
@@ -244,6 +248,23 @@ export function toRecurringExtrasDto(t: {
       hours: Number(r.hours),
     })),
     tasks: t.tasks.map((task) => ({ checklistItemId: task.checklistItemId, name: task.checklistItem.name })),
+  };
+}
+
+/** The todo's own fields copied from a recurring template (title, note, invoice description, hours). */
+export function generatedTodoFields<H>(template: {
+  customerId: number;
+  title: string;
+  description: string | null;
+  invoiceDescription: string | null;
+  estimatedHours: H;
+}): { customerId: number; title: string; description: string | null; invoiceDescription: string | null; estimatedHours: H } {
+  return {
+    customerId: template.customerId,
+    title: template.title,
+    description: template.description,
+    invoiceDescription: template.invoiceDescription,
+    estimatedHours: template.estimatedHours,
   };
 }
 

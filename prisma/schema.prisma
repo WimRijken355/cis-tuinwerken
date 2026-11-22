@@ -199,6 +199,8 @@ model RecurringTemplate {
   customerId     Int
   title          String
   description    String?
+  /// Copied onto every generated todo (Todo.invoiceDescription); null = "Werkuren op <date>".
+  invoiceDescription String?
   estimatedHours Decimal @db.Decimal(5, 2)
   /// Zoveel dagen vóór het begin van het venster verschijnt de todo als "in te plannen".
   leadTimeDays   Int     @default(30)

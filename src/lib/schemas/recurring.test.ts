@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   generatedTodoExtras,
+  generatedTodoFields,
   recurringTemplateInputSchema,
   recurringTemplateUpdateSchema,
   toRecurringExtrasDto,
@@ -45,6 +46,37 @@ describe("recurringTemplateInputSchema", () => {
     // Regression: .partial() kept the defaults and reset these on every update.
     expect(update.leadTimeDays).toBeUndefined();
     expect(update.active).toBeUndefined();
+    expect(update.invoiceDescription).toBeUndefined();
+  });
+
+  it("trims the invoice description; empty means default", () => {
+    const base = { customerId: 1, title: "Gras", estimatedHours: 1, windows: [window] };
+    expect(recurringTemplateInputSchema.parse(base).invoiceDescription).toBeUndefined();
+    expect(
+      recurringTemplateInputSchema.parse({ ...base, invoiceDescription: "  Tuinonderhoud  " }).invoiceDescription,
+    ).toBe("Tuinonderhoud");
+    expect(recurringTemplateUpdateSchema.parse({ invoiceDescription: "  " }).invoiceDescription).toBeNull();
+    expect(() => recurringTemplateInputSchema.parse({ ...base, invoiceDescription: "x".repeat(201) })).toThrow();
+  });
+});
+
+describe("generatedTodoFields", () => {
+  it("copies the invoice description onto the generated todo", () => {
+    expect(
+      generatedTodoFields({
+        customerId: 4,
+        title: "Gras afrijden",
+        description: "Zijpoort",
+        invoiceDescription: "Tuinonderhoud volgens contract",
+        estimatedHours: 2,
+      }),
+    ).toEqual({
+      customerId: 4,
+      title: "Gras afrijden",
+      description: "Zijpoort",
+      invoiceDescription: "Tuinonderhoud volgens contract",
+      estimatedHours: 2,
+    });
   });
 });
 

@@ -3,6 +3,7 @@ import { db } from "../db";
 import { dueOccurrences } from "../recurrence";
 import {
   generatedTodoExtras,
+  generatedTodoFields,
   recurringExtrasInclude,
   toRecurrencePattern,
   toRecurrenceRule,
@@ -66,6 +67,7 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
     customerId: number;
     title: string;
     description: string | null;
+    invoiceDescription: string | null;
     estimatedHours: unknown;
     recurringWindowId?: number;
     occurrenceYear?: number;
@@ -85,10 +87,7 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
       for (const o of dueOccurrences(rule, today.toISODate()!, template.leadTimeDays)) {
         toCreate.push({
           templateId: template.id,
-          customerId: template.customerId,
-          title: template.title,
-          description: template.description,
-          estimatedHours: template.estimatedHours,
+          ...generatedTodoFields(template),
           recurringTemplateId: template.id,
           occurrenceDate: new Date(`${o.date}T00:00:00Z`),
           windowStart: new Date(`${o.windowStart}T00:00:00Z`),
@@ -108,10 +107,7 @@ export async function runRecurringGenerationJob(): Promise<RecurringRunResult> {
         if (today >= visibleFrom && today <= end) {
           toCreate.push({
             templateId: template.id,
-            customerId: template.customerId,
-            title: template.title,
-            description: template.description,
-            estimatedHours: template.estimatedHours,
+            ...generatedTodoFields(template),
             recurringWindowId: window.id,
             occurrenceYear: year,
             // @db.Date-kolommen: bewaar de kalenderdag als UTC-middernacht.

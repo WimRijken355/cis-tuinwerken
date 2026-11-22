@@ -161,6 +161,7 @@ function RecurringFormModal({
   onSaved: () => void;
 }) {
   const [title, setTitle] = useState(template?.title ?? "");
+  const [invoiceDescription, setInvoiceDescription] = useState(template?.invoiceDescription ?? "");
   const [hours, setHours] = useState(String(template?.estimatedHours ?? 2));
   const [leadTime, setLeadTime] = useState(String(template?.leadTimeDays ?? defaultLeadTime("WEEKLY")));
   const [resources, setResources] = useState<ResourceSelection>(() =>
@@ -218,6 +219,7 @@ function RecurringFormModal({
     mutationFn: async () => {
       const payload = {
         title,
+        invoiceDescription,
         estimatedHours: Number(hours.replace(",", ".")),
         leadTimeDays: Number(leadTime),
         resources: resourceSelectionToInput(resources),
@@ -267,6 +269,17 @@ function RecurringFormModal({
             placeholder="bv. Haag scheren"
             required
             autoFocus
+          />
+        </Field>
+        <Field
+          label="Facturatieomschrijving (optioneel)"
+          hint="Vervangt &quot;Werkuren op <datum>&quot; op de factuur van elke todo die hieruit komt. Leeg = standaard; bij meerdere dagen komt de datum erachter."
+        >
+          <TextInput
+            value={invoiceDescription}
+            maxLength={200}
+            onChange={(e) => setInvoiceDescription(e.target.value)}
+            placeholder="bv. Tuinonderhoud volgens afspraak"
           />
         </Field>
         <div className="grid grid-cols-2 gap-3">
@@ -529,7 +542,7 @@ function RecurringFormModal({
         />
         {template && (
           <p className="text-xs text-gray-500">
-            Wijzigingen aan checklist en resources gelden voor todo&apos;s die vanaf nu
+            Wijzigingen aan facturatieomschrijving, checklist en resources gelden voor todo&apos;s die vanaf nu
             gegenereerd worden; al bestaande todo&apos;s pas je zelf aan.
           </p>
         )}

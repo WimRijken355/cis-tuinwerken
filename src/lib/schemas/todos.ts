@@ -52,7 +52,7 @@ const contactFields = {
  * Invoice description for the labour lines; "" clears it (back to the default
  * "Werkuren op <date>"). Undefined = not sent (PATCH keeps the stored value).
  */
-const invoiceDescriptionField = z
+export const invoiceDescriptionField = z
   .string()
   .max(200, "Facturatieomschrijving max. 200 tekens")
   .optional()
