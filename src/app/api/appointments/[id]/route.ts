@@ -34,7 +34,8 @@ export async function GET(
 
 /**
  * PATCH /api/appointments/:id — verplaatsen/verlengen/annuleren, and the
- * "bevestigd"/"reservatie" flags (mutually exclusive, see applyPlanningFlags).
+ * "bevestigd"/"reservatie" flags (mutually exclusive, see applyPlanningFlags)
+ * and the actual start on site (`arrivedAt`, "Aangekomen" on the Dagplanning).
  * Shortening a block raises the todo's remaining time (it is derived).
  *
  * Herinneringsregel: verschuift de afspraak naar een ándere (Brusselse) dag,
@@ -67,6 +68,9 @@ export async function PATCH(
         ...(input.status !== undefined ? { status: input.status } : {}),
         ...(input.confirmed !== undefined || input.reservation !== undefined
           ? applyPlanningFlags(existing, input)
+          : {}),
+        ...(input.arrivedAt !== undefined
+          ? { arrivedAt: input.arrivedAt === null ? null : new Date(input.arrivedAt) }
           : {}),
         ...(movedToOtherDay ? { reminderSentAt: null, reminderError: null } : {}),
       },

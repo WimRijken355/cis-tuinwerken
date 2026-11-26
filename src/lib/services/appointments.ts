@@ -31,6 +31,7 @@ type AppointmentWithRelations = {
   reminderError: string | null;
   confirmed: boolean;
   reservation: boolean;
+  arrivedAt: Date | null;
   todo: {
     title: string;
     description: string | null;
@@ -125,6 +126,7 @@ export function toAppointmentDto(a: AppointmentWithRelations, meta?: TodoPlannin
     customerEmail: customer?.email ?? null,
     confirmed: a.confirmed,
     reservation: a.reservation,
+    arrivedAt: a.arrivedAt?.toISOString() ?? null,
     resources: toTodoResourceDtos(a.todo.resources),
     part: meta?.parts.get(a.id) ?? { index: 1, total: 1 },
     todoRemainingMinutes: meta?.remainingMinutes ?? 0,

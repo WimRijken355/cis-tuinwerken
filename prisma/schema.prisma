@@ -299,6 +299,9 @@ model Appointment {
   confirmed       Boolean           @default(false)
   /// Provisional booking that may still change. Mutually exclusive with `confirmed`.
   reservation     Boolean           @default(false)
+  /// Actual start on site ("Aangekomen" on the Dagplanning), UTC; chosen by the
+  /// user. Default "van" when registering; NULL = not started yet.
+  arrivedAt       DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

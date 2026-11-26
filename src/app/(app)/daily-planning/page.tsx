@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { ArrivalSheet } from "@/components/daily/arrival-sheet";
 import { RescheduleSheet } from "@/components/daily/reschedule-sheet";
 import { ResourceChips, StatusFlags } from "@/components/planning/planning-cards";
 import { TodoEditDialog } from "@/components/planning/planning-dialogs";
@@ -23,7 +24,8 @@ import { formatDate, formatTime, isIsoDay, shiftDay, todayBrussels } from "@/lib
  * (default today, ‹ › to browse; the day lives in the URL so "back" from a
  * registration returns to the same day). Each card opens to show what has to
  * be done (description + checklist, tickable on site) and offers Waze,
- * "Klaarmelden" (registration) and "Verplaatsen"; ✏️ opens the full todo
+ * "Klaarmelden" (registration) and "Verplaatsen"; "Aangekomen" records the
+ * actual start time on site (ArrivalSheet), used as "van" when registering; ✏️ opens the full todo
  * editor (TodoEditDialog, the same one as on the planning page).
  */
 export default function DailyPlanningPage() {
@@ -44,6 +46,7 @@ function DailyPlanning() {
 
   const [openId, setOpenId] = useState<number | null>(null);
   const [moving, setMoving] = useState<AppointmentDto | null>(null);
+  const [arriving, setArriving] = useState<AppointmentDto | null>(null);
   /** Todo open in the full editor (same dialog as on the planning page). */
   const [editTodoId, setEditTodoId] = useState<number | null>(null);
 
@@ -178,7 +181,23 @@ function DailyPlanning() {
                 </div>
               )}
 
-              <div className="flex gap-2 border-t border-gray-100 p-2">
+              {a.status === "PLANNED" && !a.isLoose && (
+                <div className="border-t border-gray-100 px-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setArriving(a)}
+                    className={`min-h-11 w-full rounded-md py-2.5 text-sm font-semibold ${
+                      a.arrivedAt
+                        ? "border border-emerald-300 bg-emerald-50 text-emerald-800 active:bg-emerald-100"
+                        : "border border-gray-300 text-gray-700 active:bg-gray-50"
+                    }`}
+                  >
+                    {a.arrivedAt ? `📍 Gestart om ${formatTime(a.arrivedAt)} · wijzigen` : "📍 Aangekomen — starttijd ingeven"}
+                  </button>
+                </div>
+              )}
+
+              <div className={`flex gap-2 p-2 ${a.status === "PLANNED" && !a.isLoose ? "" : "border-t border-gray-100"}`}>
                 {a.address ? (
                   <a
                     href={wazeUrl(a.address)}
@@ -232,6 +251,18 @@ function DailyPlanning() {
               void queryClient.invalidateQueries({ queryKey });
             }
             setEditTodoId(null);
+          }}
+        />
+      )}
+
+      {arriving && (
+        <ArrivalSheet
+          appointment={arriving}
+          onClose={() => setArriving(null)}
+          onChanged={() => {
+            setArriving(null);
+            void queryClient.invalidateQueries({ queryKey: ["appointments", "day", day] });
+            void queryClient.invalidateQueries({ queryKey: ["appointment", String(arriving.id)] });
           }}
         />
       )}

@@ -28,6 +28,8 @@ export const appointmentUpdateSchema = z.object({
   status: z.enum(["PLANNED", "CANCELLED"]).optional(),
   confirmed: z.boolean().optional(),
   reservation: z.boolean().optional(),
+  /** Actual start on site ("Aangekomen"); null clears it. */
+  arrivedAt: isoDate.nullable().optional(),
 });
 export type AppointmentUpdate = z.infer<typeof appointmentUpdateSchema>;
 
@@ -59,6 +61,8 @@ export interface AppointmentDto {
   customerEmail: string | null;
   confirmed: boolean;
   reservation: boolean;
+  /** Actual start on site ("Aangekomen"), ISO UTC; null = not started yet. */
+  arrivedAt: string | null;
   /** Resources of the todo (people/machines with their planned hours). */
   resources: TodoResourceDto[];
   /** Position among the blocks of the same todo, e.g. 2 of 3. */

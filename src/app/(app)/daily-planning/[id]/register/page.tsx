@@ -31,6 +31,7 @@ import type { ChecklistItemDto } from "@/lib/schemas/checklist";
 import type { CompletionInput, RegistrationContextDto } from "@/lib/schemas/completions";
 import type { ResourceDto } from "@/lib/schemas/resources";
 import type { TodoDto } from "@/lib/schemas/todos";
+import { workStart } from "@/lib/arrival";
 import { registerBackHref, registerBackLabel } from "@/lib/register-link";
 import { formatTime, toBrussels } from "@/lib/time";
 
@@ -157,9 +158,11 @@ function RegisterFlow({
 
   // --- Step 1: resources --------------------------------------------------------
   // Default "van/tot" per resource comes from the planned block, starting at
-  // the appointment's start time and running for its (capped) proposed hours.
-  const blockStart = formatTime(appointment.startAt);
-  const timeAfter = (hours: number) => toBrussels(appointment.startAt).plus({ hours }).toFormat("HH:mm");
+  // the recorded arrival ("Aangekomen" on the Dagplanning) or else the planned
+  // start time, and running for its (capped) proposed hours.
+  const start = workStart(appointment);
+  const blockStart = formatTime(start);
+  const timeAfter = (hours: number) => toBrussels(start).plus({ hours }).toFormat("HH:mm");
   const [lines, setLines] = useState<ResourceLine[]>(() =>
     context.plannedResources.map((r) => ({
       resourceId: r.resourceId,
@@ -418,6 +421,7 @@ function RegisterFlow({
       <p className="text-sm text-gray-500">
         {appointment.customerName} · {formatTime(appointment.startAt)} ({formatMinutesAsHours(appointment.durationMinutes)})
         {appointment.part.total > 1 && ` · dag ${appointment.part.index}/${appointment.part.total}`}
+        {appointment.arrivedAt && ` · gestart om ${formatTime(appointment.arrivedAt)}`}
       </p>
 
       <div className="sticky top-0 z-10 -mx-3 my-3 flex gap-1 bg-gray-50/95 px-3 py-2 backdrop-blur sm:-mx-4 sm:px-4">
