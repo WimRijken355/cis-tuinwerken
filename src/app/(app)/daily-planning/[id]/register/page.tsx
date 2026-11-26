@@ -31,7 +31,8 @@ import type { ChecklistItemDto } from "@/lib/schemas/checklist";
 import type { CompletionInput, RegistrationContextDto } from "@/lib/schemas/completions";
 import type { ResourceDto } from "@/lib/schemas/resources";
 import type { TodoDto } from "@/lib/schemas/todos";
-import { workStart } from "@/lib/arrival";
+import { roundToQuarter, workStart } from "@/lib/arrival";
+import { QuarterTimeSelect } from "@/components/quarter-time-select";
 import { registerBackHref, registerBackLabel } from "@/lib/register-link";
 import { formatTime, toBrussels } from "@/lib/time";
 
@@ -159,10 +160,12 @@ function RegisterFlow({
   // --- Step 1: resources --------------------------------------------------------
   // Default "van/tot" per resource comes from the planned block, starting at
   // the recorded arrival ("Aangekomen" on the Dagplanning) or else the planned
-  // start time, and running for its (capped) proposed hours.
+  // start time, and running for its (capped) proposed hours — all per quarter
+  // hour (the van/tot pickers only offer quarters).
   const start = workStart(appointment);
-  const blockStart = formatTime(start);
-  const timeAfter = (hours: number) => toBrussels(start).plus({ hours }).toFormat("HH:mm");
+  const blockStart = roundToQuarter(formatTime(start));
+  const timeAfter = (hours: number) =>
+    roundToQuarter(toBrussels(start).plus({ hours }).toFormat("HH:mm"));
   const [lines, setLines] = useState<ResourceLine[]>(() =>
     context.plannedResources.map((r) => ({
       resourceId: r.resourceId,
@@ -1097,20 +1100,18 @@ function ResourceHours({
         <div>
           <p className="text-[11px] font-medium uppercase tracking-wide text-gray-500">Gewerkt van – tot</p>
           <div className="flex items-center gap-1.5">
-            <TextInput
-              type="time"
+            <QuarterTimeSelect
               aria-label={`Van ${line.name}`}
               value={line.fromTime}
-              onChange={(e) => onChange({ fromTime: e.target.value })}
-              className="!w-[6.5rem] text-base"
+              onChange={(fromTime) => onChange({ fromTime })}
+              className="w-[6.5rem] text-base"
             />
             <span className="text-gray-400">–</span>
-            <TextInput
-              type="time"
+            <QuarterTimeSelect
               aria-label={`Tot ${line.name}`}
               value={line.toTime}
-              onChange={(e) => onChange({ toTime: e.target.value })}
-              className="!w-[6.5rem] text-base"
+              onChange={(toTime) => onChange({ toTime })}
+              className="w-[6.5rem] text-base"
             />
           </div>
           <p className="mt-0.5 text-xs text-gray-500">= {hoursText(line.registeredHours)} geregistreerd</p>

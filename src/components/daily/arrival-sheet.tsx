@@ -2,14 +2,16 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button, ErrorNote, Field, Modal, TextInput } from "@/components/ui";
+import { QuarterTimeSelect } from "@/components/quarter-time-select";
+import { Button, ErrorNote, Field, Modal } from "@/components/ui";
 import { apiSend } from "@/lib/api-client";
 import { arrivalDefaultTime, arrivalIso, isTime } from "@/lib/arrival";
 import type { AppointmentDto } from "@/lib/schemas/appointments";
 
 /**
  * Bottom sheet (phone) for "Aangekomen": record the actual start time on site.
- * The time is chosen by the user (default = now, or the time already entered)
+ * The time is chosen by the user per quarter hour (default = now rounded, or
+ * the time already entered)
  * and becomes the default "van" when registering (klaarmelden).
  */
 export function ArrivalSheet({
@@ -40,7 +42,7 @@ export function ArrivalSheet({
         }}
       >
         <Field label="Starttijd">
-          <TextInput type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+          <QuarterTimeSelect value={time} onChange={setTime} required className="min-h-11 w-full text-base" />
         </Field>
         <p className="text-xs text-gray-400">Deze tijd staat bij het klaarmelden al ingevuld als &quot;van&quot;.</p>
         <div className="flex justify-between gap-2 pt-1">
