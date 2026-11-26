@@ -68,6 +68,7 @@ describe("generatedTodoFields", () => {
         title: "Gras afrijden",
         description: "Zijpoort",
         invoiceDescription: "Tuinonderhoud volgens contract",
+        isProject: false,
         estimatedHours: 2,
       }),
     ).toEqual({
@@ -75,8 +76,36 @@ describe("generatedTodoFields", () => {
       title: "Gras afrijden",
       description: "Zijpoort",
       invoiceDescription: "Tuinonderhoud volgens contract",
+      isProject: false,
       estimatedHours: 2,
     });
+  });
+
+  it("makes every generated todo a project when the template is one (no invoice description)", () => {
+    expect(
+      generatedTodoFields({
+        customerId: 4,
+        title: "Onderhoudscontract",
+        description: null,
+        invoiceDescription: "Wordt genegeerd",
+        isProject: true,
+        estimatedHours: 2,
+      }),
+    ).toMatchObject({ isProject: true, invoiceDescription: null });
+  });
+});
+
+describe("recurring template project flag", () => {
+  const base = { customerId: 1, title: "Gras afrijden", estimatedHours: 2, windows: [window] };
+
+  it("defaults to no project on create", () => {
+    expect(recurringTemplateInputSchema.parse(base).isProject).toBe(false);
+    expect(recurringTemplateInputSchema.parse({ ...base, isProject: true }).isProject).toBe(true);
+  });
+
+  it("leaves the flag untouched on a PATCH that omits it", () => {
+    expect("isProject" in recurringTemplateUpdateSchema.parse({ title: "X" })).toBe(false);
+    expect(recurringTemplateUpdateSchema.parse({ isProject: true }).isProject).toBe(true);
   });
 });
 

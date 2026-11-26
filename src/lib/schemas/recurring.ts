@@ -44,6 +44,8 @@ export const recurringTemplateInputSchema = z.object({
   description: z.string().max(5000).optional(),
   /** Copied onto every generated todo; "" / omitted = default "Werkuren op <date>". */
   invoiceDescription: invoiceDescriptionField,
+  /** Project: generated todos are invoiced directly in EF (never from the app). */
+  isProject: z.boolean().default(false),
   estimatedHours: z.coerce.number().positive().max(999),
   /** Zoveel dagen vóór het venster verschijnt de todo als "in te plannen". */
   leadTimeDays: z.coerce.number().int().min(0).max(365).default(30),
@@ -78,6 +80,7 @@ export const recurringTemplateUpdateSchema = z.object({
   title: z.string().trim().min(1, "Titel is verplicht").max(200).optional(),
   description: z.string().max(5000).optional(),
   invoiceDescription: invoiceDescriptionField,
+  isProject: z.boolean().optional(),
   estimatedHours: z.coerce.number().positive().max(999).optional(),
   leadTimeDays: z.coerce.number().int().min(0).max(365).optional(),
   active: z.boolean().optional(),
@@ -210,6 +213,7 @@ export interface RecurringTemplateDto extends RecurrencePattern {
   title: string;
   description: string | null;
   invoiceDescription: string | null;
+  isProject: boolean;
   estimatedHours: number;
   leadTimeDays: number;
   active: boolean;
@@ -251,19 +255,32 @@ export function toRecurringExtrasDto(t: {
   };
 }
 
-/** The todo's own fields copied from a recurring template (title, note, invoice description, hours). */
+/**
+ * The todo's own fields copied from a recurring template (title, note, invoice
+ * description, project flag, hours). A project has no invoice description
+ * (it is never invoiced from the app).
+ */
 export function generatedTodoFields<H>(template: {
   customerId: number;
   title: string;
   description: string | null;
   invoiceDescription: string | null;
+  isProject: boolean;
   estimatedHours: H;
-}): { customerId: number; title: string; description: string | null; invoiceDescription: string | null; estimatedHours: H } {
+}): {
+  customerId: number;
+  title: string;
+  description: string | null;
+  invoiceDescription: string | null;
+  isProject: boolean;
+  estimatedHours: H;
+} {
   return {
     customerId: template.customerId,
     title: template.title,
     description: template.description,
-    invoiceDescription: template.invoiceDescription,
+    invoiceDescription: template.isProject ? null : template.invoiceDescription,
+    isProject: template.isProject,
     estimatedHours: template.estimatedHours,
   };
 }

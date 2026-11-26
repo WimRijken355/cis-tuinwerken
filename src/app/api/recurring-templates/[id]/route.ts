@@ -58,7 +58,8 @@ export async function PATCH(
         data: {
           title: input.title,
           description: input.description,
-          invoiceDescription: input.invoiceDescription,
+          invoiceDescription: input.isProject ? null : input.invoiceDescription,
+          isProject: input.isProject,
           estimatedHours: input.estimatedHours,
           leadTimeDays: input.leadTimeDays,
           active: input.active,

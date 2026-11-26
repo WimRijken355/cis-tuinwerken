@@ -21,7 +21,7 @@ import {
 } from "@/lib/schemas/recurring";
 import { apiSend } from "@/lib/api-client";
 import { ActionButton } from "./action-button";
-import { Button, ErrorNote, Field, FieldGroup, Modal, TextInput } from "./ui";
+import { Button, ErrorNote, Field, FieldGroup, Modal, TextInput, Toggle } from "./ui";
 import {
   ChecklistPicker,
   ResourcePicker,
@@ -108,6 +108,11 @@ export function RecurringSection({
               <div className="min-w-0 text-sm">
                 <p className={`font-medium ${t.active ? "" : "text-gray-400 line-through"}`}>
                   {t.title}
+                  {t.isProject && (
+                    <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 align-middle text-[11px] font-semibold text-indigo-700">
+                      Project
+                    </span>
+                  )}
                 </p>
                 <p className="text-gray-500">
                   {templateSummary(t)} · ±{" "}
@@ -162,6 +167,7 @@ function RecurringFormModal({
 }) {
   const [title, setTitle] = useState(template?.title ?? "");
   const [invoiceDescription, setInvoiceDescription] = useState(template?.invoiceDescription ?? "");
+  const [isProject, setIsProject] = useState(template?.isProject ?? false);
   const [hours, setHours] = useState(String(template?.estimatedHours ?? 2));
   const [leadTime, setLeadTime] = useState(String(template?.leadTimeDays ?? defaultLeadTime("WEEKLY")));
   const [resources, setResources] = useState<ResourceSelection>(() =>
@@ -219,7 +225,8 @@ function RecurringFormModal({
     mutationFn: async () => {
       const payload = {
         title,
-        invoiceDescription,
+        invoiceDescription: isProject ? "" : invoiceDescription,
+        isProject,
         estimatedHours: Number(hours.replace(",", ".")),
         leadTimeDays: Number(leadTime),
         resources: resourceSelectionToInput(resources),
@@ -271,17 +278,30 @@ function RecurringFormModal({
             autoFocus
           />
         </Field>
-        <Field
-          label="Facturatieomschrijving (optioneel)"
-          hint="Vervangt &quot;Werkuren op <datum>&quot; op de factuur van elke todo die hieruit komt. Leeg = standaard; bij meerdere dagen komt de datum erachter."
-        >
-          <TextInput
-            value={invoiceDescription}
-            maxLength={200}
-            onChange={(e) => setInvoiceDescription(e.target.value)}
-            placeholder="bv. Tuinonderhoud volgens afspraak"
-          />
-        </Field>
+        {/* A div, not a <label>: no clickable elements inside a label (Safari, see CLAUDE.md). */}
+        <div className="flex items-start justify-between gap-3 rounded-md border border-gray-200 px-3 py-2">
+          <span>
+            <span className="block text-sm font-medium text-gray-700">Project</span>
+            <span className="block text-xs text-gray-500">
+              Wordt rechtstreeks in EenvoudigFactureren gefactureerd: elke todo die hieruit komt registreer je wel
+              (uren), maar je meldt ze klaar als afgewerkt zonder factuur.
+            </span>
+          </span>
+          <Toggle checked={isProject} onChange={setIsProject} label="Project" />
+        </div>
+        {!isProject && (
+          <Field
+            label="Facturatieomschrijving (optioneel)"
+            hint="Vervangt &quot;Werkuren op <datum>&quot; op de factuur van elke todo die hieruit komt. Leeg = standaard; bij meerdere dagen komt de datum erachter."
+          >
+            <TextInput
+              value={invoiceDescription}
+              maxLength={200}
+              onChange={(e) => setInvoiceDescription(e.target.value)}
+              placeholder="bv. Tuinonderhoud volgens afspraak"
+            />
+          </Field>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <Field label="Geschat (uren)">
             <TextInput inputMode="decimal" value={hours} onChange={(e) => setHours(e.target.value)} required />
@@ -542,7 +562,7 @@ function RecurringFormModal({
         />
         {template && (
           <p className="text-xs text-gray-500">
-            Wijzigingen aan facturatieomschrijving, checklist en resources gelden voor todo&apos;s die vanaf nu
+            Wijzigingen aan project, facturatieomschrijving, checklist en resources gelden voor todo&apos;s die vanaf nu
             gegenereerd worden; al bestaande todo&apos;s pas je zelf aan.
           </p>
         )}

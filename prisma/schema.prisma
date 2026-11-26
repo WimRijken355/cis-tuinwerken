@@ -201,6 +201,9 @@ model RecurringTemplate {
   description    String?
   /// Copied onto every generated todo (Todo.invoiceDescription); null = "Werkuren op <date>".
   invoiceDescription String?
+  /// Project: copied onto every generated todo (Todo.isProject) - invoiced directly
+  /// in EenvoudigFactureren, never an invoice from the app.
+  isProject          Boolean @default(false)
   estimatedHours Decimal @db.Decimal(5, 2)
   /// Zoveel dagen vóór het begin van het venster verschijnt de todo als "in te plannen".
   leadTimeDays   Int     @default(30)
