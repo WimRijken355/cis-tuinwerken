@@ -482,7 +482,6 @@ function HistoryPanel({
       </div>
 
       <Modal title="Todo bewerken" open={editing !== null} onClose={() => setEditing(null)}>
-        {editing && <TodoStatusPicker todoId={editing.id} onChanged={onChanged} />}
         {editing && (
           <TodoForm
             key={editing.id}
@@ -511,6 +510,7 @@ function HistoryPanel({
             onCancel={() => setEditing(null)}
           />
         )}
+        {editing && <TodoStatusPicker todoId={editing.id} onChanged={onChanged} />}
       </Modal>
     </section>
   );

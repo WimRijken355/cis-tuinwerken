@@ -13,9 +13,10 @@ import {
 } from "@/lib/todo-status";
 
 /**
- * "Status" at the top of every todo editor (TodoEditDialog and the editor on
- * the customer page): set the status by hand, applied at once (separate from
- * "Bewaren"). Loads the todo detail itself (same query as TodoEditDialog, so
+ * "Status" at the very bottom of every todo editor (TodoEditDialog and the
+ * editor on the customer page): set the status by hand, applied at once
+ * (separate from "Bewaren"). A fallback — normally the status follows the
+ * planning and the registration — hence low-key at the bottom. Loads the todo detail itself (same query as TodoEditDialog, so
  * no extra request there). Rules + confirmation: src/lib/todo-status.ts.
  */
 export function TodoStatusPicker({ todoId, onChanged }: { todoId: number; onChanged?: () => void }) {
@@ -56,7 +57,7 @@ function StatusPicker({ todo, onChanged }: { todo: TodoDetail; onChanged?: () =>
 
   return (
     // A div, not a <label>/<Field>: no clickable elements inside a label (Safari, see CLAUDE.md).
-    <div className="mb-3 rounded-md border border-gray-200 px-3 py-2">
+    <div className="mt-4 rounded-md border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
           Status <StatusBadge status={todo.status} />
@@ -76,7 +77,8 @@ function StatusPicker({ todo, onChanged }: { todo: TodoDetail; onChanged?: () =>
         </select>
       </div>
       <p className="mt-1 text-xs text-gray-500">
-        Wordt meteen aangepast. Klaar of geannuleerd haalt de nog geplande blokken uit de planning.
+        Enkel voor uitzonderingen; wordt meteen aangepast. Klaar of geannuleerd haalt de nog geplande blokken uit de
+        planning.
       </p>
       {mutation.error && <ErrorNote message={(mutation.error as Error).message} />}
     </div>
