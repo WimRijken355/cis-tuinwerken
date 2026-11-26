@@ -13,10 +13,10 @@ import {
 } from "@/lib/todo-status";
 
 /**
- * "Status" at the very bottom of every todo editor (TodoEditDialog and the
- * editor on the customer page): set the status by hand, applied at once
- * (separate from "Bewaren"). A fallback — normally the status follows the
- * planning and the registration — hence low-key at the bottom. Loads the todo detail itself (same query as TodoEditDialog, so
+ * "Status" right above the save/cancel buttons of every todo editor
+ * (TodoEditDialog and the editor on the customer page): set the status by
+ * hand, applied at once (separate from "Bewaren"). A fallback — normally the
+ * status follows the planning and the registration — hence low-key. Loads the todo detail itself (same query as TodoEditDialog, so
  * no extra request there). Rules + confirmation: src/lib/todo-status.ts.
  */
 export function TodoStatusPicker({ todoId, onChanged }: { todoId: number; onChanged?: () => void }) {
@@ -57,7 +57,7 @@ function StatusPicker({ todo, onChanged }: { todo: TodoDetail; onChanged?: () =>
 
   return (
     // A div, not a <label>/<Field>: no clickable elements inside a label (Safari, see CLAUDE.md).
-    <div className="mt-4 rounded-md border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
+    <div className="rounded-md border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
           Status <StatusBadge status={todo.status} />

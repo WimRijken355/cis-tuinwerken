@@ -496,12 +496,15 @@ function HistoryPanel({
             }}
             showProject
             extra={
-              <QuoteLinePicker
-                customerId={customer.id}
-                todoId={editing.id}
-                value={editQuoteLineIds}
-                onChange={setEditQuoteLineIds}
-              />
+              <>
+                <QuoteLinePicker
+                  customerId={customer.id}
+                  todoId={editing.id}
+                  value={editQuoteLineIds}
+                  onChange={setEditQuoteLineIds}
+                />
+                <TodoStatusPicker todoId={editing.id} onChanged={onChanged} />
+              </>
             }
             submitLabel="Bewaren"
             busy={editMutation.isPending}
@@ -510,7 +513,6 @@ function HistoryPanel({
             onCancel={() => setEditing(null)}
           />
         )}
-        {editing && <TodoStatusPicker todoId={editing.id} onChanged={onChanged} />}
       </Modal>
     </section>
   );

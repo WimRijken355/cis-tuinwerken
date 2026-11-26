@@ -348,8 +348,9 @@ export interface TodoDetail extends TodoDto {
  * todo with name/address), title, total time, checklist and resources.
  * Opened from a sidebar card or from the details of a block in the grid, and
  * from the Todo's overview (which adds its blocks + status actions via `extra`).
- * The status can be set by hand at the very bottom (TodoStatusPicker, applied
- * at once) — a fallback, normally the status follows planning and registration.
+ * The status can be set by hand right above the save/cancel buttons
+ * (TodoStatusPicker, applied at once) — a fallback, normally the status
+ * follows the planning and the registration.
  */
 export function TodoEditDialog({
   todoId,
@@ -404,6 +405,7 @@ export function TodoEditDialog({
           }}
           todoId={todo.id}
           ownerLocked={registered}
+          footer={<TodoStatusPicker todoId={todo.id} />}
           submitLabel="Bewaren"
           busy={saveMutation.isPending}
           error={saveMutation.error ? (saveMutation.error as Error).message : null}
@@ -417,7 +419,6 @@ export function TodoEditDialog({
         </p>
       )}
       {todo && extra?.(todo)}
-      {todo && <TodoStatusPicker todoId={todo.id} />}
     </Modal>
   );
 }

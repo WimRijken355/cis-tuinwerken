@@ -5,8 +5,9 @@ import { describe, expect, it } from "vitest";
 /**
  * Every "Todo bewerken" dialog must offer the manual status (TodoStatusPicker),
  * otherwise it depends on the screen whether you can set a todo to "Klaar"
- * (v0.59.0 forgot the editor on the customer page). It is a fallback, so it is
- * always the last thing in the dialog.
+ * (v0.59.0 forgot the editor on the customer page). It is a fallback placed
+ * right above the save/cancel buttons: passed in the form's slot that TodoForm
+ * renders just before its buttons (`extra`, via TodoEditor `footer`).
  */
 
 const SRC = join(__dirname, "..");
@@ -25,10 +26,10 @@ export function editDialogsWithoutStatus(source: string): number {
   return dialogs.filter((d) => !d.includes("<TodoStatusPicker")).length;
 }
 
-/** `<Modal title="Todo bewerken" …>` blocks whose last element is not the TodoStatusPicker. */
-export function editDialogsWithStatusNotLast(source: string): number {
+/** `<Modal title="Todo bewerken" …>` blocks where the picker is not passed in the form's extra/footer slot. */
+export function editDialogsWithStatusOutsideForm(source: string): number {
   const dialogs = source.match(/<Modal\s+title="Todo bewerken"[\s\S]*?<\/Modal>/g) ?? [];
-  return dialogs.filter((d) => !/<TodoStatusPicker[^>]*\/>\}?\s*<\/Modal>$/.test(d)).length;
+  return dialogs.filter((d) => !/\b(extra|footer)=\{[\s\S]{0,600}?<TodoStatusPicker\b/.test(d)).length;
 }
 
 describe("status picker in every todo edit dialog", () => {
@@ -50,22 +51,28 @@ describe("status picker in every todo edit dialog", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("the picker is always at the very bottom of the dialog", () => {
+  it("the picker sits right above the save/cancel buttons (form slot)", () => {
     expect(
-      editDialogsWithStatusNotLast(`<Modal title="Todo bewerken" open>
-<TodoStatusPicker todoId={1} />
+      editDialogsWithStatusOutsideForm(`<Modal title="Todo bewerken" open>
 <TodoForm />
+<TodoStatusPicker todoId={1} />
 </Modal>`),
     ).toBe(1);
     expect(
-      editDialogsWithStatusNotLast(`<Modal title="Todo bewerken" open>
-<TodoForm />
-{todo && <TodoStatusPicker todoId={1} />}
+      editDialogsWithStatusOutsideForm(`<Modal title="Todo bewerken" open>
+<TodoEditor footer={<TodoStatusPicker todoId={1} />} />
 </Modal>`),
     ).toBe(0);
     const offenders = tsxFiles(SRC)
-      .filter((file) => editDialogsWithStatusNotLast(readFileSync(file, "utf8")) > 0)
+      .filter((file) => editDialogsWithStatusOutsideForm(readFileSync(file, "utf8")) > 0)
       .map((file) => relative(SRC, file));
     expect(offenders).toEqual([]);
+  });
+
+  it("TodoForm renders its slot right before the buttons, and TodoEditor passes footer into it", () => {
+    const form = readFileSync(join(SRC, "components", "todo-form.tsx"), "utf8");
+    expect(form).toMatch(/\{extra\}\s*<div className="flex justify-end gap-2">/);
+    const editor = readFileSync(join(SRC, "components", "todo-editor.tsx"), "utf8");
+    expect(editor).toContain("extra={footer}");
   });
 });

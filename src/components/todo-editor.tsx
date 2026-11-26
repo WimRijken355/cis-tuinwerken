@@ -56,6 +56,7 @@ export function TodoEditor({
   onCancel,
   ownerLocked = false,
   todoId,
+  footer,
 }: {
   initial: TodoEditorInitial;
   submitLabel: string;
@@ -67,6 +68,8 @@ export function TodoEditor({
   ownerLocked?: boolean;
   /** The todo being edited (undefined for a new one). */
   todoId?: number;
+  /** Shown right above the save/cancel buttons (TodoForm `extra`). */
+  footer?: React.ReactNode;
 }) {
   const [kind, setKind] = useState(initial.kind);
   const [customer, setCustomer] = useState<PickedCustomer | null>(initial.customer);
@@ -200,6 +203,7 @@ export function TodoEditor({
         titleLabel={kind === "customer" ? "Wat moet er gebeuren?" : "Omschrijving"}
         titlePlaceholder={kind === "customer" ? "bv. Haag scheren" : "bv. Vakantie"}
         titleSuggestions={kind === "loose" ? (presets ?? []).map((p) => p.name) : []}
+        extra={footer}
       />
     </div>
   );
