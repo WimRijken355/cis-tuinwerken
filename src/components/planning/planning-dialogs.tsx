@@ -378,7 +378,7 @@ export function TodoEditDialog({
     <Modal title="Todo bewerken" open onClose={onClose}>
       {isLoading && <p className="text-sm text-gray-500">Laden…</p>}
       {loadError && <ErrorNote message={(loadError as Error).message} />}
-      {todo && <TodoStatusPicker todo={todo} />}
+      {todo && <TodoStatusPicker todoId={todo.id} />}
       {todo && (
         <TodoEditor
           initial={{

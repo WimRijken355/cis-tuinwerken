@@ -16,6 +16,7 @@ import { FilterBar, FilterField, selectClass } from "@/components/pagination";
 import { RecurringSection } from "@/components/recurring-section";
 import { TabPanel, Tabs } from "@/components/tabs";
 import { TodoForm, type TodoFormValues } from "@/components/todo-form";
+import { TodoStatusPicker } from "@/components/todo-status-picker";
 import { ResourceSummary, TodoChecklist } from "@/components/work-pickers";
 import {
   Button,
@@ -459,7 +460,7 @@ function HistoryPanel({
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     <StatusBadge status={t.status} />
-                    {open && <ActionButton action="edit" onClick={() => startEditing(t)} />}
+                    <ActionButton action="edit" onClick={() => startEditing(t)} />
                     {t.status === "OPEN" && (
                       <ActionButton action="delete" iconOnly label="Todo verwijderen" onClick={() => deleteTodo.mutate(t.id)} />
                     )}
@@ -481,6 +482,7 @@ function HistoryPanel({
       </div>
 
       <Modal title="Todo bewerken" open={editing !== null} onClose={() => setEditing(null)}>
+        {editing && <TodoStatusPicker todoId={editing.id} onChanged={onChanged} />}
         {editing && (
           <TodoForm
             key={editing.id}

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { TodoDetail } from "@/components/planning/planning-dialogs";
 import { ErrorNote, StatusBadge } from "@/components/ui";
-import { apiSend } from "@/lib/api-client";
+import { apiGet, apiSend } from "@/lib/api-client";
 import { todoChangedQueryKeys } from "@/lib/query-keys";
 import {
   manualStatusOptions,
@@ -13,10 +13,21 @@ import {
 } from "@/lib/todo-status";
 
 /**
- * "Status" at the top of the todo editor: set the status by hand, applied at
- * once (separate from "Bewaren"). Rules + confirmation: src/lib/todo-status.ts.
+ * "Status" at the top of every todo editor (TodoEditDialog and the editor on
+ * the customer page): set the status by hand, applied at once (separate from
+ * "Bewaren"). Loads the todo detail itself (same query as TodoEditDialog, so
+ * no extra request there). Rules + confirmation: src/lib/todo-status.ts.
  */
-export function TodoStatusPicker({ todo }: { todo: TodoDetail }) {
+export function TodoStatusPicker({ todoId, onChanged }: { todoId: number; onChanged?: () => void }) {
+  const { data: todo } = useQuery({
+    queryKey: ["todo", todoId],
+    queryFn: () => apiGet<TodoDetail>(`/api/todos/${todoId}`),
+  });
+  if (!todo) return null;
+  return <StatusPicker todo={todo} onChanged={onChanged} />;
+}
+
+function StatusPicker({ todo, onChanged }: { todo: TodoDetail; onChanged?: () => void }) {
   const queryClient = useQueryClient();
   const plannedBlocks = todo.appointments.filter((a) => a.status === "PLANNED").length;
   const uninvoicedDays = (todo.registrations ?? []).filter((r) => r.invoice === null).length;
@@ -28,6 +39,7 @@ export function TodoStatusPicker({ todo }: { todo: TodoDetail }) {
       for (const queryKey of todoChangedQueryKeys(todo.id)) void queryClient.invalidateQueries({ queryKey });
       void queryClient.invalidateQueries({ queryKey: ["appointment"] });
       void queryClient.invalidateQueries({ queryKey: ["customer"] });
+      onChanged?.();
     },
   });
 
