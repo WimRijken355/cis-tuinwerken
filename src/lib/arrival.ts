@@ -42,6 +42,22 @@ export function arrivalDefaultTime(arrivedAt: string | null, now: DateTime = Dat
   return roundToQuarter((arrivedAt ? toBrussels(arrivedAt) : now.setZone(ZONE)).toFormat("HH:mm"));
 }
 
+/**
+ * Default "van/tot" when registering, per quarter hour: "van" = the recorded
+ * arrival ("gestart om"), else the planned start; "tot" = the planned end of
+ * the resource's work (planned start + its proposed hours). If the arrival is
+ * at or after that planned end, "tot" = arrival + those hours instead.
+ */
+export function defaultWorkRange(
+  appointment: { startAt: string; arrivedAt: string | null },
+  hours: number,
+): { fromTime: string; toTime: string } {
+  const plannedEnd = toBrussels(appointment.startAt).plus({ hours });
+  const start = toBrussels(workStart(appointment));
+  const end = plannedEnd > start ? plannedEnd : start.plus({ hours });
+  return { fromTime: roundToQuarter(start.toFormat("HH:mm")), toTime: roundToQuarter(end.toFormat("HH:mm")) };
+}
+
 /** Start of the work when registering: the arrival if recorded, else the planned start. */
 export function workStart(appointment: { startAt: string; arrivedAt: string | null }): string {
   return appointment.arrivedAt ?? appointment.startAt;

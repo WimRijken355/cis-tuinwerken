@@ -31,7 +31,7 @@ import type { ChecklistItemDto } from "@/lib/schemas/checklist";
 import type { CompletionInput, RegistrationContextDto } from "@/lib/schemas/completions";
 import type { ResourceDto } from "@/lib/schemas/resources";
 import type { TodoDto } from "@/lib/schemas/todos";
-import { roundToQuarter, workStart } from "@/lib/arrival";
+import { defaultWorkRange } from "@/lib/arrival";
 import { QuarterTimeSelect } from "@/components/quarter-time-select";
 import { registerBackHref, registerBackLabel } from "@/lib/register-link";
 import { formatTime, toBrussels } from "@/lib/time";
@@ -114,16 +114,21 @@ function Register() {
   // Back to where the wizard was opened from: the Dagplanning (of that day) or Todo's.
   const backHref = registerBackHref(searchParams);
 
-  const { data: appointment, isLoading } = useQuery({
+  // Always fetch fresh: the wizard's state (e.g. "van" = the arrival entered on
+  // the Dagplanning) is initialised once from this data, so a cached copy from
+  // an earlier visit must never be used — wait for the refetch after mount.
+  const { data: appointment, isFetchedAfterMount: appointmentFresh } = useQuery({
     queryKey: ["appointment", id],
     queryFn: () => apiGet<AppointmentDto>(`/api/appointments/${id}`),
+    refetchOnMount: "always",
   });
-  const { data: context } = useQuery({
+  const { data: context, isFetchedAfterMount: contextFresh } = useQuery({
     queryKey: ["registration", id],
     queryFn: () => apiGet<RegistrationContextDto>(`/api/appointments/${id}/registration`),
+    refetchOnMount: "always",
   });
 
-  if (isLoading || !appointment || !context) return <Spinner />;
+  if (!appointmentFresh || !contextFresh || !appointment || !context) return <Spinner />;
   if (appointment.isLoose) {
     return <Blocked backHref={backHref} message="Een losse todo wordt niet geregistreerd of gefactureerd." />;
   }
@@ -158,32 +163,31 @@ function RegisterFlow({
   const blockHours = ceilToQuarterHour(context.blockMinutes / 60);
 
   // --- Step 1: resources --------------------------------------------------------
-  // Default "van/tot" per resource comes from the planned block, starting at
-  // the recorded arrival ("Aangekomen" on the Dagplanning) or else the planned
-  // start time, and running for its (capped) proposed hours — all per quarter
-  // hour (the van/tot pickers only offer quarters).
-  const start = workStart(appointment);
-  const blockStart = roundToQuarter(formatTime(start));
-  const timeAfter = (hours: number) =>
-    roundToQuarter(toBrussels(start).plus({ hours }).toFormat("HH:mm"));
+  // Default "van/tot" per resource (defaultWorkRange): "van" = the recorded
+  // arrival ("gestart om" on the Dagplanning) or else the planned start; "tot" =
+  // the planned end (planned start + the resource's capped proposed hours). The
+  // registered hours follow that range — all per quarter hour.
   const [lines, setLines] = useState<ResourceLine[]>(() =>
-    context.plannedResources.map((r) => ({
-      resourceId: r.resourceId,
-      name: r.name,
-      type: r.type,
-      hourlyRate: r.hourlyRate,
-      rateUnit: r.rateUnit,
-      invoicedDays: 1,
-      planned: true,
-      fromTime: blockStart,
-      toTime: timeAfter(r.proposedHours),
-      registeredHours: r.proposedHours,
-      invoicedHours: r.proposedHours,
-      invoicedTouched: false,
-      info: `gepland ${hoursText(r.todoHours)} op deze job${
-        r.alreadyRegisteredHours > 0 ? ` · al ${hoursText(r.alreadyRegisteredHours)} geregistreerd` : ""
-      }`,
-    })),
+    context.plannedResources.map((r) => {
+      const range = defaultWorkRange(appointment, r.proposedHours);
+      const hours = hoursFromTimeRange(range.fromTime, range.toTime);
+      return {
+        resourceId: r.resourceId,
+        name: r.name,
+        type: r.type,
+        hourlyRate: r.hourlyRate,
+        rateUnit: r.rateUnit,
+        invoicedDays: 1,
+        planned: true,
+        ...range,
+        registeredHours: hours,
+        invoicedHours: hours,
+        invoicedTouched: false,
+        info: `gepland ${hoursText(r.todoHours)} op deze job${
+          r.alreadyRegisteredHours > 0 ? ` · al ${hoursText(r.alreadyRegisteredHours)} geregistreerd` : ""
+        }`,
+      };
+    }),
   );
   const { data: allResources } = useQuery({
     queryKey: ["resources", "active"],
@@ -205,6 +209,8 @@ function RegisterFlow({
     );
   }
   function addResource(resource: ResourceDto) {
+    const range = defaultWorkRange(appointment, blockHours);
+    const hours = hoursFromTimeRange(range.fromTime, range.toTime);
     setLines((ls) => [
       ...ls,
       {
@@ -215,10 +221,9 @@ function RegisterFlow({
         rateUnit: resource.rateUnit,
         invoicedDays: 1,
         planned: false,
-        fromTime: blockStart,
-        toTime: timeAfter(blockHours),
-        registeredHours: blockHours,
-        invoicedHours: blockHours,
+        ...range,
+        registeredHours: hours,
+        invoicedHours: hours,
         invoicedTouched: false,
       },
     ]);

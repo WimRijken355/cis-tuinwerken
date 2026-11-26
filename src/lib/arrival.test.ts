@@ -1,6 +1,14 @@
 import { DateTime } from "luxon";
 import { describe, expect, it } from "vitest";
-import { QUARTER_TIMES, arrivalDefaultTime, arrivalIso, isTime, roundToQuarter, workStart } from "./arrival";
+import {
+  QUARTER_TIMES,
+  arrivalDefaultTime,
+  arrivalIso,
+  defaultWorkRange,
+  isTime,
+  roundToQuarter,
+  workStart,
+} from "./arrival";
 import { appointmentUpdateSchema } from "./schemas/appointments";
 
 describe("isTime", () => {
@@ -81,5 +89,28 @@ describe("appointmentUpdateSchema arrivedAt", () => {
     );
     expect(appointmentUpdateSchema.parse({ arrivedAt: null }).arrivedAt).toBeNull();
     expect("arrivedAt" in appointmentUpdateSchema.parse({})).toBe(false);
+  });
+});
+
+describe("defaultWorkRange", () => {
+  // Planned 08:00 (Brussels, winter time) for 8 h.
+  const startAt = "2026-11-26T07:00:00.000Z";
+
+  it("zonder aankomst: van/tot uit de planning", () => {
+    expect(defaultWorkRange({ startAt, arrivedAt: null }, 8)).toEqual({ fromTime: "08:00", toTime: "16:00" });
+  });
+
+  it("met aankomst: van = gestart om, tot = gepland einde", () => {
+    expect(defaultWorkRange({ startAt, arrivedAt: "2026-11-26T07:30:00.000Z" }, 8)).toEqual({
+      fromTime: "08:30",
+      toTime: "16:00",
+    });
+  });
+
+  it("aankomst ná het geplande einde: tot = aankomst + de uren", () => {
+    expect(defaultWorkRange({ startAt, arrivedAt: "2026-11-26T08:00:00.000Z" }, 1)).toEqual({
+      fromTime: "09:00",
+      toTime: "10:00",
+    });
   });
 });
