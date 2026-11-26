@@ -11,6 +11,7 @@ import { formatMinutesAsHours, partLabel, roundToQuarter, splitOverWorkdays } fr
 import { useWorkdayMinutes } from "@/lib/use-workday";
 import type { AppointmentDto, AppointmentInput } from "@/lib/schemas/appointments";
 import type { TodoDto, TodoRegistrationDto } from "@/lib/schemas/todos";
+import { TodoStatusPicker } from "@/components/todo-status-picker";
 import { ResourceChips } from "./planning-cards";
 
 /** Click on a block: details, the bevestigd/reservatie switches, reminder, remove. */
@@ -347,6 +348,7 @@ export interface TodoDetail extends TodoDto {
  * todo with name/address), title, total time, checklist and resources.
  * Opened from a sidebar card or from the details of a block in the grid, and
  * from the Todo's overview (which adds its blocks + status actions via `extra`).
+ * The status can be set by hand at the top (TodoStatusPicker, applied at once).
  */
 export function TodoEditDialog({
   todoId,
@@ -376,6 +378,7 @@ export function TodoEditDialog({
     <Modal title="Todo bewerken" open onClose={onClose}>
       {isLoading && <p className="text-sm text-gray-500">Laden…</p>}
       {loadError && <ErrorNote message={(loadError as Error).message} />}
+      {todo && <TodoStatusPicker todo={todo} />}
       {todo && (
         <TodoEditor
           initial={{

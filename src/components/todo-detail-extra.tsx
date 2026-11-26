@@ -31,7 +31,8 @@ interface CloseResult {
  * Below the todo editor in the Todo's overview: status, the blocks, what was
  * registered per day (invoiced hours still editable while the day is not in
  * EenvoudigFactureren), the invoices of the todo with a send button, and the
- * actions that are allowed (close with/without invoice, cancel, reopen, delete).
+ * actions that are allowed (close with/without invoice, delete). The status
+ * itself (cancel, reopen, …) is set with the picker at the top of the dialog.
  */
 export function TodoDetailExtra({
   todo,
@@ -79,10 +80,6 @@ export function TodoDetailExtra({
     ...new Map(registrations.flatMap((r) => (r.invoice ? [[r.invoice.id, r.invoice] as const] : []))).values(),
   ];
 
-  const statusMutation = useMutation({
-    mutationFn: (status: "OPEN" | "CANCELLED") => apiSend(`/api/todos/${todo.id}`, "PATCH", { status }),
-    onSuccess: onChanged,
-  });
   const deleteMutation = useMutation({
     mutationFn: () => apiSend(`/api/todos/${todo.id}`, "DELETE"),
     onSuccess: onDeleted,
@@ -94,17 +91,13 @@ export function TodoDetailExtra({
       onChanged();
     },
   });
-  const actionError = statusMutation.error ?? deleteMutation.error ?? closeMutation.error;
-  const busy = statusMutation.isPending || deleteMutation.isPending || closeMutation.isPending;
-  const anyAction = actions.canCancel || actions.canReopen || actions.canDelete || canInvoice || canCloseOnly;
+  const actionError = deleteMutation.error ?? closeMutation.error;
+  const busy = deleteMutation.isPending || closeMutation.isPending;
+  // Cancel/reopen: the status picker at the top of the dialog (TodoStatusPicker).
+  const anyAction = actions.canDelete || canInvoice || canCloseOnly;
 
   return (
     <div className="mt-4 space-y-3 border-t border-gray-100 pt-3">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-700">Status:</span>
-        <StatusBadge status={todo.status} />
-      </div>
-
       <div>
         <h3 className="mb-1 text-sm font-medium text-gray-700">Blokken ({blocks.length})</h3>
         {blocks.length === 0 ? (
@@ -225,16 +218,6 @@ export function TodoDetailExtra({
           {canCloseOnly && (
             <Button variant="secondary" disabled={busy} onClick={() => closeMutation.mutate(false)}>
               ✓ Afsluiten zonder factuur
-            </Button>
-          )}
-          {actions.canReopen && (
-            <Button variant="secondary" disabled={busy} onClick={() => statusMutation.mutate("OPEN")}>
-              ↺ Heropenen
-            </Button>
-          )}
-          {actions.canCancel && (
-            <Button variant="secondary" disabled={busy} onClick={() => statusMutation.mutate("CANCELLED")}>
-              Annuleren
             </Button>
           )}
           {actions.canDelete && (
