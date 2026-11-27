@@ -39,3 +39,13 @@ export async function refreshTrustedDevice(
   });
   return expiresAt;
 }
+
+/**
+ * Logging out forgets this device: its trust is removed (DB row), so the next
+ * login always asks for the 2FA code again, whatever is left of the rolling
+ * period. Other trusted devices of the user are not affected.
+ */
+export async function forgetTrustedDevice(token: string | undefined): Promise<void> {
+  if (!token) return;
+  await db.trustedDevice.deleteMany({ where: { tokenHash: sha256(token) } });
+}

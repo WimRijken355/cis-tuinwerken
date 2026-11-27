@@ -2,11 +2,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const findUnique = vi.fn();
 const update = vi.fn();
+const deleteMany = vi.fn();
 vi.mock("@/lib/db", () => ({
-  db: { trustedDevice: { findUnique: (...a: unknown[]) => findUnique(...a), update: (...a: unknown[]) => update(...a) } },
+  db: {
+    trustedDevice: {
+      findUnique: (...a: unknown[]) => findUnique(...a),
+      update: (...a: unknown[]) => update(...a),
+      deleteMany: (...a: unknown[]) => deleteMany(...a),
+    },
+  },
 }));
 
-const { refreshTrustedDevice } = await import("./trusted-device");
+const { forgetTrustedDevice, refreshTrustedDevice } = await import("./trusted-device");
+const { sha256 } = await import("./totp");
 const { TRUSTED_DEVICE_DAYS, SESSION_REFRESH_INTERVAL_MS } = await import("./session-ttl");
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -76,5 +84,19 @@ describe("refreshTrustedDevice", () => {
     findUnique.mockResolvedValue(device({ createdAt, expiresAt: hardLimit }));
     expect(await refreshTrustedDevice(1, "token", now)).toBeNull();
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe("forgetTrustedDevice (afmelden)", () => {
+  beforeEach(() => deleteMany.mockReset());
+
+  it("removes this device's trust, so the next login asks for 2FA again", async () => {
+    await forgetTrustedDevice("token");
+    expect(deleteMany).toHaveBeenCalledWith({ where: { tokenHash: sha256("token") } });
+  });
+
+  it("does nothing without a trusted-device cookie", async () => {
+    await forgetTrustedDevice(undefined);
+    expect(deleteMany).not.toHaveBeenCalled();
   });
 });
